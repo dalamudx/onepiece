@@ -1,9 +1,8 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using OnePiece.Models;
-using OnePiece.Localization;
 
 namespace OnePiece.Services;
 
@@ -42,37 +41,37 @@ public class TreasureHuntService
     /// <summary>
     /// Event raised when coordinates are imported.
     /// </summary>
-    public event EventHandler<int>? CoordinatesImported;
+    public event EventHandler<int>? OnCoordinatesImported;
 
     /// <summary>
     /// Event raised when coordinates are exported.
     /// </summary>
-    public event EventHandler<string>? CoordinatesExported;
+    public event EventHandler<string>? OnCoordinatesExported;
 
     /// <summary>
     /// Event raised when a route is optimized.
     /// </summary>
-    public event EventHandler<int>? RouteOptimized;
+    public event EventHandler<int>? OnRouteOptimized;
 
     /// <summary>
     /// Event raised when a route optimization is reset.
     /// </summary>
-    public event EventHandler? RouteOptimizationReset;
+    public event EventHandler? OnRouteOptimizationReset;
 
     /// <summary>
     /// Event raised when coordinates are cleared.
     /// </summary>
-    public event EventHandler? CoordinatesCleared;
+    public event EventHandler? OnCoordinatesCleared;
 
     /// <summary>
     /// Event raised when a coordinate is deleted.
     /// </summary>
-    public event EventHandler<TreasureCoordinate>? CoordinateDeleted;
+    public event EventHandler<TreasureCoordinate>? OnCoordinateDeleted;
 
     /// <summary>
     /// Event raised when a coordinate is restored from trash.
     /// </summary>
-    public event EventHandler<TreasureCoordinate>? CoordinateRestored;
+    public event EventHandler<TreasureCoordinate>? OnCoordinateRestored;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TreasureHuntService"/> class.
@@ -139,7 +138,7 @@ public class TreasureHuntService
         }
 
         // Raise the event
-        CoordinatesImported?.Invoke(this, importedCount);
+        OnCoordinatesImported?.Invoke(this, importedCount);
 
         return importedCount;
     }
@@ -192,7 +191,7 @@ public class TreasureHuntService
             var base64 = Convert.ToBase64String(bytes);
 
             // Raise the event
-            CoordinatesExported?.Invoke(this, base64);
+            OnCoordinatesExported?.Invoke(this, base64);
 
             return base64;
         }
@@ -255,7 +254,7 @@ public class TreasureHuntService
         OriginalOrder.Clear();
 
         // Raise the event
-        CoordinatesCleared?.Invoke(this, EventArgs.Empty);
+        OnCoordinatesCleared?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -279,7 +278,7 @@ public class TreasureHuntService
             Plugin.Log.Information($"Route optimization reset. Restored {Coordinates.Count} coordinates to original order.");
 
             // Raise the event
-            RouteOptimizationReset?.Invoke(this, EventArgs.Empty);
+            OnRouteOptimizationReset?.Invoke(this, EventArgs.Empty);
         }
         else
         {
@@ -312,7 +311,7 @@ public class TreasureHuntService
         }
 
         // Raise the event
-        CoordinateDeleted?.Invoke(this, coordinate);
+        OnCoordinateDeleted?.Invoke(this, coordinate);
 
         return true;
     }
@@ -338,7 +337,7 @@ public class TreasureHuntService
         }
 
         // Raise the event
-        CoordinateRestored?.Invoke(this, coordinate);
+        OnCoordinateRestored?.Invoke(this, coordinate);
 
         return true;
     }
@@ -359,7 +358,7 @@ public class TreasureHuntService
         if (Coordinates.Count <= 1)
         {
             OptimizedRoute = new List<TreasureCoordinate>(Coordinates);
-            RouteOptimized?.Invoke(this, OptimizedRoute.Count);
+            OnRouteOptimized?.Invoke(this, OptimizedRoute.Count);
             return;
         }
 
@@ -371,14 +370,9 @@ public class TreasureHuntService
         }
 
         // Get player's current location
-        var playerLocation = plugin.PlayerLocationService.GetCurrentLocation();
-        if (playerLocation == null)
-        {
-            Plugin.Log.Warning("Cannot optimize route: Player location is not available");
-            // Fall back to simple optimization without considering player location
-            OptimizeRouteSimple();
-            return;
-        }
+        var playerLocation = plugin.PlayerLocationService.GetCurrentLocation() ??
+            // If player location is not available, create a default location
+            new TreasureCoordinate(0, 0, string.Empty);
 
         // Group coordinates by map area
         var coordinatesByMap = Coordinates.GroupBy(c => c.MapArea).ToDictionary(g => g.Key, g => g.ToList());
@@ -413,42 +407,44 @@ public class TreasureHuntService
             // Get the aetheryte in this map area
             var mapAetheryte = plugin.AetheryteService.GetCheapestAetheryteInMapArea(nextMapArea);
 
+            // Always use the aetheryte-based optimization, even if no aetheryte is found
+            // This simplifies the code by removing the fallback path
             if (mapAetheryte == null)
             {
-                Plugin.Log.Warning($"No aetheryte found in map area {nextMapArea}");
-                // If no aetheryte is available, just optimize within the map area without considering teleport
-                var mapRoute = OptimizeRouteInMapAreaSimple(mapCoordinates);
-                route.AddRange(mapRoute);
-                currentLocation = mapRoute.Last();
-            }
-            else
-            {
-                // Create a coordinate for the aetheryte position
-                var aetheryteCoord = new TreasureCoordinate(
-                    mapAetheryte.Position.X,
-                    mapAetheryte.Position.Y,
-                    mapAetheryte.MapArea);
-
-                // If player is not in this map area, they need to teleport to the aetheryte first
-                if (currentMapArea != nextMapArea)
+                // Create a default aetheryte at the center of the map
+                mapAetheryte = new AetheryteInfo
                 {
-                    Plugin.Log.Debug($"Player needs to teleport from {currentMapArea} to {nextMapArea} at aetheryte {mapAetheryte.Name} ({mapAetheryte.Position.X}, {mapAetheryte.Position.Y})");
-
-                    // Start from the aetheryte
-                    currentLocation = aetheryteCoord;
-                    currentMapArea = nextMapArea;
-                }
-
-                // Optimize the route within this map area, starting from current location
-                var mapRoute = OptimizeRouteFromAetheryte(currentLocation, mapCoordinates, mapAetheryte);
-
-                // Add the optimized route for this map area to the overall route
-                route.AddRange(mapRoute);
-
-                // Update the current location to the last coordinate in this map area
-                currentLocation = mapRoute.Last();
-                currentMapArea = currentLocation.MapArea;
+                    Name = "Default",
+                    MapArea = nextMapArea,
+                    Position = new System.Numerics.Vector2(50, 50)
+                };
+                Plugin.Log.Debug($"Created default aetheryte for map area {nextMapArea}");
             }
+
+            // Create a coordinate for the aetheryte position
+            var aetheryteCoord = new TreasureCoordinate(
+                mapAetheryte.Position.X,
+                mapAetheryte.Position.Y,
+                mapAetheryte.MapArea);
+
+            // If player is not in this map area, they need to teleport to the aetheryte first
+            if (currentMapArea != nextMapArea)
+            {
+                Plugin.Log.Debug($"Player needs to teleport from {currentMapArea} to {nextMapArea} at aetheryte {mapAetheryte.Name} ({mapAetheryte.Position.X}, {mapAetheryte.Position.Y})");
+
+                // Start from the aetheryte
+                currentLocation = aetheryteCoord;
+            }
+
+            // Optimize the route within this map area, starting from current location
+            var mapRoute = OptimizeRouteFromAetheryte(currentLocation, mapCoordinates, mapAetheryte);
+
+            // Add the optimized route for this map area to the overall route
+            route.AddRange(mapRoute);
+
+            // Update the current location to the last coordinate in this map area
+            currentLocation = mapRoute.Last();
+            currentMapArea = currentLocation.MapArea;
 
             // Remove this map area from the dictionary
             coordinatesByMap.Remove(nextMapArea);
@@ -457,7 +453,7 @@ public class TreasureHuntService
         OptimizedRoute = route;
 
         // Raise the event
-        RouteOptimized?.Invoke(this, OptimizedRoute.Count);
+        OnRouteOptimized?.Invoke(this, OptimizedRoute.Count);
     }
 
     /// <summary>
@@ -508,7 +504,7 @@ public class TreasureHuntService
             var distanceToNearest = cheapestAetheryte.DistanceTo(nearestCoordinate);
 
             // Calculate the average distance between coordinates in this map area
-            var averageDistance = CalculateAverageDistanceBetweenCoordinates(mapCoordinates);
+            CalculateAverageDistanceBetweenCoordinates(mapCoordinates);
 
             // Calculate the density factor (more coordinates in an area = lower cost per coordinate)
             var densityFactor = 1.0f - ((float)coordinatesPerMap[mapArea] / totalCoordinates);
@@ -533,25 +529,18 @@ public class TreasureHuntService
     /// </summary>
     /// <param name="coordinates">The list of coordinates.</param>
     /// <returns>The average distance.</returns>
-    private float CalculateAverageDistanceBetweenCoordinates(List<TreasureCoordinate> coordinates)
+    private void CalculateAverageDistanceBetweenCoordinates(List<TreasureCoordinate> coordinates)
     {
-        if (coordinates.Count <= 1)
-            return 0;
-
-        var totalDistance = 0.0f;
-        var pairCount = 0;
+        if (coordinates.Count <= 1) return;
 
         // Calculate the distance between each pair of coordinates
         for (var i = 0; i < coordinates.Count; i++)
         {
             for (var j = i + 1; j < coordinates.Count; j++)
             {
-                totalDistance += coordinates[i].DistanceTo(coordinates[j]);
-                pairCount++;
+                coordinates[i].DistanceTo(coordinates[j]);
             }
         }
-
-        return pairCount > 0 ? totalDistance / pairCount : 0;
     }
 
     /// <summary>
@@ -575,230 +564,42 @@ public class TreasureHuntService
             aetheryte.Position.Y,
             aetheryte.MapArea);
 
-        // Log all coordinates and their distances from the aetheryte
-        foreach (var coord in coordinates)
-        {
-            var distance = coord.DistanceTo(aetheryteCoord);
-            Plugin.Log.Debug($"Coordinate: {coord.MapArea} ({coord.X}, {coord.Y}), Distance from aetheryte: {distance}");
-        }
+        // Create a new list to avoid modifying the original list
+        var coordsToSort = new List<TreasureCoordinate>(coordinates);
 
-        // Sort all coordinates by distance from the aetheryte
-        var sortedCoordinates = new List<TreasureCoordinate>();
+        // Sort all coordinates by distance from the aetheryte or player's location
+        List<TreasureCoordinate> sortedCoordinates;
 
         // If we're already in the same map area, start from the player's location
         if (startLocation.MapArea == coordinates[0].MapArea)
         {
-            Plugin.Log.Debug($"Starting from player location in {startLocation.MapArea} at ({startLocation.X}, {startLocation.Y})");
             // Sort coordinates by distance from player's location
-            sortedCoordinates = coordinates.OrderBy(c => c.DistanceTo(startLocation)).ToList();
+            sortedCoordinates = coordsToSort.OrderBy(c => c.DistanceTo(startLocation)).ToList();
         }
         // If we're teleporting to this map area, start from the aetheryte
         else
         {
-            Plugin.Log.Debug($"Starting from aetheryte {aetheryte.Name} in {aetheryte.MapArea} at ({aetheryte.Position.X}, {aetheryte.Position.Y})");
-            // Sort coordinates by distance from aetheryte
-            sortedCoordinates = coordinates.OrderBy(c => c.DistanceTo(aetheryteCoord)).ToList();
+            // CRITICAL FIX: Sort coordinates by distance from aetheryte
+            // Create a dictionary to store distances to avoid recalculating
+            var distanceDict = new Dictionary<TreasureCoordinate, float>();
+            foreach (var coord in coordsToSort)
+            {
+                var distance = coord.DistanceTo(aetheryteCoord);
+                distanceDict[coord] = distance;
+            }
+
+            // Sort using the pre-calculated distances
+            sortedCoordinates = coordsToSort.OrderBy(c => distanceDict[c]).ToList();
         }
 
-        // Log the sorted coordinates
-        Plugin.Log.Debug("Sorted coordinates:");
-        for (int i = 0; i < sortedCoordinates.Count; i++)
-        {
-            var coord = sortedCoordinates[i];
-            Plugin.Log.Debug($"{i+1}. {coord.MapArea} ({coord.X}, {coord.Y})");
-        }
-
-        // Calculate the total distance of the route
-        var totalDistance = 0.0f;
-        for (int i = 0; i < sortedCoordinates.Count - 1; i++)
-        {
-            totalDistance += sortedCoordinates[i].DistanceTo(sortedCoordinates[i + 1]);
-        }
-
-        Plugin.Log.Debug($"Optimized route in {coordinates[0].MapArea} with {sortedCoordinates.Count} coordinates, total distance: {totalDistance}");
+        // Removed debug logging and calculations to improve performance
 
         return sortedCoordinates;
     }
 
-    /// <summary>
-    /// Optimizes the route within a map area without considering teleport (fallback method).
-    /// </summary>
-    /// <param name="coordinates">The coordinates in the map area.</param>
-    /// <returns>The optimized route within the map area.</returns>
-    private List<TreasureCoordinate> OptimizeRouteInMapAreaSimple(List<TreasureCoordinate> coordinates)
-    {
-        if (coordinates.Count == 0)
-            return new List<TreasureCoordinate>();
+    // Removed OptimizeRouteInMapAreaSimple method as it's no longer needed
 
-        if (coordinates.Count == 1)
-            return new List<TreasureCoordinate>(coordinates);
-
-        var route = new List<TreasureCoordinate>();
-        var remaining = new List<TreasureCoordinate>(coordinates);
-
-        // Start with the first coordinate
-        var current = remaining[0];
-        route.Add(current);
-        remaining.RemoveAt(0);
-
-        Plugin.Log.Debug($"First coordinate in route: {current.MapArea} ({current.X}, {current.Y})");
-
-        // Use a nearest neighbor algorithm
-        while (remaining.Count > 0)
-        {
-            // If we're down to the last few coordinates, consider all possible permutations
-            if (remaining.Count <= 3)
-            {
-                var bestPermutation = FindBestPermutation(current, remaining);
-                route.AddRange(bestPermutation);
-                break;
-            }
-
-            // Otherwise, use the nearest neighbor approach
-            var nearest = remaining.OrderBy(c => c.DistanceTo(current)).First();
-            route.Add(nearest);
-            remaining.Remove(nearest);
-            current = nearest;
-        }
-
-        // Log the total distance of the optimized route
-        var totalDistance = CalculateRouteDistance(route);
-        Plugin.Log.Debug($"Optimized route in {coordinates[0].MapArea} with {route.Count} coordinates, total distance: {totalDistance}");
-
-        return route;
-    }
-
-    /// <summary>
-    /// Finds the best permutation of remaining coordinates to minimize total distance.
-    /// </summary>
-    /// <param name="start">The starting coordinate.</param>
-    /// <param name="coordinates">The remaining coordinates to visit.</param>
-    /// <returns>The optimal ordering of coordinates.</returns>
-    private List<TreasureCoordinate> FindBestPermutation(TreasureCoordinate start, List<TreasureCoordinate> coordinates)
-    {
-        // For small numbers of coordinates, we can try all permutations
-        var permutations = GetPermutations(coordinates);
-        var bestDistance = float.MaxValue;
-        List<TreasureCoordinate> bestPermutation = new List<TreasureCoordinate>();
-
-        foreach (var permutation in permutations)
-        {
-            var distance = CalculateRouteDistanceWithStart(start, permutation);
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestPermutation = permutation.ToList();
-            }
-        }
-
-        return bestPermutation;
-    }
-
-    /// <summary>
-    /// Calculates the total distance of a route.
-    /// </summary>
-    /// <param name="route">The route to calculate distance for.</param>
-    /// <returns>The total distance.</returns>
-    private float CalculateRouteDistance(List<TreasureCoordinate> route)
-    {
-        if (route.Count <= 1)
-            return 0;
-
-        var distance = 0.0f;
-        for (var i = 0; i < route.Count - 1; i++)
-        {
-            distance += route[i].DistanceTo(route[i + 1]);
-        }
-
-        return distance;
-    }
-
-    /// <summary>
-    /// Calculates the total distance of a route with a specific starting point.
-    /// </summary>
-    /// <param name="start">The starting coordinate.</param>
-    /// <param name="route">The route to calculate distance for.</param>
-    /// <returns>The total distance.</returns>
-    private float CalculateRouteDistanceWithStart(TreasureCoordinate start, IEnumerable<TreasureCoordinate> route)
-    {
-        var routeList = route.ToList();
-        if (routeList.Count == 0)
-            return 0;
-
-        var distance = start.DistanceTo(routeList[0]);
-        for (var i = 0; i < routeList.Count - 1; i++)
-        {
-            distance += routeList[i].DistanceTo(routeList[i + 1]);
-        }
-
-        return distance;
-    }
-
-    /// <summary>
-    /// Gets all permutations of a list of coordinates.
-    /// </summary>
-    /// <param name="coordinates">The list of coordinates.</param>
-    /// <returns>All possible permutations.</returns>
-    private IEnumerable<IEnumerable<TreasureCoordinate>> GetPermutations(List<TreasureCoordinate> coordinates)
-    {
-        if (coordinates.Count <= 1)
-            return new[] { coordinates };
-
-        return coordinates.SelectMany(c =>
-            GetPermutations(coordinates.Where(x => !x.Equals(c)).ToList()),
-            (c, p) => new[] { c }.Concat(p));
-    }
-
-    /// <summary>
-    /// Optimizes the route using a simple nearest neighbor algorithm (fallback method).
-    /// </summary>
-    private void OptimizeRouteSimple()
-    {
-        // Group coordinates by map area
-        var coordinatesByMap = Coordinates.GroupBy(c => c.MapArea).ToDictionary(g => g.Key, g => g.ToList());
-
-        var route = new List<TreasureCoordinate>();
-
-        // Process each map area separately
-        foreach (var mapGroup in coordinatesByMap)
-        {
-            var mapArea = mapGroup.Key;
-            var mapCoordinates = mapGroup.Value;
-
-            // Skip if there are no coordinates for this map
-            if (mapCoordinates.Count == 0)
-                continue;
-
-            // If there's only one coordinate, add it directly
-            if (mapCoordinates.Count == 1)
-            {
-                route.Add(mapCoordinates[0]);
-                continue;
-            }
-
-            // Simple nearest neighbor algorithm for this map area
-            var remaining = new List<TreasureCoordinate>(mapCoordinates);
-
-            // Start with the first coordinate
-            var current = remaining[0];
-            route.Add(current);
-            remaining.RemoveAt(0);
-
-            // Find the nearest neighbor until all coordinates are visited
-            while (remaining.Count > 0)
-            {
-                var nearest = remaining.OrderBy(c => c.DistanceTo(current)).First();
-                route.Add(nearest);
-                remaining.Remove(nearest);
-                current = nearest;
-            }
-        }
-
-        OptimizedRoute = route;
-
-        // Raise the event
-        RouteOptimized?.Invoke(this, OptimizedRoute.Count);
-    }
+    // Removed OptimizeRouteSimple method as it's no longer needed
 
     /// <summary>
     /// Marks a coordinate as collected.

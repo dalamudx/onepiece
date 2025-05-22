@@ -12,9 +12,9 @@ namespace OnePiece.Services;
 /// </summary>
 public class TerritoryManager
 {
-    private readonly IDataManager _data;
-    private readonly IPluginLog _log;
-    private readonly IEnumerable<TerritoryDetail> _territoryDetails;
+    private readonly IDataManager data;
+    private readonly IPluginLog log;
+    private readonly IEnumerable<TerritoryDetail> territoryDetails;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TerritoryManager"/> class.
@@ -23,9 +23,9 @@ public class TerritoryManager
     /// <param name="log">The plugin log.</param>
     public TerritoryManager(IDataManager data, IPluginLog log)
     {
-        _data = data;
-        _log = log;
-        _territoryDetails = LoadTerritoryDetails();
+        this.data = data;
+        this.log = log;
+        territoryDetails = LoadTerritoryDetails();
     }
 
     /// <summary>
@@ -38,26 +38,26 @@ public class TerritoryManager
     {
         if (string.IsNullOrEmpty(zone)) return null;
 
-        if (!_territoryDetails.Any())
+        if (!this.territoryDetails.Any())
         {
-            _log.Warning("Territory details list is empty, reloading...");
+            log.Warning("Territory details list is empty, reloading...");
             LoadTerritoryDetails();
         }
 
-        var territoryDetails = _territoryDetails
-            .Where(x => x.Name.Equals(zone, StringComparison.OrdinalIgnoreCase) ||
-                        (matchPartial && x.Name.Contains(zone, StringComparison.CurrentCultureIgnoreCase)))
-            .OrderBy(x => x.Name.Length);
+        var territoryDetails = this.territoryDetails
+                                   .Where(x => x.Name.Equals(zone, StringComparison.OrdinalIgnoreCase) ||
+                                               (matchPartial && x.Name.Contains(zone, StringComparison.CurrentCultureIgnoreCase)))
+                                   .OrderBy(x => x.Name.Length);
 
         var territoryDetail = territoryDetails.FirstOrDefault();
 
         if (territoryDetail == null)
         {
-            _log.Warning($"Could not find territory for zone: {zone}");
+            log.Warning($"Could not find territory for zone: {zone}");
         }
         else
         {
-            _log.Information($"Found territory for zone: {zone} -> {territoryDetail.Name} (TerritoryId: {territoryDetail.TerritoryId}, MapId: {territoryDetail.MapId})");
+            log.Information($"Found territory for zone: {zone} -> {territoryDetail.Name} (TerritoryId: {territoryDetail.TerritoryId}, MapId: {territoryDetail.MapId})");
         }
 
         return territoryDetail;
@@ -70,21 +70,21 @@ public class TerritoryManager
     /// <returns>The territory detail, or null if not found.</returns>
     public TerritoryDetail? GetByTerritoryType(uint territoryType)
     {
-        if (!_territoryDetails.Any())
+        if (!territoryDetails.Any())
         {
-            _log.Warning("Territory details list is empty, reloading...");
+            log.Warning("Territory details list is empty, reloading...");
             LoadTerritoryDetails();
         }
 
-        var territoryDetail = _territoryDetails.FirstOrDefault(x => x.TerritoryId == territoryType);
+        var territoryDetail = territoryDetails.FirstOrDefault(x => x.TerritoryId == territoryType);
 
         if (territoryDetail == null)
         {
-            _log.Warning($"Could not find territory for type: {territoryType}");
+            log.Warning($"Could not find territory for type: {territoryType}");
         }
         else
         {
-            _log.Information($"Found territory for type: {territoryType} -> {territoryDetail.Name} (MapId: {territoryDetail.MapId})");
+            log.Information($"Found territory for type: {territoryType} -> {territoryDetail.Name} (MapId: {territoryDetail.MapId})");
         }
 
         return territoryDetail;
@@ -98,12 +98,7 @@ public class TerritoryManager
     {
         try
         {
-            var territoryTypes = _data.GetExcelSheet<TerritoryType>();
-            if (territoryTypes == null)
-            {
-                _log.Error("Failed to load TerritoryType sheet");
-                return Enumerable.Empty<TerritoryDetail>();
-            }
+            var territoryTypes = data.GetExcelSheet<TerritoryType>();
 
             var details = new List<TerritoryDetail>();
 
@@ -138,16 +133,16 @@ public class TerritoryManager
                 }
                 catch (Exception ex)
                 {
-                    _log.Error($"Error processing territory type {territoryType.RowId}: {ex.Message}");
+                    log.Error($"Error processing territory type {territoryType.RowId}: {ex.Message}");
                 }
             }
 
-            _log.Information($"Loaded {details.Count} territory details");
+            log.Information($"Loaded {details.Count} territory details");
             return details;
         }
         catch (Exception ex)
         {
-            _log.Error($"Error loading territory details: {ex.Message}");
+            log.Error($"Error loading territory details: {ex.Message}");
             return Enumerable.Empty<TerritoryDetail>();
         }
     }

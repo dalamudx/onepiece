@@ -1,5 +1,4 @@
 ﻿using Dalamud.Configuration;
-using Dalamud.Plugin;
 using System;
 
 namespace OnePiece;
@@ -9,8 +8,6 @@ public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 0;
 
-    // General settings
-    public bool IsConfigWindowMovable { get; set; } = true;
     public string Language { get; set; } = "en";
     public LogLevel LogLevel { get; set; } = LogLevel.Normal;
 

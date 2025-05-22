@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace OnePiece.Models;
@@ -73,7 +74,14 @@ public class TreasureCoordinate
     /// <returns>The distance between the two coordinates.</returns>
     public float DistanceTo(TreasureCoordinate other)
     {
-        return Vector2.Distance(Position, other.Position);
+        // Calculate Euclidean distance between the two points
+        float dx = X - other.X;
+        float dy = Y - other.Y;
+        float distance = (float)Math.Sqrt(dx * dx + dy * dy);
+
+        // Removed debug logging to improve performance
+
+        return distance;
     }
 
     /// <summary>

@@ -1,10 +1,9 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿using System;
 using System.Numerics;
-using Dalamud.Interface.Utility;
+using System.Collections.Generic;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
-using Lumina.Excel.Sheets;
 using System.Linq;
 using OnePiece.Localization;
 using OnePiece.Models;
@@ -13,15 +12,15 @@ namespace OnePiece.Windows;
 
 public class MainWindow : Window, IDisposable
 {
-    private Plugin Plugin;
+    private Plugin plugin;
     private string[] chatChannelNames = Array.Empty<string>(); // Initialize with empty array
-    private string[] supportedLanguages = Array.Empty<string>();
+    private string[] supportedLanguages;
     private string[] logLevels = Array.Empty<string>();
     private int selectedLanguageIndex;
     private int selectedChatChannelIndex;
     private int selectedLogLevelIndex;
 
-    public MainWindow(Plugin plugin, string logoImagePath)
+    public MainWindow(Plugin plugin)
         : base(Strings.GetString("MainWindowTitle") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -30,32 +29,32 @@ public class MainWindow : Window, IDisposable
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
 
-        Plugin = plugin;
+        this.plugin = plugin;
 
         // Initialize chat channel names
         InitializeChatChannelNames();
 
         // Initialize language selection
         supportedLanguages = Strings.GetSupportedLanguages();
-        selectedLanguageIndex = Array.IndexOf(supportedLanguages, Plugin.Configuration.Language);
+        selectedLanguageIndex = Array.IndexOf(supportedLanguages, this.plugin.Configuration.Language);
         if (selectedLanguageIndex < 0) selectedLanguageIndex = 0;
 
         // Initialize log level selection
         InitializeLogLevels();
-        selectedLogLevelIndex = (int)Plugin.Configuration.LogLevel;
+        selectedLogLevelIndex = (int)this.plugin.Configuration.LogLevel;
 
         // Initialize chat channel selection
-        selectedChatChannelIndex = (int)Plugin.Configuration.MonitoredChatChannel;
+        selectedChatChannelIndex = (int)this.plugin.Configuration.MonitoredChatChannel;
 
         // Subscribe to events
-        Plugin.TreasureHuntService.CoordinatesImported += OnCoordinatesImported;
-        Plugin.TreasureHuntService.RouteOptimized += OnRouteOptimized;
+        this.plugin.TreasureHuntService.OnCoordinatesImported += OnCoordinatesImported;
+        this.plugin.TreasureHuntService.OnRouteOptimized += OnRouteOptimized;
     }
 
     private void InitializeChatChannelNames()
     {
         // Create localized chat channel names
-        chatChannelNames = new string[]
+        chatChannelNames = new[]
         {
             Strings.GetString("Say"),
             Strings.GetString("Yell"),
@@ -85,7 +84,7 @@ public class MainWindow : Window, IDisposable
     private void InitializeLogLevels()
     {
         // Create localized log level names
-        logLevels = new string[]
+        logLevels = new[]
         {
             Strings.GetString("LogLevelMinimal"),
             Strings.GetString("LogLevelNormal"),
@@ -96,8 +95,8 @@ public class MainWindow : Window, IDisposable
     public void Dispose()
     {
         // Unsubscribe from events
-        Plugin.TreasureHuntService.CoordinatesImported -= OnCoordinatesImported;
-        Plugin.TreasureHuntService.RouteOptimized -= OnRouteOptimized;
+        plugin.TreasureHuntService.OnCoordinatesImported -= OnCoordinatesImported;
+        plugin.TreasureHuntService.OnRouteOptimized -= OnRouteOptimized;
     }
 
     public override void Draw()
@@ -127,9 +126,9 @@ public class MainWindow : Window, IDisposable
         ImGui.SetNextItemWidth(controlWidth);
         if (ImGui.Combo("##LanguageSelector", ref selectedLanguageIndex, supportedLanguages, supportedLanguages.Length))
         {
-            Plugin.Configuration.Language = supportedLanguages[selectedLanguageIndex];
-            Strings.SetLanguage(Plugin.Configuration.Language);
-            Plugin.Configuration.Save();
+            plugin.Configuration.Language = supportedLanguages[selectedLanguageIndex];
+            Strings.SetLanguage(plugin.Configuration.Language);
+            plugin.Configuration.Save();
 
             // Refresh localized strings
             InitializeChatChannelNames();
@@ -143,14 +142,14 @@ public class MainWindow : Window, IDisposable
         ImGui.SetNextItemWidth(controlWidth);
         if (ImGui.Combo("##LogLevelSelector", ref selectedLogLevelIndex, logLevels, logLevels.Length))
         {
-            Plugin.Configuration.LogLevel = (LogLevel)selectedLogLevelIndex;
-            Plugin.Configuration.Save();
+            plugin.Configuration.LogLevel = (LogLevel)selectedLogLevelIndex;
+            plugin.Configuration.Save();
         }
 
         // Show tooltip for the selected log level
         if (ImGui.IsItemHovered())
         {
-            switch (Plugin.Configuration.LogLevel)
+            switch (plugin.Configuration.LogLevel)
             {
                 case LogLevel.Minimal:
                     ImGui.SetTooltip(Strings.GetString("LogLevelMinimalTooltip"));
@@ -168,11 +167,11 @@ public class MainWindow : Window, IDisposable
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(Strings.GetString("AutoOptimizeRoute"));
         ImGui.SameLine(labelWidth);
-        var autoOptimize = Plugin.Configuration.AutoOptimizeRoute;
+        var autoOptimize = plugin.Configuration.AutoOptimizeRoute;
         if (ImGui.Checkbox("##AutoOptimizeRoute", ref autoOptimize))
         {
-            Plugin.Configuration.AutoOptimizeRoute = autoOptimize;
-            Plugin.Configuration.Save();
+            plugin.Configuration.AutoOptimizeRoute = autoOptimize;
+            plugin.Configuration.Save();
         }
 
         ImGui.Separator();
@@ -180,23 +179,23 @@ public class MainWindow : Window, IDisposable
         // Action buttons
         if (ImGui.Button(Strings.GetString("ClearAll")))
         {
-            Plugin.TreasureHuntService.ClearCoordinates();
+            plugin.TreasureHuntService.ClearCoordinates();
         }
 
         ImGui.SameLine();
 
-        if (Plugin.TreasureHuntService.IsRouteOptimized)
+        if (plugin.TreasureHuntService.IsRouteOptimized)
         {
             if (ImGui.Button(Strings.GetString("ResetOptimization")))
             {
-                Plugin.TreasureHuntService.ResetRouteOptimization();
+                plugin.TreasureHuntService.ResetRouteOptimization();
             }
         }
         else
         {
             if (ImGui.Button(Strings.GetString("OptimizeRoute")))
             {
-                Plugin.TreasureHuntService.OptimizeRoute();
+                plugin.TreasureHuntService.OptimizeRoute();
             }
         }
 
@@ -205,7 +204,7 @@ public class MainWindow : Window, IDisposable
         // Export button
         if (ImGui.Button(Strings.GetString("Export")))
         {
-            var exportedData = Plugin.TreasureHuntService.ExportCoordinates();
+            var exportedData = plugin.TreasureHuntService.ExportCoordinates();
             if (!string.IsNullOrEmpty(exportedData))
             {
                 ImGui.SetClipboardText(exportedData);
@@ -221,7 +220,7 @@ public class MainWindow : Window, IDisposable
             var clipboardText = ImGui.GetClipboardText();
             if (!string.IsNullOrEmpty(clipboardText))
             {
-                var importedCount = Plugin.TreasureHuntService.ImportCoordinates(clipboardText);
+                var importedCount = plugin.TreasureHuntService.ImportCoordinates(clipboardText);
                 if (importedCount > 0)
                 {
                     Plugin.ChatGui.Print(string.Format(Strings.GetString("CoordinatesImportedFromClipboard"), importedCount));
@@ -249,24 +248,24 @@ public class MainWindow : Window, IDisposable
         ImGui.SetNextItemWidth(controlWidth);
         if (ImGui.Combo("##ChatChannelSelector", ref selectedChatChannelIndex, chatChannelNames, chatChannelNames.Length))
         {
-            Plugin.Configuration.MonitoredChatChannel = (ChatChannelType)selectedChatChannelIndex;
-            Plugin.Configuration.Save();
+            plugin.Configuration.MonitoredChatChannel = (ChatChannelType)selectedChatChannelIndex;
+            plugin.Configuration.Save();
         }
 
         // Monitoring control buttons (without status display)
-        var isMonitoring = Plugin.ChatMonitorService.IsMonitoring;
+        var isMonitoring = plugin.ChatMonitorService.IsMonitoring;
         if (isMonitoring)
         {
             if (ImGui.Button(Strings.GetString("StopMonitoring")))
             {
-                Plugin.ChatMonitorService.StopMonitoring();
+                plugin.ChatMonitorService.StopMonitoring();
             }
         }
         else
         {
             if (ImGui.Button(Strings.GetString("StartMonitoring")))
             {
-                Plugin.ChatMonitorService.StartMonitoring();
+                plugin.ChatMonitorService.StartMonitoring();
             }
         }
 
@@ -277,8 +276,8 @@ public class MainWindow : Window, IDisposable
         {
             if (child.Success)
             {
-                var coordinates = Plugin.TreasureHuntService.Coordinates;
-                var optimizedRoute = Plugin.TreasureHuntService.OptimizedRoute;
+                var coordinates = plugin.TreasureHuntService.Coordinates;
+                var optimizedRoute = plugin.TreasureHuntService.OptimizedRoute;
 
                 if (coordinates.Count > 0)
                 {
@@ -288,14 +287,27 @@ public class MainWindow : Window, IDisposable
                         // Display optimized route title with count
                         ImGui.TextUnformatted(string.Format(Strings.GetString("OptimizedRouteWithCount"), optimizedRoute.Count));
 
-                        // Group coordinates by map area
-                        var coordinatesByMap = optimizedRoute.GroupBy(c => c.MapArea).ToDictionary(g => g.Key, g => g.ToList());
+                        // Group coordinates by map area - optimize by using a more efficient approach
+                        // Pre-allocate the dictionary with expected capacity to avoid resizing
+                        var uniqueMapAreas = new HashSet<string>(optimizedRoute.Select(c => c.MapArea));
+                        var coordinatesByMap = new Dictionary<string, List<TreasureCoordinate>>(uniqueMapAreas.Count);
+
+                        // Manually group coordinates to avoid multiple LINQ operations
+                        foreach (var mapArea in uniqueMapAreas)
+                        {
+                            coordinatesByMap[mapArea] = new List<TreasureCoordinate>();
+                        }
+
+                        // Fill the groups in a single pass through the coordinates
+                        foreach (var coord in optimizedRoute)
+                        {
+                            coordinatesByMap[coord.MapArea].Add(coord);
+                        }
 
                         // Display coordinates grouped by map area
                         foreach (var mapGroup in coordinatesByMap)
                         {
                             var mapArea = mapGroup.Key;
-                            var mapCoordinates = mapGroup.Value;
 
                             // Display map area header
                             if (!string.IsNullOrEmpty(mapArea))
@@ -307,10 +319,12 @@ public class MainWindow : Window, IDisposable
                                 ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), Strings.GetString("UnknownArea"));
                             }
 
-                            // Display coordinates for this map area
-                            for (var i = 0; i < mapCoordinates.Count; i++)
+                            // Get coordinates for this map area while preserving the original order
+                            // This is more efficient than using Where().ToList() on every frame
+                            var mapAreaCoords = mapGroup.Value;
+                            for (var i = 0; i < mapAreaCoords.Count; i++)
                             {
-                                var coord = mapCoordinates[i];
+                                var coord = mapAreaCoords[i];
                                 var isCollected = coord.IsCollected;
 
                                 if (isCollected)
@@ -344,7 +358,7 @@ public class MainWindow : Window, IDisposable
                                 // Send to Chat button
                                 if (ImGui.SmallButton(Strings.GetString("SendToChat") + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
-                                    Plugin.ChatMonitorService.SendCoordinateToChat(coord);
+                                    plugin.ChatMonitorService.SendCoordinateToChat(coord);
                                 }
 
                                 ImGui.SameLine();
@@ -352,10 +366,10 @@ public class MainWindow : Window, IDisposable
                                 // Collected button
                                 if (ImGui.SmallButton(Strings.GetString("Collected") + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
-                                    var index = Plugin.TreasureHuntService.Coordinates.IndexOf(coord);
+                                    var index = plugin.TreasureHuntService.Coordinates.IndexOf(coord);
                                     if (index >= 0)
                                     {
-                                        Plugin.TreasureHuntService.MarkAsCollected(index);
+                                        plugin.TreasureHuntService.MarkAsCollected(index);
                                     }
                                 }
 
@@ -395,7 +409,7 @@ public class MainWindow : Window, IDisposable
 
                             if (ImGui.SmallButton(Strings.GetString("Delete") + $"##raw{i}"))
                             {
-                                Plugin.TreasureHuntService.DeleteCoordinate(i);
+                                plugin.TreasureHuntService.DeleteCoordinate(i);
                             }
                         }
                     }
@@ -406,24 +420,24 @@ public class MainWindow : Window, IDisposable
                 }
 
                 // Display trash bin section if there are deleted coordinates
-                if (Plugin.TreasureHuntService.DeletedCoordinates.Count > 0)
+                if (plugin.TreasureHuntService.DeletedCoordinates.Count > 0)
                 {
                     ImGui.Separator();
 
                     // Display trash bin title with count
-                    ImGui.TextUnformatted(string.Format(Strings.GetString("TrashBinWithCount"), Plugin.TreasureHuntService.DeletedCoordinates.Count));
+                    ImGui.TextUnformatted(string.Format(Strings.GetString("TrashBinWithCount"), plugin.TreasureHuntService.DeletedCoordinates.Count));
 
                     // Clear trash button
                     ImGui.SameLine(ImGui.GetWindowWidth() - 100);
                     if (ImGui.SmallButton(Strings.GetString("ClearTrash")))
                     {
-                        Plugin.TreasureHuntService.ClearTrash();
+                        plugin.TreasureHuntService.ClearTrash();
                     }
 
                     // Display deleted coordinates
-                    for (var i = 0; i < Plugin.TreasureHuntService.DeletedCoordinates.Count; i++)
+                    for (var i = 0; i < plugin.TreasureHuntService.DeletedCoordinates.Count; i++)
                     {
-                        var coord = Plugin.TreasureHuntService.DeletedCoordinates[i];
+                        var coord = plugin.TreasureHuntService.DeletedCoordinates[i];
 
                         // Display with grayed out style
                         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
@@ -477,7 +491,7 @@ public class MainWindow : Window, IDisposable
                         // Restore button
                         if (ImGui.SmallButton(Strings.GetString("Restore") + $"##trash{i}"))
                         {
-                            Plugin.TreasureHuntService.RestoreCoordinate(i);
+                            plugin.TreasureHuntService.RestoreCoordinate(i);
                         }
                     }
                 }
@@ -492,7 +506,7 @@ public class MainWindow : Window, IDisposable
     private void OnCoordinatesImported(object? sender, int count)
     {
         // Only show log message if log level is Normal or higher
-        if (Plugin.Configuration.LogLevel >= LogLevel.Normal)
+        if (plugin.Configuration.LogLevel >= LogLevel.Normal)
         {
             Plugin.ChatGui.Print(string.Format(Strings.GetString("CoordinatesImported"), count));
         }
@@ -501,7 +515,7 @@ public class MainWindow : Window, IDisposable
     private void OnRouteOptimized(object? sender, int count)
     {
         // Only show log message if log level is Normal or higher
-        if (Plugin.Configuration.LogLevel >= LogLevel.Normal)
+        if (plugin.Configuration.LogLevel >= LogLevel.Normal)
         {
             Plugin.ChatGui.Print(string.Format(Strings.GetString("RouteOptimized"), count));
         }

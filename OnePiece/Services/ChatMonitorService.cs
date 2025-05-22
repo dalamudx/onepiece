@@ -7,7 +7,6 @@ using Dalamud.Plugin.Services;
 using OnePiece.Models;
 using OnePiece.Localization;
 using ECommons.Automation;
-using System.Threading;
 
 namespace OnePiece.Services;
 
@@ -30,7 +29,7 @@ public class ChatMonitorService : IDisposable
     /// <summary>
     /// Event raised when a coordinate is detected in chat.
     /// </summary>
-    public event EventHandler<TreasureCoordinate>? CoordinateDetected;
+    public event EventHandler<TreasureCoordinate>? OnCoordinateDetected;
 
     /// <summary>
     /// Gets whether the service is currently monitoring chat.
@@ -48,8 +47,8 @@ public class ChatMonitorService : IDisposable
         this.isMonitoring = false;
 
         // Subscribe to TreasureHuntService events
-        plugin.TreasureHuntService.RouteOptimized += OnRouteOptimized;
-        plugin.TreasureHuntService.RouteOptimizationReset += OnRouteOptimizationReset;
+        plugin.TreasureHuntService.OnRouteOptimized += OnRouteOptimized;
+        plugin.TreasureHuntService.OnRouteOptimizationReset += OnRouteOptimizationReset;
 
         // Start monitoring if enabled in configuration
         if (plugin.Configuration.EnableChatMonitoring)
@@ -275,7 +274,7 @@ public class ChatMonitorService : IDisposable
                 }
 
                 // Raise the event
-                CoordinateDetected?.Invoke(this, coordinate);
+                OnCoordinateDetected?.Invoke(this, coordinate);
             }
         }
     }
@@ -316,7 +315,7 @@ public class ChatMonitorService : IDisposable
                     }
 
                     // Raise the event
-                    CoordinateDetected?.Invoke(this, coordinate);
+                    OnCoordinateDetected?.Invoke(this, coordinate);
 
                     return true;
                 }
@@ -337,9 +336,8 @@ public class ChatMonitorService : IDisposable
     /// Prepares map coordinates for use with MapLinkPayload.
     /// </summary>
     /// <param name="pos">The map coordinate (1-42 range).</param>
-    /// <param name="scale">The map scale factor (not used).</param>
     /// <returns>The coordinate value for MapLinkPayload.</returns>
-    private static float ConvertMapCoordinateToRawPosition(float pos, float scale = 100.0f)
+    private static float ConvertMapCoordinateToRawPosition(float pos)
     {
         // it appears that MapLinkPayload expects the raw coordinate values
         // without any conversion.
@@ -376,8 +374,8 @@ public class ChatMonitorService : IDisposable
             return new MapLinkPayload(
                 territoryDetail.TerritoryId,
                 territoryDetail.MapId,
-                ConvertMapCoordinateToRawPosition(coordinate.X, territoryDetail.Scale),
-                ConvertMapCoordinateToRawPosition(coordinate.Y, territoryDetail.Scale)
+                ConvertMapCoordinateToRawPosition(coordinate.X),
+                ConvertMapCoordinateToRawPosition(coordinate.Y)
             );
         }
         catch (Exception ex)
@@ -414,9 +412,6 @@ public class ChatMonitorService : IDisposable
                 {
                     // Open the map with the marker
                     Plugin.GameGui.OpenMapWithMapLink(mapLink);
-
-                    // Wait a short time to ensure the map is fully opened
-                    Thread.Sleep(500);
 
                     // Now send the flag to chat
                     string mapLinkCommand = $"{chatCommand} <flag>";
@@ -509,7 +504,7 @@ public class ChatMonitorService : IDisposable
         StopMonitoring();
 
         // Unsubscribe from TreasureHuntService events
-        plugin.TreasureHuntService.RouteOptimized -= OnRouteOptimized;
-        plugin.TreasureHuntService.RouteOptimizationReset -= OnRouteOptimizationReset;
+        plugin.TreasureHuntService.OnRouteOptimized -= OnRouteOptimized;
+        plugin.TreasureHuntService.OnRouteOptimizationReset -= OnRouteOptimizationReset;
     }
 }

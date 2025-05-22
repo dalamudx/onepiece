@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace OnePiece.Models;
@@ -89,6 +90,13 @@ public class AetheryteInfo
     /// <returns>The distance in map units.</returns>
     public float DistanceTo(TreasureCoordinate coordinate)
     {
-        return Vector2.Distance(Position, coordinate.Position);
+        // Calculate Euclidean distance between the two points
+        float dx = Position.X - coordinate.X;
+        float dy = Position.Y - coordinate.Y;
+        float distance = (float)Math.Sqrt(dx * dx + dy * dy);
+
+        // Removed debug logging to improve performance
+
+        return distance;
     }
 }

@@ -64,7 +64,7 @@ public sealed class Plugin : IDalamudPlugin
         Strings.SetLanguage(Configuration.Language);
 
         // Initialize main window (without logo)
-        MainWindow = new MainWindow(this, string.Empty);
+        MainWindow = new MainWindow(this);
         WindowSystem.AddWindow(MainWindow);
 
         // Register command

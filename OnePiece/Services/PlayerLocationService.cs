@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using Dalamud.Plugin.Services;
 using OnePiece.Models;
 
@@ -10,9 +9,9 @@ namespace OnePiece.Services;
 /// </summary>
 public class PlayerLocationService
 {
-    private readonly IClientState _clientState;
-    private readonly IPluginLog _log;
-    private readonly TerritoryManager _territoryManager;
+    private readonly IClientState clientState;
+    private readonly IPluginLog log;
+    private readonly TerritoryManager territoryManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PlayerLocationService"/> class.
@@ -22,9 +21,9 @@ public class PlayerLocationService
     /// <param name="territoryManager">The territory manager.</param>
     public PlayerLocationService(IClientState clientState, IPluginLog log, TerritoryManager territoryManager)
     {
-        _clientState = clientState;
-        _log = log;
-        _territoryManager = territoryManager;
+        this.clientState = clientState;
+        this.log = log;
+        this.territoryManager = territoryManager;
     }
 
     /// <summary>
@@ -35,20 +34,20 @@ public class PlayerLocationService
     {
         try
         {
-            if (_clientState.LocalPlayer == null)
+            if (clientState.LocalPlayer == null)
             {
-                _log.Warning("Cannot get player location: LocalPlayer is null");
+                log.Warning("Cannot get player location: LocalPlayer is null");
                 return null;
             }
 
-            var position = _clientState.LocalPlayer.Position;
-            var territoryId = _clientState.TerritoryType;
+            var position = clientState.LocalPlayer.Position;
+            var territoryId = clientState.TerritoryType;
 
             // Convert world position to map coordinates
-            var territory = _territoryManager.GetByTerritoryType(territoryId);
+            var territory = territoryManager.GetByTerritoryType(territoryId);
             if (territory == null)
             {
-                _log.Warning($"Cannot get player location: Unknown territory {territoryId}");
+                log.Warning($"Cannot get player location: Unknown territory {territoryId}");
                 return null;
             }
 
@@ -61,7 +60,7 @@ public class PlayerLocationService
         }
         catch (Exception ex)
         {
-            _log.Error($"Error getting player location: {ex.Message}");
+            log.Error($"Error getting player location: {ex.Message}");
             return null;
         }
     }

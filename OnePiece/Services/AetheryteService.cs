@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
@@ -15,11 +14,11 @@ namespace OnePiece.Services;
 /// </summary>
 public class AetheryteService
 {
-    private readonly IDataManager _data;
-    private readonly IClientState _clientState;
-    private readonly IPluginLog _log;
-    private readonly TerritoryManager _territoryManager;
-    private List<AetheryteInfo> _aetherytes = new();
+    private readonly IDataManager data;
+    private readonly IClientState clientState;
+    private readonly IPluginLog log;
+    private readonly TerritoryManager territoryManager;
+    private List<AetheryteInfo> aetherytes = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AetheryteService"/> class.
@@ -30,10 +29,10 @@ public class AetheryteService
     /// <param name="territoryManager">The territory manager.</param>
     public AetheryteService(IDataManager data, IClientState clientState, IPluginLog log, TerritoryManager territoryManager)
     {
-        _data = data;
-        _clientState = clientState;
-        _log = log;
-        _territoryManager = territoryManager;
+        this.data = data;
+        this.clientState = clientState;
+        this.log = log;
+        this.territoryManager = territoryManager;
         LoadAetherytes();
     }
 
@@ -43,7 +42,7 @@ public class AetheryteService
     /// <returns>A list of all aetherytes.</returns>
     public IReadOnlyList<AetheryteInfo> GetAllAetherytes()
     {
-        return _aetherytes;
+        return aetherytes;
     }
 
     /// <summary>
@@ -53,7 +52,7 @@ public class AetheryteService
     /// <returns>A list of aetherytes in the specified map area.</returns>
     public IReadOnlyList<AetheryteInfo> GetAetherytesInMapArea(string mapArea)
     {
-        return _aetherytes.Where(a => a.MapArea.Equals(mapArea, StringComparison.OrdinalIgnoreCase)).ToList();
+        return aetherytes.Where(a => a.MapArea.Equals(mapArea, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     /// <summary>
@@ -93,24 +92,24 @@ public class AetheryteService
     /// <summary>
     /// Updates the teleport fees for a list of aetherytes using the game's Telepo API.
     /// </summary>
-    /// <param name="aetherytes">The list of aetherytes to update.</param>
-    private unsafe void UpdateTeleportFees(IEnumerable<AetheryteInfo> aetherytes)
+    /// <param name="targetAetherytes">The list of aetherytes to update.</param>
+    private unsafe void UpdateTeleportFees(IEnumerable<AetheryteInfo> targetAetherytes)
     {
         try
         {
             var telepo = Telepo.Instance();
             if (telepo == null)
             {
-                _log.Warning("Cannot update teleport fees: Telepo instance is null");
+                log.Warning("Cannot update teleport fees: Telepo instance is null");
                 return;
             }
 
-            foreach (var aetheryte in aetherytes)
+            foreach (var aetheryte in targetAetherytes)
             {
                 try
                 {
                     // Get the aetheryte row from the game data
-                    var aetheryteRow = _data.GetExcelSheet<Aetheryte>()?.GetRow(aetheryte.AetheryteRowId);
+                    var aetheryteRow = data.GetExcelSheet<Aetheryte>()?.GetRow(aetheryte.AetheryteRowId);
                     if (aetheryteRow == null)
                         continue;
 
@@ -126,15 +125,15 @@ public class AetheryteService
                     try
                     {
                         // Try to get player's current position
-                        if (_clientState.LocalPlayer != null)
+                        if (clientState.LocalPlayer != null)
                         {
-                            playerPos = new Vector2(_clientState.LocalPlayer.Position.X, _clientState.LocalPlayer.Position.Z);
-                            playerTerritory = _clientState.TerritoryType;
+                            playerPos = new Vector2(clientState.LocalPlayer!.Position.X, clientState.LocalPlayer.Position.Z);
+                            playerTerritory = clientState.TerritoryType;
                         }
                     }
                     catch (Exception ex)
                     {
-                        _log.Error($"Error getting player position: {ex.Message}");
+                        log.Error($"Error getting player position: {ex.Message}");
                     }
 
                     // Calculate distance-based cost
@@ -164,17 +163,17 @@ public class AetheryteService
                     var cost = baseCost + distanceCost;
                     aetheryte.ActualTeleportFee = (int)cost;
 
-                    _log.Debug($"Updated teleport fee for {aetheryte.Name}: {aetheryte.ActualTeleportFee} gil");
+                    log.Debug($"Updated teleport fee for {aetheryte.Name}: {aetheryte.ActualTeleportFee} gil");
                 }
                 catch (Exception ex)
                 {
-                    _log.Error($"Error updating teleport fee for aetheryte {aetheryte.Id}: {ex.Message}");
+                    log.Error($"Error updating teleport fee for aetheryte {aetheryte.Id}: {ex.Message}");
                 }
             }
         }
         catch (Exception ex)
         {
-            _log.Error($"Error updating teleport fees: {ex.Message}");
+            log.Error($"Error updating teleport fees: {ex.Message}");
         }
     }
 
@@ -185,14 +184,14 @@ public class AetheryteService
     {
         try
         {
-            var aetheryteSheet = _data.GetExcelSheet<Aetheryte>();
+            var aetheryteSheet = data.GetExcelSheet<Aetheryte>();
             if (aetheryteSheet == null)
             {
-                _log.Error("Failed to load Aetheryte sheet");
+                log.Error("Failed to load Aetheryte sheet");
                 return;
             }
 
-            var aetherytes = new List<AetheryteInfo>();
+            var loadedAetherytes = new List<AetheryteInfo>();
 
             foreach (var aetheryte in aetheryteSheet)
             {
@@ -203,7 +202,7 @@ public class AetheryteService
                         continue;
 
                     // Get territory and map information
-                    var territory = _territoryManager.GetByTerritoryType(aetheryte.Territory.RowId);
+                    var territory = territoryManager.GetByTerritoryType(aetheryte.Territory.RowId);
                     if (territory == null)
                         continue;
 
@@ -218,47 +217,47 @@ public class AetheryteService
                         MapArea = territory.Name,
                         // Create a default position since we can't access X and Z directly in the current API
                         Position = new Vector2(0, 0),
-                        BaseTeleportFee = CalculateBaseTeleportFee(aetheryte),
+                        BaseTeleportFee = CalculateBaseTeleportFee(),
                         ActualTeleportFee = 0, // Will be updated when needed
                         IsFavorite = false, // This would need to be determined from character data
                         IsFreeDestination = false // This would need to be determined from character data
                     };
 
-                    aetherytes.Add(aetheryteInfo);
+                    loadedAetherytes.Add(aetheryteInfo);
                 }
                 catch (Exception ex)
                 {
-                    _log.Error($"Error processing aetheryte {aetheryte.RowId}: {ex.Message}");
+                    log.Error($"Error processing aetheryte {aetheryte.RowId}: {ex.Message}");
                 }
             }
 
-            _aetherytes = aetherytes;
-            _log.Information($"Loaded {_aetherytes.Count} aetherytes");
+            this.aetherytes = loadedAetherytes;
+            log.Information($"Loaded {this.aetherytes.Count} aetherytes");
 
             // Try to update positions from the game data if possible
             UpdateAetherytePositions();
         }
         catch (Exception ex)
         {
-            _log.Error($"Error loading aetherytes: {ex.Message}");
+            log.Error($"Error loading aetherytes: {ex.Message}");
         }
     }
 
     /// <summary>
     /// Updates aetheryte positions from the game data if possible.
     /// </summary>
-    private unsafe void UpdateAetherytePositions()
+    private void UpdateAetherytePositions()
     {
         try
         {
             // Try to get aetheryte positions from the game data
             // This is a simplified implementation and might need to be improved
-            foreach (var aetheryte in _aetherytes)
+            foreach (var aetheryte in aetherytes)
             {
                 try
                 {
                     // Get the aetheryte row from the game data
-                    var aetheryteRow = _data.GetExcelSheet<Aetheryte>()?.GetRow(aetheryte.AetheryteRowId);
+                    var aetheryteRow = data.GetExcelSheet<Aetheryte>()?.GetRow(aetheryte.AetheryteRowId);
                     if (aetheryteRow == null)
                         continue;
 
@@ -266,29 +265,27 @@ public class AetheryteService
                     // In a real implementation, you would need to use the proper conversion from world coordinates to map coordinates
                     // For now, we'll use a simplified approach
                     aetheryte.Position = new Vector2(10, 10); // Default position in the center of the map
-                    _log.Debug($"Set default position for {aetheryte.Name}: (10, 10)");
+                    log.Debug($"Set default position for {aetheryte.Name}: (10, 10)");
                 }
                 catch (Exception ex)
                 {
-                    _log.Error($"Error updating position for aetheryte {aetheryte.Id}: {ex.Message}");
+                    log.Error($"Error updating position for aetheryte {aetheryte.Id}: {ex.Message}");
                 }
             }
         }
         catch (Exception ex)
         {
-            _log.Error($"Error updating aetheryte positions: {ex.Message}");
+            log.Error($"Error updating aetheryte positions: {ex.Message}");
         }
     }
 
     /// <summary>
     /// Calculates the base teleport fee for an aetheryte.
     /// </summary>
-    /// <param name="aetheryte">The aetheryte data.</param>
     /// <returns>The base teleport fee in gil.</returns>
-    private int CalculateBaseTeleportFee(Aetheryte aetheryte)
+    private int CalculateBaseTeleportFee()
     {
-        // This is a simplified calculation that will be replaced by the actual teleport cost from Telepo API
-        // We'll use a fixed base value as a fallback
+        // Use a standard base teleport fee
         return 100;
     }
 }

@@ -28,6 +28,8 @@ public sealed class Plugin : IDalamudPlugin
     public TreasureHuntService TreasureHuntService { get; init; }
     public ChatMonitorService ChatMonitorService { get; init; }
     public TerritoryManager TerritoryManager { get; init; }
+    public PlayerLocationService PlayerLocationService { get; init; }
+    public AetheryteService AetheryteService { get; init; }
 
     public readonly WindowSystem WindowSystem = new("OnePiece");
     private MainWindow MainWindow { get; init; }
@@ -42,10 +44,18 @@ public sealed class Plugin : IDalamudPlugin
 
         // Initialize services in the correct order
         TerritoryManager = new TerritoryManager(DataManager, Log);
-        TreasureHuntService = new TreasureHuntService(this);
 
-        // Load configuration before initializing ChatMonitorService
+        // Load configuration before initializing other services
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+
+        // Initialize player location service
+        PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager);
+
+        // Initialize aetheryte service
+        AetheryteService = new AetheryteService(DataManager, ClientState, Log, TerritoryManager);
+
+        // Initialize treasure hunt service
+        TreasureHuntService = new TreasureHuntService(this);
 
         // Initialize ChatMonitorService after TreasureHuntService and Configuration
         ChatMonitorService = new ChatMonitorService(this);

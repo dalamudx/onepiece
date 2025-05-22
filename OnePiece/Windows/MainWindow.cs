@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Numerics;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
@@ -197,6 +197,43 @@ public class MainWindow : Window, IDisposable
             if (ImGui.Button(Strings.GetString("OptimizeRoute")))
             {
                 Plugin.TreasureHuntService.OptimizeRoute();
+            }
+        }
+
+        ImGui.SameLine();
+
+        // Export button
+        if (ImGui.Button(Strings.GetString("Export")))
+        {
+            var exportedData = Plugin.TreasureHuntService.ExportCoordinates();
+            if (!string.IsNullOrEmpty(exportedData))
+            {
+                ImGui.SetClipboardText(exportedData);
+                Plugin.ChatGui.Print(Strings.GetString("CoordinatesExportedToClipboard"));
+            }
+        }
+
+        ImGui.SameLine();
+
+        // Import button
+        if (ImGui.Button(Strings.GetString("Import")))
+        {
+            var clipboardText = ImGui.GetClipboardText();
+            if (!string.IsNullOrEmpty(clipboardText))
+            {
+                var importedCount = Plugin.TreasureHuntService.ImportCoordinates(clipboardText);
+                if (importedCount > 0)
+                {
+                    Plugin.ChatGui.Print(string.Format(Strings.GetString("CoordinatesImportedFromClipboard"), importedCount));
+                }
+                else
+                {
+                    Plugin.ChatGui.Print(Strings.GetString("NoCoordinatesImported"));
+                }
+            }
+            else
+            {
+                Plugin.ChatGui.Print(Strings.GetString("ClipboardEmpty"));
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Dalamud.Plugin.Services;
@@ -182,6 +182,12 @@ public class Strings
 
             // Messages
             { "CoordinatesImported", "{0} coordinates imported." },
+            { "CoordinatesImportedFromClipboard", "Imported {0} coordinates from clipboard." },
+            { "NoCoordinatesImported", "No coordinates were imported." },
+            { "ClipboardEmpty", "Clipboard is empty." },
+            { "CoordinatesExportedToClipboard", "Coordinates exported to clipboard." },
+            { "Export", "Export" },
+            { "Import", "Import" },
             { "CoordinateDetected", "Coordinate detected from {0}: {1}" },
             { "RouteOptimized", "Route optimized with {0} points." },
             { "Error", "Error" },
@@ -269,6 +275,12 @@ public class Strings
 
             // Messages
             { "CoordinatesImported", "{0}座標がインポートされました。" },
+            { "CoordinatesImportedFromClipboard", "クリップボードから{0}座標をインポートしました。" },
+            { "NoCoordinatesImported", "座標はインポートされませんでした。" },
+            { "ClipboardEmpty", "クリップボードが空です。" },
+            { "CoordinatesExportedToClipboard", "座標がクリップボードにエクスポートされました。" },
+            { "Export", "エクスポート" },
+            { "Import", "インポート" },
             { "CoordinateDetected", "{0}から座標を検出しました: {1}" },
             { "RouteOptimized", "{0}ポイントでルートが最適化されました。" },
             { "Error", "エラー" },
@@ -356,6 +368,12 @@ public class Strings
 
             // Messages
             { "CoordinatesImported", "已导入{0}个藏宝图坐标。" },
+            { "CoordinatesImportedFromClipboard", "从剪贴板导入了{0}个坐标。" },
+            { "NoCoordinatesImported", "没有导入任何坐标。" },
+            { "ClipboardEmpty", "剪贴板为空。" },
+            { "CoordinatesExportedToClipboard", "坐标已导出到剪贴板。" },
+            { "Export", "导出" },
+            { "Import", "导入" },
             { "CoordinateDetected", "从{0}检测到藏宝图坐标: {1}" },
             { "RouteOptimized", "已优化包含{0}个点的路线。" },
             { "Error", "错误" },

@@ -1,0 +1,17 @@
+{
+    "Author": "dalamudx",
+    "Name": "One Piece",
+    "Punchline": "Plan and optimize your treasure hunt rout.",
+    "Description": "import the coordinates from selected channel and enjoy your hunt.",
+    "IconUrl": "https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/logo.png",
+    "repo_url": "https://github.com/dalamudx/OnePiece",
+    "image_urls": null,
+    "category_tags": "Utility",
+    "ApplicableVersion": "any",
+    "Tags": [
+        "treasure",
+        "map",
+        "plugin",
+        "route"
+    ]
+}

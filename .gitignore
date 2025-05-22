@@ -1,4 +1,7 @@
 .vs/
-obj/
-bin/
+.editorconfig
+.idea
+OnePiece/obj/
+OnePiece/bin/
 *.user
+global.json

@@ -104,66 +104,61 @@ public class AetheryteService
                 return;
             }
 
+            // Get current player territory ID
+            uint playerTerritory = 0;
+            try
+            {
+                if (clientState.LocalPlayer != null)
+                {
+                    playerTerritory = clientState.TerritoryType;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Error getting player territory: {ex.Message}");
+            }
+
+            // Update the aetheryte list to ensure we have current data
+            telepo->UpdateAetheryteList();
+
             foreach (var aetheryte in targetAetherytes)
             {
                 try
                 {
-                    // Get the aetheryte row from the game data
-                    var aetheryteRow = data.GetExcelSheet<Aetheryte>()?.GetRow(aetheryte.AetheryteRowId);
-                    if (aetheryteRow == null)
+                    // Check if player is in the same territory as the aetheryte
+                    if (playerTerritory != 0 && playerTerritory == aetheryte.TerritoryId)
+                    {
+                        // If in the same map, teleport cost is fixed at 70 gil
+                        aetheryte.ActualTeleportFee = 70;
+                        log.Debug($"Same territory teleport fee for {aetheryte.Name}: 70 gil");
                         continue;
+                    }
 
-                    // Use a distance-based model for teleport cost
-                    // This is a simplified approach that approximates the game's teleport cost calculation
-                    var baseCost = 100u; // Base teleport fee
-                    var distanceFactor = 10u; // Gil per distance unit
-
-                    // Calculate distance from player's home point (or current location if available)
-                    var playerPos = Vector2.Zero;
-                    var playerTerritory = 0u;
-
-                    try
+                    // Get the real teleport cost from Telepo API
+                    bool foundCost = false;
+                    
+                    // Search for the aetheryte in the teleport list
+                    int count = telepo->TeleportList.Count;
+                    for (int i = 0; i < count; i++)
                     {
-                        // Try to get player's current position
-                        if (clientState.LocalPlayer != null)
+                        var info = telepo->TeleportList[i];
+                        if (info.AetheryteId == aetheryte.AetheryteRowId)
                         {
-                            playerPos = new Vector2(clientState.LocalPlayer!.Position.X, clientState.LocalPlayer.Position.Z);
-                            playerTerritory = clientState.TerritoryType;
+                            aetheryte.ActualTeleportFee = (int)info.GilCost;
+                            foundCost = true;
+                            log.Debug($"Found teleport fee for {aetheryte.Name} from Telepo API: {aetheryte.ActualTeleportFee} gil");
+                            break;
                         }
                     }
-                    catch (Exception ex)
+
+                    // If we couldn't find the cost, use a reasonable fallback
+                    if (!foundCost)
                     {
-                        log.Error($"Error getting player position: {ex.Message}");
+                        // Different territory teleport - use a reasonable default
+                        // In real game, this can vary from ~100-600 gil depending on distance
+                        aetheryte.ActualTeleportFee = 300;
+                        log.Debug($"Using default teleport fee for {aetheryte.Name}: 300 gil");
                     }
-
-                    // Calculate distance-based cost
-                    uint distanceCost = 0;
-
-                    // If player is in a different territory, use a higher base cost
-                    if (playerTerritory != aetheryte.TerritoryId)
-                    {
-                        distanceCost = 200; // Higher cost for cross-territory teleport
-                    }
-                    else if (playerPos != Vector2.Zero)
-                    {
-                        // Calculate distance if we have player position
-                        var aetheryteWorldPos = new Vector2(0, 0); // Default position
-
-                        // Use the aetheryte's position if available
-                        if (aetheryte.Position != Vector2.Zero)
-                        {
-                            aetheryteWorldPos = aetheryte.Position;
-                        }
-
-                        var distance = Vector2.Distance(playerPos, aetheryteWorldPos);
-                        distanceCost = (uint)(distance * distanceFactor);
-                    }
-
-                    // Calculate final cost
-                    var cost = baseCost + distanceCost;
-                    aetheryte.ActualTeleportFee = (int)cost;
-
-                    log.Debug($"Updated teleport fee for {aetheryte.Name}: {aetheryte.ActualTeleportFee} gil");
                 }
                 catch (Exception ex)
                 {

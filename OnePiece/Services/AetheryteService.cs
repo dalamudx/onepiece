@@ -93,7 +93,7 @@ public class AetheryteService
     /// Updates the teleport fees for a list of aetherytes using the game's Telepo API.
     /// </summary>
     /// <param name="targetAetherytes">The list of aetherytes to update.</param>
-    private unsafe void UpdateTeleportFees(IEnumerable<AetheryteInfo> targetAetherytes)
+    public unsafe void UpdateTeleportFees(IEnumerable<AetheryteInfo> targetAetherytes)
     {
         try
         {

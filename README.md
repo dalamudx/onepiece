@@ -1,76 +1,64 @@
-> ⚠️ **Don't click Fork!**
-> 
-> This is a GitHub Template repo. If you want to use this for a plugin, just [use this template][new-repo] to make a new repo!
->
-> ![image](https://github.com/goatcorp/SamplePlugin/assets/16760685/d9732094-e1ed-4769-a70b-58ed2b92580c)
+# One Piece FFXIV Plugin
 
-# SamplePlugin
+## Introduction
 
-[![Use This Template badge](https://img.shields.io/badge/Use%20This%20Template-0?logo=github&labelColor=grey)][new-repo]
+One Piece is a Dalamud plugin designed for Final Fantasy XIV (FFXIV), focused on helping players plan and optimize treasure hunting routes. Whether you're an experienced treasure hunter or just getting started, this tool will make your treasure searches more efficient.
 
+## Main Features
 
-Simple example plugin for Dalamud.
+### Treasure Coordinate Management
+* **Import Coordinates**: Import treasure coordinates from clipboard or game chat channels
+* **Export Coordinates**: Export coordinates to clipboard for easy sharing with teammates
+* **Coordinate Collection**: Track collected and uncollected treasure points
+* **Trash Bin Feature**: Temporarily store deleted coordinates for recovery when needed
 
-This is not designed to be the simplest possible example, but it is also not designed to cover everything you might want to do. For more detailed questions, come ask in [the Discord](https://discord.gg/holdshift).
+### Route Optimization
+* **Automatic Route Optimization**: Calculate the shortest or most effective route through all treasure points
+* **Consider Teleport Costs**: Take into account Aetheryte teleport fees and distances when calculating routes
+* **Map Area Recognition**: Automatically identify the map area where coordinates are located
 
-## Main Points
+### Chat Channel Monitoring
+* **Automatic Coordinate Detection**: Automatically detect and import coordinates from selected chat channels
+* **Support for Multiple Chat Channels**: Including Say, Yell, Shout, Party, Alliance, Free Company, Linkshells, and more
 
-* Simple functional plugin
-  * Slash command
-  * Main UI
-  * Settings UI
-  * Image loading
-  * Plugin json
-* Simple, slightly-improved plugin configuration handling
-* Project organization
-  * Copies all necessary plugin files to the output directory
-    * Does not copy dependencies that are provided by dalamud
-    * Output directory can be zipped directly and have exactly what is required
-  * Hides data files from visual studio to reduce clutter
-    * Also allows having data files in different paths than VS would usually allow if done in the IDE directly
+### User-Friendly Interface
+* **Clear Coordinate List**: Display all imported coordinates and their status
+* **Optimized Route Display**: Intuitively show the optimized route sequence
+* **Customizable Settings**: Adjust plugin behavior to suit your preferences
 
+### Multilingual Support
+* **Complete Localization**: Support for multiple languages including English, Japanese, and Chinese
+* **Automatic Language Selection Based on Game Client**: Provides seamless localization experience
 
-The intention is less that any of this is used directly in other projects, and more to show how similar things can be done.
+## How to Use
 
-## How To Use
+### Installation
 
-### Getting Started
+1. Make sure you have installed [FFXIVQuickLauncher](https://github.com/goatcorp/FFXIVQuickLauncher)
+2. Enable Dalamud plugins
+3. 
+3. Search for "One Piece" in the plugin installer and install it
 
-To begin, [clone this template repository][new-repo] to your own GitHub account. This will automatically bring in everything you need to get a jumpstart on development. You do not need to fork this repository unless you intend to contribute modifications to it.
+### Basic Usage
 
-Be sure to also check out the [Dalamud Developer Docs][dalamud-docs] for helpful information about building your own plugin. The Developer Docs includes helpful information about all sorts of things, including [how to submit][submit] your newly-created plugin to the official repository. Assuming you use this template repository, the provided project build configuration and license are already chosen to make everything a breeze.
+1. Use the `/onepiece` command to open the main interface
+2. In the "Import" section, import coordinates from clipboard or enable chat channel monitoring
+3. Use the "Optimize Route" button to calculate the best route
+4. Visit coordinate points in the optimized order, marking collected points
 
-[new-repo]: https://github.com/new?template_name=SamplePlugin&template_owner=goatcorp
-[dalamud-docs]: https://dalamud.dev
-[submit]: https://dalamud.dev/plugin-development/plugin-submission
+### Importing Coordinates
 
-### Prerequisites
+The plugin supports two ways to import coordinates:
+* **Clipboard Import**: Copy text containing coordinates, then click the "Import" button
+* **Chat Monitoring**: Enable channel monitoring to automatically detect coordinates from the selected channel
 
-SamplePlugin assumes all the following prerequisites are met:
+### Route Optimization
 
-* XIVLauncher, FINAL FANTASY XIV, and Dalamud have all been installed and the game has been run with Dalamud at least once.
-* XIVLauncher is installed to its default directories and configurations.
-  * If a custom path is required for Dalamud's dev directory, it must be set with the `DALAMUD_HOME` environment variable.
-* A .NET Core 8 SDK has been installed and configured, or is otherwise available. (In most cases, the IDE will take care of this.)
+Click the "Optimize Route" button, and the plugin will calculate the best path based on the following factors:
+* Current player position
+* Aetheryte teleport fees
+* Distance between coordinates
 
-### Building
+## Contribution and Support
 
-1. Open up `SamplePlugin.sln` in your C# editor of choice (likely [Visual Studio 2022](https://visualstudio.microsoft.com) or [JetBrains Rider](https://www.jetbrains.com/rider/)).
-2. Build the solution. By default, this will build a `Debug` build, but you can switch to `Release` in your IDE.
-3. The resulting plugin can be found at `SamplePlugin/bin/x64/Debug/SamplePlugin.dll` (or `Release` if appropriate.)
-
-### Activating in-game
-
-1. Launch the game and use `/xlsettings` in chat or `xlsettings` in the Dalamud Console to open up the Dalamud settings.
-    * In here, go to `Experimental`, and add the full path to the `SamplePlugin.dll` to the list of Dev Plugin Locations.
-2. Next, use `/xlplugins` (chat) or `xlplugins` (console) to open up the Plugin Installer.
-    * In here, go to `Dev Tools > Installed Dev Plugins`, and the `SamplePlugin` should be visible. Enable it.
-3. You should now be able to use `/pmycommand` (chat) or `pmycommand` (console)!
-
-Note that you only need to add it to the Dev Plugin Locations once (Step 1); it is preserved afterwards. You can disable, enable, or load your plugin on startup through the Plugin Installer.
-
-### Reconfiguring for your own uses
-
-Basically, just replace all references to `SamplePlugin` in all of the files and filenames with your desired name, then start building the plugin of your dreams. You'll figure it out 😁
-
-Dalamud will load the JSON file (by default, `SamplePlugin/SamplePlugin.json`) next to your DLL and use it for metadata, including the description for your plugin in the Plugin Installer. Make sure to update this with information relevant to _your_ plugin!
+If you find bugs or have suggestions for improvements, please submit an issue or pull request on the [GitHub repository](https://github.com/dalamudx/onepiece).

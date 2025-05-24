@@ -43,15 +43,38 @@ progress = None
 
 # Initialize logging system
 def setup_logger(log_level_name):
-    """Initialize logging system"""
-    # Set log level to ERROR in all modes, only display error messages
+    """Initialize logging system with the specified log level
+    
+    Args:
+        log_level_name (str): Log level name (debug, info, warning, error, critical, none)
+    
+    Returns:
+        Logger: Configured logger instance
+    """
+    # Map log level names to logging module levels
+    log_levels = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL,
+        'none': logging.CRITICAL + 10  # Level higher than CRITICAL to disable all logging
+    }
+    
+    # Get the numeric log level (default to CRITICAL+10 if not found)
+    log_level = log_levels.get(log_level_name.lower(), logging.CRITICAL + 10)
+    
+    # Configure the logging system
     logging.basicConfig(
-        level=logging.ERROR,
+        level=log_level,
         format="%(message)s",
         handlers=[RichHandler(rich_tracebacks=True)] if RICH_AVAILABLE else None
     )
     
-    return logging.getLogger('aetheryte_data')
+    logger = logging.getLogger('aetheryte_data')
+    logger.setLevel(log_level)
+    
+    return logger
 
 # Global variable to store processed map areas to avoid duplicate processing
 processed_areas = set()
@@ -74,6 +97,10 @@ def similarity(s1, s2, map_area=None):
     s1_clean = re.sub(r'[^\w\s]', '', s1.lower())
     s2_clean = re.sub(r'[^\w\s]', '', s2.lower())
     
+    # Exact match check - directly return true for exact matches
+    if s1_clean == s2_clean:
+        return True
+    
     # If one is a substring of the other, consider them similar
     # Special case: main city aetheryte matching
     if map_area and ("limsa lominsa" in map_area.lower() or 
@@ -91,15 +118,31 @@ def similarity(s1, s2, map_area=None):
     
     # If the string length difference is too large, consider them dissimilar
     length_diff = abs(len(s1_clean) - len(s2_clean))
-    if length_diff > min(len(s1_clean), len(s2_clean)) / 2:
+    if length_diff > min(len(s1_clean), len(s2_clean)) / 3:
         return False
     
-    # Calculate the number of common characters
+    # More strict character comparison
+    # Count consecutive matching characters (better for word-by-word matching)
+    s1_words = s1_clean.split()
+    s2_words = s2_clean.split()
+    
+    # If the number of words is significantly different, they're likely different locations
+    if abs(len(s1_words) - len(s2_words)) > 1:
+        return False
+    
+    # Check if at least one word exactly matches between the strings
+    matching_words = sum(1 for w1 in s1_words if any(w1 == w2 for w2 in s2_words))
+    if matching_words == 0:
+        return False
+    
+    # Calculate the similarity ratio using character matching as a backup
     common = sum(1 for c in s1_clean if c in s2_clean)
     total = max(len(s1_clean), len(s2_clean))
+    char_similarity = common / total
     
-    # If common characters exceed 80% of the total characters, consider them similar
-    return common / total > 0.8
+    # Require at least 85% character similarity for non-exact matches
+    # This is more strict than the previous 80% threshold
+    return char_similarity > 0.85
 
 def get_wiki_data(map_area):
     """Retrieve aetheryte coordinates for a specified map area from the FFXIV Wiki"""
@@ -607,6 +650,9 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='FFXIV Aetheryte Data Tool')
     parser.add_argument('--json', '-j', default=r"aetheryte.json",
                       help='JSON file path')
+    parser.add_argument('--loglevel', '-l', default='none',
+                      choices=['debug', 'info', 'warning', 'error', 'critical', 'none'],
+                      help='Log level (default: none)')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -614,8 +660,8 @@ if __name__ == "__main__":
         # Parse command line arguments
         args = parse_arguments()
         
-        # Set up logger
-        logger = setup_logger("error")
+        # Set up logger with log level from command line arguments
+        logger = setup_logger(args.loglevel)
         
         # Use JSON file path specified in arguments
         json_file_path = args.json

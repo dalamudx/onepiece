@@ -175,8 +175,8 @@
       "Name": "Camp Dragonhead",
       "MapArea": "Coerthas Central Highlands",
       "BaseTeleportFee": 100,
-      "X": 26.5,
-      "Y": 17.7
+      "X": 0,
+      "Y": 0
     },
     {
       "AetheryteRowId": 24,
@@ -311,8 +311,8 @@
       "Name": "Ala Ghiri",
       "MapArea": "The Peaks",
       "BaseTeleportFee": 100,
-      "X": 23.8,
-      "Y": 6.5
+      "X": 15.8,
+      "Y": 36.6
     },
     {
       "AetheryteRowId": 102,
@@ -784,7 +784,7 @@
       "MapArea": "Heritage Found",
       "BaseTeleportFee": 100,
       "X": 17.0,
-      "Y": 9.8
+      "Y": 23.9
     },
     {
       "AetheryteRowId": 213,
@@ -799,8 +799,8 @@
       "Name": "Leynode Pyro",
       "MapArea": "Living Memory",
       "BaseTeleportFee": 100,
-      "X": 21.5,
-      "Y": 37.3
+      "X": 34.7,
+      "Y": 15.7
     },
     {
       "AetheryteRowId": 215,

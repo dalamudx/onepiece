@@ -35,10 +35,9 @@ public class AetheryteService
         this.clientState = clientState;
         this.log = log;
         this.territoryManager = territoryManager;
-        LoadAetherytes();
         
-        // Try to load aetheryte positions from JSON file
-        LoadAetherytePositionsFromJson();
+        // LoadAetherytes also calls LoadAetherytePositionsFromJson internally
+        LoadAetherytes();
     }
 
     /// <summary>
@@ -243,16 +242,6 @@ public class AetheryteService
         }
     }
 
-    /// <summary>
-    /// This method is kept for API compatibility but no longer sets default positions.
-    /// Positions are now exclusively loaded from the JSON file.
-    /// </summary>
-    private void UpdateAetherytePositions()
-    {
-        // This method is intentionally empty as we no longer set default positions
-        // All aetheryte positions should be loaded from the JSON file
-        log.Information("UpdateAetherytePositions is disabled - using JSON data for positions");
-    }
     
     /// <summary>
     /// Loads aetheryte positions from the aetheryte.json file.
@@ -261,18 +250,18 @@ public class AetheryteService
     {
         try
         {
-            // 使用 PluginInterface 获取插件目录
+            // Use PluginInterface to get the plugin directory
             string pluginDirectory = Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName);
             log.Information($"Plugin directory from PluginInterface: {pluginDirectory}");
             
-            // 定义要加载的文件名
+            // Define the file name to load
             const string fileName = "aetheryte.json";
             
-            // 在插件目录下查找文件
+            // Look for the file in the plugin directory
             string aetheryteJsonPath = Path.Combine(pluginDirectory, fileName);
             log.Information($"Looking for aetheryte.json in plugin directory: {aetheryteJsonPath}");
             
-            // 检查文件是否存在
+            // Check if the file exists
             if (!File.Exists(aetheryteJsonPath))
             {
                 log.Error($"Aetheryte JSON file not found in plugin directory: {aetheryteJsonPath}");
@@ -281,18 +270,18 @@ public class AetheryteService
             
             log.Information($"Found aetheryte.json at: {aetheryteJsonPath}");
             
-            // 读取JSON文件
+            // Read the JSON file
             string jsonContent = File.ReadAllText(aetheryteJsonPath);
             log.Debug($"Read JSON content with length: {jsonContent.Length}");
             
-            // 如果JSON内容为空，记录错误并返回
+            // If the JSON content is empty, log an error and return
             if (string.IsNullOrWhiteSpace(jsonContent))
             {
                 log.Error("aetheryte.json file is empty");
                 return;
             }
             
-            // 尝试反序列化JSON
+            // Try to deserialize JSON
             JsonSerializerOptions options = new JsonSerializerOptions
             {
                 AllowTrailingCommas = true,
@@ -316,7 +305,7 @@ public class AetheryteService
             
             log.Information($"Successfully loaded {aetheryteData.Aetherytes.Count} aetherytes from JSON file");
             
-            // 更新现有的传送点数据或添加新的传送点
+            // Update existing aetheryte data or add new aetherytes
             int updatedCount = 0;
             foreach (var jsonAetheryte in aetheryteData.Aetherytes)
             {
@@ -331,7 +320,7 @@ public class AetheryteService
                 }
                 else
                 {
-                    // 创建新的传送点如果之前的列表中不存在
+                    // Create a new aetheryte if it doesn't exist in the previous list
                     var newAetheryte = new AetheryteInfo
                     {
                         Id = jsonAetheryte.AetheryteRowId,
@@ -340,9 +329,9 @@ public class AetheryteService
                         MapArea = jsonAetheryte.MapArea,
                         Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y),
                         BaseTeleportFee = jsonAetheryte.BaseTeleportFee,
-                        ActualTeleportFee = 0, // 在需要时更新
-                        TerritoryId = 0, // JSON中没有这个信息
-                        MapId = 0 // JSON中没有这个信息
+                        ActualTeleportFee = 0, // Update when needed
+                        TerritoryId = 0, // This information is not in the JSON
+                        MapId = 0 // This information is not in the JSON
                     };
                     
                     aetherytes.Add(newAetheryte);
@@ -359,64 +348,7 @@ public class AetheryteService
             log.Error(ex.StackTrace);
         }
     }
-    
-    /// <summary>
-    /// 记录指定目录及其子目录的内容，用于调试
-    /// </summary>
-    /// <param name="directory">要检查的目录</param>
-    private void LogAllDirectoryContents(string directory)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
-            {
-                log.Error($"Cannot log directory contents: Directory does not exist or is null: {directory}");
-                return;
-            }
-            
-            log.Information($"Logging contents of directory: {directory}");
-            
-            // 记录当前目录中的所有文件
-            var files = Directory.GetFiles(directory);
-            log.Information($"Found {files.Length} files in {directory}:");
-            foreach (var file in files)
-            {
-                log.Information($"  - {Path.GetFileName(file)}");
-            }
-            
-            // 记录子目录
-            var subDirs = Directory.GetDirectories(directory);
-            log.Information($"Found {subDirs.Length} subdirectories in {directory}:");
-            foreach (var subDir in subDirs)
-            {
-                log.Information($"  - {Path.GetFileName(subDir)}");
-                
-                // 递归检查子目录中的文件（仅一级，避免日志过多）
-                try
-                {
-                    var subFiles = Directory.GetFiles(subDir);
-                    log.Information($"    Contains {subFiles.Length} files");
-                    // 只记录前5个文件，避免日志过多
-                    foreach (var file in subFiles.Take(5))
-                    {
-                        log.Information($"    - {Path.GetFileName(file)}");
-                    }
-                    if (subFiles.Length > 5)
-                    {
-                        log.Information($"    ... and {subFiles.Length - 5} more files");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    log.Error($"Error listing files in subdirectory {subDir}: {ex.Message}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            log.Error($"Error logging directory contents: {ex.Message}");
-        }
-    }
+
 
     /// <summary>
     /// Calculates the base teleport fee for an aetheryte.

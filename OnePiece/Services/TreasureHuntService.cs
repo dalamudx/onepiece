@@ -455,9 +455,8 @@ public class TreasureHuntService
                 }
             }
             
-            // Get the cheapest aetheryte in this map area
-            var mapAetheryte = mapAetherytes.Count > 0 ? 
-                mapAetherytes.OrderBy(a => a.CalculateTeleportFee()).First() : null;
+            // Get the best aetheryte in this map area, considering distance to treasure coordinates
+            var mapAetheryte = FindBestAetheryteForCoordinates(mapAetherytes, mapCoordinates);
             
             // If no aetheryte is found, create a default one for algorithm purposes
             if (mapAetheryte == null)
@@ -583,15 +582,15 @@ public class TreasureHuntService
 
             // Get all aetherytes in this map area
             var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(mapArea);
-            var cheapestAetheryte = aetherytesInMap.OrderBy(a => a.CalculateTeleportFee()).FirstOrDefault();
+            var bestAetheryte = FindBestAetheryteForCoordinates(aetherytesInMap.ToList(), coordinatesByMap[mapArea]);
             float distanceToNearest = 0;
 
-            if (cheapestAetheryte != null)
+            if (bestAetheryte != null)
             {
                 // Calculate distances from aetheryte to each coordinate
                 var aetheryteCoord = new TreasureCoordinate(
-                    cheapestAetheryte.Position.X,
-                    cheapestAetheryte.Position.Y,
+                    bestAetheryte.Position.X,
+                    bestAetheryte.Position.Y,
                     mapArea);
                 
                 // Find the nearest coordinate to the aetheryte
@@ -599,33 +598,28 @@ public class TreasureHuntService
 
                 if (nearestCoordinate != null)
                 {
-                    // Calculate the distance from the aetheryte to the nearest coordinate
                     distanceToNearest = aetheryteCoord.DistanceTo(nearestCoordinate);
+                    Plugin.Log.Debug($"Distance from aetheryte {bestAetheryte.Name} to nearest coordinate: {distanceToNearest:F1}");
                 }
             }
 
-            // Calculate the average distance between coordinates in this map area to measure density
-            float avgDistance = CalculateAverageDistanceBetweenCoordinates(mapCoordinates);
+            // Normalize teleport cost (higher cost = higher score)
+            // Teleport cost is the main factor, so it's given higher weight
+            float teleportCostFactor = teleportCost / 200f; // Increase the weight of teleport cost, reduce the normalization range
 
-            // Get coordinate count in this map area
-            int coordinateCount = mapCoordinates.Count;
-            
-            // Calculate the density factor (more coordinates in an area = better value)
-            // This prioritizes areas with more coordinates
-            float densityFactor = (float)coordinateCount / totalCoordinates;
-            
-            // Calculate the efficiency factor (lower teleport cost per coordinate = better)
-            float efficiencyFactor = teleportCost > 0 ? coordinateCount / (float)teleportCost : float.MaxValue;
+            // Calculate average distance between coordinates in the map
+            float averageDistance = CalculateAverageDistanceBetweenCoordinates(mapCoordinates);
 
-            // Calculate score - lower is better
-            // Major component is teleport cost, adjusted by efficiency
-            // Minor component is distance to nearest coordinate
-            float score = teleportCost * (1.0f - densityFactor * 0.8f) + (distanceToNearest * 0.5f);
-            
+            // Calculate the ratio of coordinates in this map to total coordinates
+            float coordinatesRatio = (float)mapCoordinates.Count / totalCoordinates;
+
+            // Calculate final score (lower is better)
+            // Significantly increase the weight of teleport cost in scoring, ensuring maps with lower teleport fees get higher priority
+            // While still considering coordinate density and distance factors, but with lower weights
+            float score = teleportCostFactor * 3 - (coordinatesRatio * 1.5f) + (distanceToNearest / 100);
+
             mapAreaScores[mapArea] = score;
-
-            Plugin.Log.Debug($"Map area: {mapArea}, Teleport cost: {teleportCost}, Coordinates: {coordinateCount}, " +
-                           $"Distance to nearest: {distanceToNearest}, Density factor: {densityFactor}, Score: {score}");
+            Plugin.Log.Debug($"Map area {mapArea} score: {score:F2} (teleport: {teleportCost}, coords: {mapCoordinates.Count}, distance: {distanceToNearest:F1})");
         }
 
         // Return the map area with the lowest score (best choice)
@@ -638,6 +632,75 @@ public class TreasureHuntService
 
         // Fallback to first map area if scoring fails
         return coordinatesByMap.Keys.First();
+    }
+    
+    /// <summary>
+    /// Finds the best aetheryte for a set of coordinates, prioritizing the distance to the coordinates.
+    /// </summary>
+    /// <param name="aetherytes">List of available aetherytes.</param>
+    /// <param name="coordinates">List of treasure coordinates to visit.</param>
+    /// <returns>The best aetheryte, or null if no aetherytes are available.</returns>
+    private AetheryteInfo FindBestAetheryteForCoordinates(List<AetheryteInfo> aetherytes, List<TreasureCoordinate> coordinates)
+    {
+        if (aetherytes == null || aetherytes.Count == 0)
+        {
+            return null;
+        }
+        
+        // If there's only one aetheryte, return it
+        if (aetherytes.Count == 1)
+        {
+            return aetherytes[0];
+        }
+        
+        // If there are no coordinates, return the cheapest aetheryte
+        if (coordinates == null || coordinates.Count == 0)
+        {
+            return aetherytes.OrderBy(a => a.CalculateTeleportFee()).First();
+        }
+        
+        // Dictionary to store the average distance from each aetheryte to all coordinates
+        var aetheryteScores = new Dictionary<AetheryteInfo, float>();
+        
+        foreach (var aetheryte in aetherytes)
+        {
+            // Create a coordinate object for the aetheryte position
+            var aetheryteCoord = new TreasureCoordinate(
+                aetheryte.Position.X,
+                aetheryte.Position.Y,
+                aetheryte.MapArea);
+            
+            // Calculate the minimum distance to any coordinate
+            float minDistance = float.MaxValue;
+            float totalDistance = 0;
+            float averageDistance = 0;
+            
+            // Get the distance to the nearest coordinate and average distance to all coordinates
+            foreach (var coordinate in coordinates)
+            {
+                float distance = aetheryteCoord.DistanceTo(coordinate);
+                totalDistance += distance;
+                
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                }
+            }
+            
+            averageDistance = totalDistance / coordinates.Count;
+            
+            // Calculate a score that prioritizes distance but still considers teleport cost
+            // Lower is better
+            float teleportCostFactor = aetheryte.CalculateTeleportFee() / 1000f; // Normalize to 0-1 range typically
+            float score = minDistance + (averageDistance * 0.5f) + (teleportCostFactor * 20); // Weighted formula
+            
+            aetheryteScores[aetheryte] = score;
+            
+            Plugin.Log.Debug($"Aetheryte {aetheryte.Name} score: {score:F2} (min distance: {minDistance:F1}, avg distance: {averageDistance:F1}, teleport: {aetheryte.CalculateTeleportFee()})");
+        }
+        
+        // Return the aetheryte with the lowest score (best combination of distance and cost)
+        return aetheryteScores.OrderBy(kvp => kvp.Value).First().Key;
     }
 
     /// <summary>
@@ -668,6 +731,7 @@ public class TreasureHuntService
 
     /// <summary>
     /// Optimizes the route within a map area, considering either starting from the player's location or teleporting to an aetheryte.
+    /// Prioritizes coordinates closer to teleport points, and teleports between coordinates as needed.
     /// </summary>
     /// <param name="startLocation">The starting location.</param>
     /// <param name="coordinates">The coordinates in the map area.</param>
@@ -706,33 +770,67 @@ public class TreasureHuntService
 
         Plugin.Log.Debug($"Average distance between coordinates: {avgDistance}, Teleport threshold: {teleportThreshold}");
 
+        // Pre-calculate distances from all coordinates to the aetheryte for later optimization
+        var distancesToAetheryte = new Dictionary<TreasureCoordinate, float>();
+        foreach (var coord in coordsToSort)
+        {
+            distancesToAetheryte[coord] = aetheryteCoord.DistanceTo(coord);
+        }
+        
+        // If the initial position is near the aetheryte, prioritize coordinates closer to the aetheryte
+        if (!inSameMapArea || currentPos.DistanceTo(aetheryteCoord) < 1.0f)
+        {
+            // First sort coordinates based on their distance to the aetheryte
+            coordsToSort = coordsToSort.OrderBy(c => distancesToAetheryte[c]).ToList();
+            Plugin.Log.Debug("Initializing path, prioritizing coordinates closer to the aetheryte");
+        }
+
         // Build the optimized path
         while (coordsToSort.Count > 0)
         {
-            // Find coordinates ordered by distance from current position
-            var orderedCoordinates = coordsToSort.OrderBy(c => c.DistanceTo(currentPos)).ToList();
-            var nextCoord = orderedCoordinates.First();
-            float directDistance = currentPos.DistanceTo(nextCoord);
+            // When selecting the next coordinate, consider both distance from current position and distance to the aetheryte
+            var nextCoordCandidates = coordsToSort.Select(c => new
+            {
+                Coordinate = c,
+                DistanceToCurrent = c.DistanceTo(currentPos),
+                DistanceToAetheryte = distancesToAetheryte[c],
+                // Calculate a combined score: weighted value of distance from current position and distance to aetheryte
+                // Weights can be adjusted, here using 0.7:0.3 meaning distance to current position has 70% importance, distance to aetheryte has 30%
+                Score = c.DistanceTo(currentPos) * 0.7f + distancesToAetheryte[c] * 0.3f
+            }).OrderBy(x => x.Score).ToList();
+            
+            var nextCoordInfo = nextCoordCandidates.First();
+            var nextCoord = nextCoordInfo.Coordinate;
+            float directDistance = nextCoordInfo.DistanceToCurrent;
+            
+            Plugin.Log.Debug($"Selected coordinate: ({nextCoord.X}, {nextCoord.Y}), distance from current: {directDistance:F1}, distance to aetheryte: {nextCoordInfo.DistanceToAetheryte:F1}, score: {nextCoordInfo.Score:F1}");
 
-            // If aetheryte exists and we're considering teleporting
+            // If the distance from current position is too far, consider if teleporting to the aetheryte would be more efficient
             if (aetheryte != null && directDistance > teleportThreshold)
             {
-                // Distance from aetheryte to the coordinate
-                float aetheryteDistance = aetheryteCoord.DistanceTo(nextCoord);
+                // Distance to reach the target via the aetheryte
+                float aetheryteDistance = distancesToAetheryte[nextCoord];
                 
-                // Check if teleporting would be more efficient
-                // Consider both distance saved and teleport fee
-                if (aetheryteDistance < directDistance * 0.7f) // If aetheryte path is significantly shorter
+                // If the path via aetheryte is significantly shorter, choose to teleport
+                if (aetheryteDistance < directDistance * 0.7f)
                 {
-                    // Mark that we should teleport to aetheryte before going to this coordinate
+                    // Mark that we need to teleport to the aetheryte first
                     shouldTeleportToAetheryte = true;
                     currentPos = aetheryteCoord;
                     
-                    // Recalculate the nearest coordinate from aetheryte
-                    orderedCoordinates = coordsToSort.OrderBy(c => c.DistanceTo(currentPos)).ToList();
-                    nextCoord = orderedCoordinates.First();
+                    // Find the nearest coordinate from the aetheryte
+                    nextCoordCandidates = coordsToSort.Select(c => new
+                    {
+                        Coordinate = c,
+                        DistanceToCurrent = aetheryteCoord.DistanceTo(c),
+                        DistanceToAetheryte = distancesToAetheryte[c],
+                        Score = aetheryteCoord.DistanceTo(c)
+                    }).OrderBy(x => x.Score).ToList();
+                    
+                    nextCoordInfo = nextCoordCandidates.First();
+                    nextCoord = nextCoordInfo.Coordinate;
 
-                    Plugin.Log.Debug($"Decided to teleport to aetheryte before going to coordinate ({nextCoord.X}, {nextCoord.Y})");
+                    Plugin.Log.Debug($"Decided to teleport to the aetheryte first, then proceed to coordinate ({nextCoord.X}, {nextCoord.Y}), distance: {nextCoordInfo.DistanceToCurrent:F1}");
                 }
             }
 
@@ -743,33 +841,29 @@ public class TreasureHuntService
             currentPos = nextCoord;
             shouldTeleportToAetheryte = false;
 
-            // Check if we should consider teleporting to aetheryte for the remaining coordinates
+            // Check if we should consider teleporting to the aetheryte for remaining coordinates
             if (coordsToSort.Count > 0 && aetheryte != null)
             {
-                // Find the nearest remaining coordinate to current position
+                // Find the nearest remaining coordinate to the current position
                 var nearestRemaining = coordsToSort.OrderBy(c => c.DistanceTo(currentPos)).First();
                 float directDistanceToNext = currentPos.DistanceTo(nearestRemaining);
                 
-                // Find the nearest remaining coordinate to aetheryte
-                var nearestToAetheryte = coordsToSort.OrderBy(c => aetheryteCoord.DistanceTo(c)).First();
-                float aetheryteDistanceToNearest = aetheryteCoord.DistanceTo(nearestToAetheryte);
+                // Find the nearest remaining coordinate to the aetheryte
+                var nearestToAetheryte = coordsToSort.OrderBy(c => distancesToAetheryte[c]).First();
+                float aetheryteDistanceToNearest = distancesToAetheryte[nearestToAetheryte];
                 
-                // If direct distance is too large and aetheryte offers a better starting point for the next batch
+                // If direct distance is too large and the aetheryte provides a better starting point
                 if (directDistanceToNext > teleportThreshold && aetheryteDistanceToNearest < directDistanceToNext * 0.8f)
                 {
                     shouldTeleportToAetheryte = true;
                     currentPos = aetheryteCoord;
-                    Plugin.Log.Debug($"Will teleport to aetheryte for next coordinates. Direct distance: {directDistanceToNext}, Via aetheryte: {aetheryteDistanceToNearest}");
+                    Plugin.Log.Debug($"Will teleport back to the aetheryte to continue finding coordinates. Direct distance: {directDistanceToNext:F1}, via aetheryte: {aetheryteDistanceToNearest:F1}");
                 }
             }
         }
 
         return optimizedPath;
     }
-
-    // Removed OptimizeRouteInMapAreaSimple method as it's no longer needed
-
-    // Removed OptimizeRouteSimple method as it's no longer needed
 
     /// <summary>
     /// Marks a coordinate as collected.

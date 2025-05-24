@@ -19,6 +19,9 @@ public class MainWindow : Window, IDisposable
     private int selectedLanguageIndex;
     private int selectedChatChannelIndex;
     private int selectedLogLevelIndex;
+    
+    // We don't need a local reference to CustomMessageWindow anymore
+    // since we'll use the one from Plugin instance
 
     public MainWindow(Plugin plugin)
         : base(Strings.GetString("MainWindowTitle") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -45,6 +48,9 @@ public class MainWindow : Window, IDisposable
 
         // Initialize chat channel selection
         selectedChatChannelIndex = (int)this.plugin.Configuration.MonitoredChatChannel;
+
+        // We no longer initialize CustomMessageWindow here
+        // It's now fully managed by the Plugin class
 
         // Subscribe to events
         this.plugin.TreasureHuntService.OnCoordinatesImported += OnCoordinatesImported;
@@ -209,6 +215,53 @@ public class MainWindow : Window, IDisposable
                 if (ImGui.Button(Strings.GetString("StartMonitoring")))
                 {
                     plugin.ChatMonitorService.StartMonitoring();
+                }
+            }
+            
+            // End of ChannelSettings section
+        }
+        
+        ImGui.Separator();
+        
+        // Message settings section with collapsing header (parallel to ChannelSettings)
+        if (ImGui.CollapsingHeader(Strings.GetString("MessageSettings")))
+        {
+            // Button to open custom message settings window
+            float buttonWidth = 200; // Fixed width for the button
+            
+            if (ImGui.Button(Strings.GetString("OpenSettingsWindow"), new Vector2(buttonWidth, 0)))
+            {
+                // Force show the window through the plugin instance which owns it
+                plugin.ShowCustomMessageWindow();
+                Plugin.Log.Information("Opening Custom Message Window");
+            }
+            
+            ImGui.Spacing();
+            
+            // Show active template information if there is one
+            if (plugin.Configuration.ActiveTemplateIndex >= 0 && 
+                plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+            {
+                string templateName = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name;
+                ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), string.Format(Strings.GetString("CurrentActiveTemplate"), templateName));
+                
+                // Preview of the active template
+                ImGui.Spacing();
+                ImGui.Text(Strings.GetString("MessagePreview"));
+                string previewMessage = GeneratePreviewMessage();
+                ImGui.TextWrapped(previewMessage);
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.GetString("NoActiveMessageTemplate"));
+                
+                // If there are components but no template, still show preview
+                if (plugin.Configuration.SelectedMessageComponents.Count > 0)
+                {
+                    ImGui.Spacing();
+                    ImGui.Text(Strings.GetString("MessagePreview"));
+                    string previewMessage = GeneratePreviewMessage();
+                    ImGui.TextWrapped(previewMessage);
                 }
             }
         }
@@ -535,5 +588,37 @@ public class MainWindow : Window, IDisposable
         {
             Plugin.ChatGui.Print(string.Format(Strings.GetString("RouteOptimized"), count));
         }
+    }
+    
+    // Generates a preview of the message that will be sent
+    private string GeneratePreviewMessage()
+    {
+        if (plugin.Configuration.SelectedMessageComponents.Count == 0)
+        {
+            return Strings.GetString("OnlyTreasureMarker");
+        }
+        
+        var previewParts = new List<string>();
+        
+        foreach (var component in plugin.Configuration.SelectedMessageComponents)
+        {
+            switch (component.Type)
+            {
+                case MessageComponentType.PlayerName:
+                    previewParts.Add(Strings.GetString("PlayerNamePreview"));
+                    break;
+                case MessageComponentType.Coordinates:
+                    previewParts.Add(Strings.GetString("TreasureMapCoordinatesPreview"));
+                    break;
+                case MessageComponentType.CustomMessage:
+                    if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
+                    {
+                        previewParts.Add(plugin.Configuration.CustomMessages[component.CustomMessageIndex]);
+                    }
+                    break;
+            }
+        }
+        
+        return string.Join(" ", previewParts);
     }
 }

@@ -1,0 +1,588 @@
+using System;
+using System.Numerics;
+using System.Collections.Generic;
+using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Windowing;
+using ImGuiNET;
+using System.Linq;
+using OnePiece.Localization;
+using OnePiece.Models;
+
+namespace OnePiece.Windows;
+
+public class CustomMessageWindow : Window, IDisposable
+{
+    private readonly Plugin plugin;
+    
+    // Custom message variables
+    private string newCustomMessage = string.Empty;
+    private int editingCustomMessageIndex = -1;
+    private string editingCustomMessage = string.Empty;
+    
+    // Template variables
+    private string newTemplateName = string.Empty;
+    private int selectedTemplateIndex = -1;
+    private MessageTemplate? currentTemplate = null;
+    
+    // Component reordering
+    private int draggedComponentIndex = -1;
+    private int hoverComponentIndex = -1;
+    
+    // Component selection from available components
+    private bool[] availableComponents = new bool[3] { false, false, false }; // PlayerName, Coordinates, CustomMessage
+    private int selectedCustomMessageIndex = -1;
+    
+    public CustomMessageWindow(Plugin plugin)
+        : base(Strings.GetString("CustomMessageSettings") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+    {
+        // Store plugin reference
+        this.plugin = plugin;
+        
+        // Log window creation
+        Plugin.Log.Information("CustomMessageWindow created");
+        
+        // Make sure the window is closed by default
+        this.IsOpen = false;
+        
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(650, 450),
+            MaximumSize = new Vector2(1000, 800)
+        };
+
+        this.plugin = plugin;
+        
+        // Initialize selected template
+        UpdateCurrentTemplate();
+    }
+    
+    public override void Draw()
+    {
+        // Update window title to reflect current language
+        WindowName = Strings.GetString("CustomMessageSettings") + "##OnePiece";
+
+        // Log that the Draw method was called
+        Plugin.Log.Debug("CustomMessageWindow.Draw called, IsOpen = {0}", IsOpen);
+        
+        // Get window width for centering
+        float windowWidth = ImGui.GetWindowWidth();
+        
+        // Left and right panels
+        float leftPanelWidth = windowWidth * 0.4f;
+        float rightPanelWidth = windowWidth * 0.58f;
+        
+        // Left panel - Templates and Custom Messages
+        DrawLeftPanel(leftPanelWidth);
+        
+        ImGui.SameLine();
+        
+        // Vertical separator
+        ImGui.BeginGroup();
+        ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
+        ImGui.SameLine();
+        ImGui.PopStyleColor();
+        ImGui.EndGroup();
+        ImGui.SameLine();
+        
+        // Right panel - Template editing
+        DrawRightPanel(rightPanelWidth);
+    }
+    
+    private void DrawLeftPanel(float panelWidth)
+    {
+        ImGui.BeginChild("LeftPanel", new Vector2(panelWidth, -1), false);
+        
+        // Template management section
+        if (ImGui.CollapsingHeader(Strings.GetString("MessageTemplateManagement"), ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            // List of templates
+            ImGui.Text(Strings.GetString("SavedTemplates"));
+            
+            if (plugin.Configuration.MessageTemplates.Count == 0)
+            {
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.GetString("NoSavedTemplates"));
+            }
+            else
+            {
+                // Template list with selection
+                for (int i = 0; i < plugin.Configuration.MessageTemplates.Count; i++)
+                {
+                    string templateName = plugin.Configuration.MessageTemplates[i].Name;
+                    bool isSelected = selectedTemplateIndex == i;
+                    bool isActive = plugin.Configuration.ActiveTemplateIndex == i;
+                    
+                    // Template name with selection highlight
+                    if (ImGui.Selectable($"{templateName}##template{i}", isSelected))
+                    {
+                        selectedTemplateIndex = i;
+                        UpdateCurrentTemplate();
+                    }
+                    
+                    if (isActive)
+                    {
+                        ImGui.SameLine();
+                        ImGui.TextColored(new Vector4(0.0f, 1.0f, 0.0f, 1.0f), "(Active)");
+                    }
+                }
+            }
+            
+            // Template actions
+            if (selectedTemplateIndex >= 0 && selectedTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+            {
+                // Template selected, show actions
+                if (ImGui.Button(Strings.GetString("SetAsActiveTemplate")))
+                {
+                    plugin.Configuration.ActiveTemplateIndex = selectedTemplateIndex;
+                    plugin.Configuration.SelectedMessageComponents = new List<MessageComponent>();
+                    
+                    // Copy components from template to current selection
+                    foreach (var component in plugin.Configuration.MessageTemplates[selectedTemplateIndex].Components)
+                    {
+                        plugin.Configuration.SelectedMessageComponents.Add(
+                            new MessageComponent(component.Type, component.CustomMessageIndex));
+                    }
+                    
+                    plugin.Configuration.Save();
+                }
+                
+                ImGui.SameLine();
+                
+                if (ImGui.Button(Strings.GetString("DeleteTemplate")))
+                {
+                    // Adjust active template index if needed
+                    if (plugin.Configuration.ActiveTemplateIndex == selectedTemplateIndex)
+                    {
+                        plugin.Configuration.ActiveTemplateIndex = -1;
+                    }
+                    else if (plugin.Configuration.ActiveTemplateIndex > selectedTemplateIndex)
+                    {
+                        plugin.Configuration.ActiveTemplateIndex--;
+                    }
+                    
+                    plugin.Configuration.MessageTemplates.RemoveAt(selectedTemplateIndex);
+                    plugin.Configuration.Save();
+                    
+                    selectedTemplateIndex = -1;
+                    UpdateCurrentTemplate();
+                }
+            }
+            
+            // New template creation
+            ImGui.Text(Strings.GetString("TemplateName"));
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(panelWidth * 0.45f);
+            ImGui.InputText("##TemplateName", ref newTemplateName, 50);
+            
+            ImGui.SameLine();
+            if (ImGui.Button(Strings.GetString("Create")) && !string.IsNullOrWhiteSpace(newTemplateName))
+            {
+                // Create new template from current selection
+                var newTemplate = new MessageTemplate(newTemplateName);
+                
+                // Copy current selection if any
+                if (plugin.Configuration.SelectedMessageComponents.Count > 0)
+                {
+                    foreach (var component in plugin.Configuration.SelectedMessageComponents)
+                    {
+                        newTemplate.Components.Add(
+                            new MessageComponent(component.Type, component.CustomMessageIndex));
+                    }
+                }
+                
+                // Clear the components of the new template as well
+                newTemplate.Components.Clear();
+                
+                plugin.Configuration.MessageTemplates.Add(newTemplate);
+                
+                // Clear the current message component list after creating a new template
+                plugin.Configuration.SelectedMessageComponents.Clear();
+                
+                plugin.Configuration.Save();
+                
+                // Select the new template
+                selectedTemplateIndex = plugin.Configuration.MessageTemplates.Count - 1;
+                UpdateCurrentTemplate();
+                
+                // Clear the input field
+                newTemplateName = string.Empty;
+            }
+        }
+        
+        ImGui.Separator();
+        
+        // Custom messages section
+        if (ImGui.CollapsingHeader(Strings.GetString("CustomMessages"), ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            // Display existing custom messages with edit and delete buttons
+            for (int i = 0; i < plugin.Configuration.CustomMessages.Count; i++)
+            {
+                string message = plugin.Configuration.CustomMessages[i];
+                ImGui.PushID($"custom_message_{i}");
+                
+                // Display the message
+                ImGui.Text($"{i + 1}. {message}");
+                
+                // Edit button
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Edit##" + i))
+                {
+                    editingCustomMessageIndex = i;
+                    editingCustomMessage = message;
+                }
+                
+                // Delete button
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Delete##" + i))
+                {
+                    plugin.Configuration.CustomMessages.RemoveAt(i);
+                    
+                    // Update any message components that reference this or later custom messages
+                    UpdateCustomMessageReferencesAfterDelete(i);
+                    
+                    plugin.Configuration.Save();
+                    i--; // Adjust for the removed item
+                }
+                
+                ImGui.PopID();
+            }
+            
+            // Add new custom message
+            ImGui.Separator();
+            ImGui.Text(Strings.GetString("AddNewMessage"));
+            ImGui.SetNextItemWidth(panelWidth * 0.7f);
+            ImGui.InputText("##NewCustomMessage", ref newCustomMessage, 100);
+            
+            ImGui.SameLine();
+            if (ImGui.Button(Strings.GetString("Add")) && !string.IsNullOrWhiteSpace(newCustomMessage))
+            {
+                plugin.Configuration.CustomMessages.Add(newCustomMessage);
+                plugin.Configuration.Save();
+                newCustomMessage = string.Empty;
+            }
+            
+            // Edit custom message dialog
+            if (editingCustomMessageIndex >= 0)
+            {
+                ImGui.Separator();
+                ImGui.Text(Strings.GetString("EditMessage"));
+                ImGui.SetNextItemWidth(panelWidth * 0.7f);
+                ImGui.InputText("##EditCustomMessage", ref editingCustomMessage, 100);
+                
+                ImGui.SameLine();
+                if (ImGui.Button(Strings.GetString("Save")) && !string.IsNullOrWhiteSpace(editingCustomMessage))
+                {
+                    plugin.Configuration.CustomMessages[editingCustomMessageIndex] = editingCustomMessage;
+                    plugin.Configuration.Save();
+                    editingCustomMessageIndex = -1;
+                    editingCustomMessage = string.Empty;
+                }
+                
+                ImGui.SameLine();
+                if (ImGui.Button(Strings.GetString("Cancel")))
+                {
+                    editingCustomMessageIndex = -1;
+                    editingCustomMessage = string.Empty;
+                }
+            }
+        }
+        
+        ImGui.EndChild();
+    }
+    
+    private void DrawRightPanel(float panelWidth)
+    {
+        // Use borderless child window to avoid visual separator
+        ImGui.BeginChild("RightPanel", new Vector2(panelWidth, -1), false, ImGuiWindowFlags.NoBackground);
+        
+        // No separator before title - directly show the header
+        // Header with template name or indication that no template is selected
+        if (currentTemplate != null)
+        {
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), string.Format(Strings.GetString("EditingTemplate"), currentTemplate.Name));
+        }
+        else if (plugin.Configuration.ActiveTemplateIndex >= 0)
+        {
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), 
+                string.Format(Strings.GetString("CurrentActiveTemplate"), plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name));
+        }
+        else
+        {
+            ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.0f, 1.0f), Strings.GetString("EditCurrentMessageComponents"));
+        }
+        
+        // Note: All separators in this section have been removed as requested
+        ImGui.Text(Strings.GetString("CurrentMessageComponentList"));
+        
+        List<MessageComponent> componentsToEdit = currentTemplate != null ?
+            currentTemplate.Components : plugin.Configuration.SelectedMessageComponents;
+        
+        if (componentsToEdit.Count == 0)
+        {
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.GetString("NoComponents"));
+        }
+        else
+        {
+            // Display components with simple list view (no drag and drop)
+            for (int i = 0; i < componentsToEdit.Count; i++)
+            {
+                // Get component text for display
+                string componentText = GetComponentDisplayText(componentsToEdit[i]);
+                
+                ImGui.PushID($"component_{i}");
+                
+                // Simple display without drag functionality
+                ImGui.Text($"{i + 1}. {componentText}");
+                
+                // Up/Down buttons for reordering
+                ImGui.SameLine();
+                if (i > 0 && ImGui.SmallButton(Strings.GetString("MoveUp") + "##" + i))
+                {
+                    // Move component up
+                    var component = componentsToEdit[i];
+                    componentsToEdit.RemoveAt(i);
+                    componentsToEdit.Insert(i - 1, component);
+                    SaveComponentChanges();
+                }
+                
+                ImGui.SameLine();
+                if (i < componentsToEdit.Count - 1 && ImGui.SmallButton(Strings.GetString("MoveDown") + "##" + i))
+                {
+                    // Move component down
+                    var component = componentsToEdit[i];
+                    componentsToEdit.RemoveAt(i);
+                    componentsToEdit.Insert(i + 1, component);
+                    SaveComponentChanges();
+                }
+                
+                // Remove button
+                ImGui.SameLine();
+                if (ImGui.SmallButton(Strings.GetString("Delete") + "##" + i))
+                {
+                    componentsToEdit.RemoveAt(i);
+                    SaveComponentChanges();
+                    i--; // Adjust for the removed item
+                }
+                
+                ImGui.PopID();
+            }
+        }
+        
+        ImGui.Separator();
+        
+        // Add components section
+        ImGui.Text(Strings.GetString("AddComponents"));
+        
+        // Player name checkbox
+        if (ImGui.Button(Strings.GetString("AddPlayerName")))
+        {
+            componentsToEdit.Add(new MessageComponent(MessageComponentType.PlayerName));
+            SaveComponentChanges();
+        }
+        
+        ImGui.SameLine();
+        
+        // Coordinates checkbox
+        if (ImGui.Button(Strings.GetString("AddCoordinates")))
+        {
+            componentsToEdit.Add(new MessageComponent(MessageComponentType.Coordinates));
+            SaveComponentChanges();
+        }
+        
+        // Display all custom messages with direct add buttons
+        if (plugin.Configuration.CustomMessages.Count > 0)
+        {
+            ImGui.Separator();
+            ImGui.Text(Strings.GetString("AddCustomMessage"));
+            
+            // Display each custom message with its own add button
+            for (int i = 0; i < plugin.Configuration.CustomMessages.Count; i++)
+            {
+                string message = plugin.Configuration.CustomMessages[i];
+                if (message.Length > 30)
+                {
+                    message = message.Substring(0, 27) + "...";
+                }
+                
+                if (ImGui.Button($"{message}##add_{i}"))
+                {
+                    componentsToEdit.Add(new MessageComponent(MessageComponentType.CustomMessage, i));
+                    SaveComponentChanges();
+                }
+                
+                // Create multiple columns of buttons for better layout
+                if ((i + 1) % 2 != 0 && i < plugin.Configuration.CustomMessages.Count - 1)
+                {
+                    ImGui.SameLine();
+                }
+            }
+        }
+        
+        ImGui.Separator();
+        
+        // Preview section
+        ImGui.Text(Strings.GetString("MessagePreview"));
+        string previewMessage = GeneratePreviewMessage(componentsToEdit);
+        ImGui.TextWrapped(previewMessage);
+        
+        // Save changes to template
+        if (currentTemplate != null)
+        {
+            ImGui.Separator();
+            if (ImGui.Button(Strings.GetString("SaveTemplateChanges")))
+            {
+                SaveTemplateChanges();
+            }
+            
+            ImGui.SameLine();
+            if (ImGui.Button(Strings.GetString("Cancel")))
+            {
+                // Reset to original template
+                selectedTemplateIndex = -1;
+                UpdateCurrentTemplate();
+            }
+            
+            // "Set as Active Template" button removed as requested
+        }
+        
+        ImGui.EndChild();
+    }
+    
+    // Updates custom message references after a custom message is deleted
+    private void UpdateCustomMessageReferencesAfterDelete(int deletedIndex)
+    {
+        // Update main selected components
+        for (int j = 0; j < plugin.Configuration.SelectedMessageComponents.Count; j++)
+        {
+            var component = plugin.Configuration.SelectedMessageComponents[j];
+            if (component.Type == MessageComponentType.CustomMessage)
+            {
+                // If this component referenced the deleted message, remove it
+                if (component.CustomMessageIndex == deletedIndex)
+                {
+                    plugin.Configuration.SelectedMessageComponents.RemoveAt(j);
+                    j--; // Adjust index after removal
+                }
+                // If this component referenced a message after the deleted one, update its index
+                else if (component.CustomMessageIndex > deletedIndex)
+                {
+                    component.CustomMessageIndex--;
+                }
+            }
+        }
+        
+        // Update all templates
+        foreach (var template in plugin.Configuration.MessageTemplates)
+        {
+            for (int j = 0; j < template.Components.Count; j++)
+            {
+                var component = template.Components[j];
+                if (component.Type == MessageComponentType.CustomMessage)
+                {
+                    // If this component referenced the deleted message, remove it
+                    if (component.CustomMessageIndex == deletedIndex)
+                    {
+                        template.Components.RemoveAt(j);
+                        j--; // Adjust index after removal
+                    }
+                    // If this component referenced a message after the deleted one, update its index
+                    else if (component.CustomMessageIndex > deletedIndex)
+                    {
+                        component.CustomMessageIndex--;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Generates a preview of the message that will be sent
+    private string GeneratePreviewMessage(List<MessageComponent> components)
+    {
+        if (components.Count == 0)
+        {
+            return Strings.GetString("WillOnlySendFlag");
+        }
+        
+        var previewParts = new List<string>();
+        
+        foreach (var component in components)
+        {
+            switch (component.Type)
+            {
+                case MessageComponentType.PlayerName:
+                    previewParts.Add(Strings.GetString("PlayerNamePreview"));
+                    break;
+                case MessageComponentType.Coordinates:
+                    previewParts.Add(Strings.GetString("TreasureMapCoordinatesPreview"));
+                    break;
+                case MessageComponentType.CustomMessage:
+                    if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
+                    {
+                        previewParts.Add(plugin.Configuration.CustomMessages[component.CustomMessageIndex]);
+                    }
+                    break;
+            }
+        }
+        
+        return string.Join(" ", previewParts);
+    }
+    
+    // Gets a display text for a component
+    private string GetComponentDisplayText(MessageComponent component)
+    {
+        switch (component.Type)
+        {
+            case MessageComponentType.PlayerName:
+                return Strings.GetString("PlayerName");
+            case MessageComponentType.Coordinates:
+                return Strings.GetString("TreasureMapCoordinates");
+            case MessageComponentType.CustomMessage:
+                if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
+                {
+                    return string.Format(Strings.GetString("CustomMessagePrefix"), plugin.Configuration.CustomMessages[component.CustomMessageIndex]);
+                }
+                return Strings.GetString("InvalidCustomMessage");
+            default:
+                return Strings.GetString("UnknownComponent");
+        }
+    }
+    
+    // Updates the current template based on selection
+    private void UpdateCurrentTemplate()
+    {
+        if (selectedTemplateIndex >= 0 && selectedTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+        {
+            // Clone the template to edit
+            currentTemplate = plugin.Configuration.MessageTemplates[selectedTemplateIndex].Clone();
+        }
+        else
+        {
+            currentTemplate = null;
+        }
+    }
+    
+    // Saves changes to the current template
+    private void SaveTemplateChanges()
+    {
+        if (currentTemplate != null && selectedTemplateIndex >= 0 && selectedTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+        {
+            // Update the template in the configuration
+            plugin.Configuration.MessageTemplates[selectedTemplateIndex] = currentTemplate;
+            plugin.Configuration.Save();
+        }
+    }
+    
+    // Saves changes to components
+    private void SaveComponentChanges()
+    {
+        if (currentTemplate == null)
+        {
+            // Saving changes to main selected components
+            plugin.Configuration.Save();
+        }
+    }
+    
+    public void Dispose()
+    {
+        // Nothing to dispose
+    }
+}

@@ -33,6 +33,27 @@ public sealed class Plugin : IDalamudPlugin
 
     public readonly WindowSystem WindowSystem = new("OnePiece");
     private MainWindow MainWindow { get; init; }
+    private CustomMessageWindow CustomMessageWindow { get; init; }
+    
+    // Toggle method for custom message window visibility
+    public void ShowCustomMessageWindow()
+    {
+        if (CustomMessageWindow != null)
+        {
+            Log.Information("Setting CustomMessageWindow.IsOpen = true");
+            CustomMessageWindow.IsOpen = true;
+            
+            // Force the window to be visible - sometimes just setting IsOpen isn't enough
+            CustomMessageWindow.BringToFront();
+            
+            // Additional log to confirm window is opened
+            Log.Information("CustomMessageWindow should now be visible");
+        }
+        else
+        {
+            Log.Error("CustomMessageWindow is null!");
+        }
+    }
 
     public Plugin()
     {
@@ -66,6 +87,10 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize main window (without logo)
         MainWindow = new MainWindow(this);
         WindowSystem.AddWindow(MainWindow);
+        
+        // Initialize custom message window
+        CustomMessageWindow = new CustomMessageWindow(this);
+        WindowSystem.AddWindow(CustomMessageWindow);
 
         // Register command
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -96,6 +121,7 @@ public sealed class Plugin : IDalamudPlugin
         // Dispose UI
         WindowSystem.RemoveAllWindows();
         MainWindow.Dispose();
+        CustomMessageWindow.Dispose();
 
         // Remove command handler
         CommandManager.RemoveHandler(CommandName);
@@ -110,9 +136,26 @@ public sealed class Plugin : IDalamudPlugin
         ToggleMainUi();
     }
 
-    private void DrawUi() => WindowSystem.Draw();
-
     public void ToggleConfigUi() => ToggleMainUi();
     public void ToggleMainUi() => MainWindow.Toggle();
+    
+    // Helper method to ensure the Draw call is happening
+    private bool hasLoggedFirstDraw = false;
+    private void DrawUi() 
+    {
+        if (!hasLoggedFirstDraw)
+        {
+            Log.Information("First DrawUi call");
+            hasLoggedFirstDraw = true;
+        }
+        
+        // If custom window should be open, log it
+        if (CustomMessageWindow != null && CustomMessageWindow.IsOpen)
+        {
+            Log.Debug("Drawing CustomMessageWindow (IsOpen=true)");
+        }
+        
+        WindowSystem.Draw();
+    }
 }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -393,55 +394,91 @@ public class ChatMonitorService : IDisposable
     {
         try
         {
-            // Get the chat command for the current channel
-            string chatCommand = GetChatCommand(plugin.Configuration.MonitoredChatChannel);
+            // Get the monitored chat channel name for logging
             string channelName = GetChatChannelName(plugin.Configuration.MonitoredChatChannel);
 
-            // Only log if log level is Normal or higher
-            if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-            {
-                log.Information($"Sending to {channelName}: {coordinate}");
-            }
+            // Create a map link for the coordinate
+            MapLinkPayload? mapLink = CreateMapLink(coordinate);
 
+            // Get the chat command for the monitored channel
+            string chatCommand = GetChatCommand(plugin.Configuration.MonitoredChatChannel);
+            
             try
             {
-                // Create a map link for the coordinate
-                var mapLink = CreateMapLink(coordinate);
-
+                // Make sure we have a valid map link
                 if (mapLink != null)
                 {
                     // Open the map with the marker
                     Plugin.GameGui.OpenMapWithMapLink(mapLink);
-
-                    // Now send the flag to chat
-                    string mapLinkCommand = $"{chatCommand} <flag>";
-
-                    // Execute the command to send the map link
-                    Chat.ExecuteCommand(mapLinkCommand);
-
-                    log.Information($"Successfully sent map link to {channelName}");
-
+                    
+                    // Check if we have an active template
+                    bool hasActiveTemplate = plugin.Configuration.ActiveTemplateIndex >= 0 && 
+                                          plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count;
+                    
+                    if (hasActiveTemplate)
+                    {
+                        // Get the active template
+                        var activeTemplate = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex];
+                        
+                        // Use the components from the active template instead of the selected components
+                        List<MessageComponent> originalComponents = plugin.Configuration.SelectedMessageComponents;
+                        plugin.Configuration.SelectedMessageComponents = activeTemplate.Components;
+                        
+                        // Build the custom message with <flag> integrated
+                        string customMessage = BuildCustomMessage(coordinate, true);
+                        
+                        // Restore the original selected components
+                        plugin.Configuration.SelectedMessageComponents = originalComponents;
+                        
+                        // Send the custom message with flag
+                        string customCommand = $"{chatCommand} {customMessage}";
+                        Chat.ExecuteCommand(customCommand);
+                        
+                        log.Information($"Successfully sent message using template '{activeTemplate.Name}' to {channelName}: {customMessage}");
+                    }
+                    else
+                    {
+                        // If no active template, just send the flag
+                        string mapLinkCommand = $"{chatCommand} <flag>";
+                        Chat.ExecuteCommand(mapLinkCommand);
+                        log.Information($"Successfully sent map link to {channelName} (no active template)");
+                    }
+                    
                     // Only show notification if log level is Normal or higher
                     if (plugin.Configuration.LogLevel >= LogLevel.Normal)
                     {
                         log.Information($"Successfully sent to {channelName}");
                     }
-
+                    
                     return;
                 }
+                else
+                {
+                    // If we couldn't create a map link, fall back to text-only message
+                    bool hasCustomMessageComponents = plugin.Configuration.SelectedMessageComponents.Count > 0;
+                    
+                    if (hasCustomMessageComponents)
+                    {
+                        // Build the custom message with text coordinates
+                        string customMessage = BuildCustomMessage(coordinate, false);
+                        string customCommand = $"{chatCommand} {customMessage}";
+                        Chat.ExecuteCommand(customCommand);
+                        log.Information($"Successfully sent custom message with text coordinates to {channelName}: {customMessage}");
+                    }
+                    else
+                    {
+                        // Just send text coordinates
+                        string mapName = !string.IsNullOrEmpty(coordinate.MapArea) ? coordinate.MapArea : "";
+                        string coordText = string.IsNullOrEmpty(mapName)
+                            ? $"({coordinate.X:F1}, {coordinate.Y:F1})"
+                            : $"{mapName} ({coordinate.X:F1}, {coordinate.Y:F1})";
 
-                // If we couldn't create a map link, fall back to text-only message
-                string mapName = !string.IsNullOrEmpty(coordinate.MapArea) ? coordinate.MapArea : "";
-                string coordText = string.IsNullOrEmpty(mapName)
-                    ? $"({coordinate.X:F1}, {coordinate.Y:F1})"
-                    : $"{mapName} ({coordinate.X:F1}, {coordinate.Y:F1})";
-
-                string fullCommand = $"{chatCommand} {coordText}";
-                Chat.ExecuteCommand(fullCommand);
-
-                // Log success message
-                log.Information($"Successfully sent coordinate text to {channelName}: {coordText}");
-
+                        string fullCommand = $"{chatCommand} {coordText}";
+                        Chat.ExecuteCommand(fullCommand);
+                        log.Information($"Successfully sent coordinate text to {channelName}: {coordText}");
+                    }
+                }
+                
                 // Only log if log level is Normal or higher
                 if (plugin.Configuration.LogLevel >= LogLevel.Normal)
                 {
@@ -459,6 +496,112 @@ public class ChatMonitorService : IDisposable
             // Always log error messages
             log.Error($"Error sending coordinate to chat: {ex.Message}");
         }
+    }
+    
+    /// <summary>
+    /// Builds a custom message based on the selected message components.
+    /// </summary>
+    /// <param name="coordinate">The coordinate to include in the message.</param>
+    /// <param name="useFlag">Whether to use <flag> for coordinates or text representation.</param>
+    /// <returns>The built custom message.</returns>
+    private string BuildCustomMessage(TreasureCoordinate coordinate, bool useFlag)
+    {
+        // If no components are selected, return an empty string
+        if (plugin.Configuration.SelectedMessageComponents.Count == 0)
+        {
+            return string.Empty;
+        }
+        
+        var messageParts = new List<string>();
+        bool hasCoordinates = false;
+        
+        // First pass: build all non-coordinate parts and check if coordinates are included
+        foreach (var component in plugin.Configuration.SelectedMessageComponents)
+        {
+            if (component.Type == MessageComponentType.Coordinates)
+            {
+                hasCoordinates = true;
+                continue; // Skip coordinates for now, we'll handle them specially
+            }
+            
+            switch (component.Type)
+            {
+                case MessageComponentType.PlayerName:
+                    if (!string.IsNullOrEmpty(coordinate.PlayerName))
+                    {
+                        messageParts.Add(coordinate.PlayerName);
+                    }
+                    break;
+                    
+                case MessageComponentType.CustomMessage:
+                    if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
+                    {
+                        messageParts.Add(plugin.Configuration.CustomMessages[component.CustomMessageIndex]);
+                    }
+                    break;
+            }
+        }
+        
+        // Now handle coordinates
+        if (hasCoordinates)
+        {
+            if (useFlag)
+            {
+                // Insert <flag> at the appropriate position based on the order in SelectedMessageComponents
+                int flagPosition = 0;
+                for (int i = 0; i < plugin.Configuration.SelectedMessageComponents.Count; i++)
+                {
+                    var component = plugin.Configuration.SelectedMessageComponents[i];
+                    if (component.Type == MessageComponentType.Coordinates)
+                    {
+                        // Found the coordinates component, insert <flag> at this position
+                        messageParts.Insert(flagPosition, "<flag>");
+                        break;
+                    }
+                    
+                    // If this component was added to messageParts, increment the position
+                    if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
+                        (component.Type == MessageComponentType.CustomMessage && 
+                         component.CustomMessageIndex >= 0 && 
+                         component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
+                    {
+                        flagPosition++;
+                    }
+                }
+            }
+            else
+            {
+                // Use text representation of coordinates
+                string mapName = !string.IsNullOrEmpty(coordinate.MapArea) ? coordinate.MapArea : "";
+                string coordText = string.IsNullOrEmpty(mapName)
+                    ? $"({coordinate.X:F1}, {coordinate.Y:F1})"
+                    : $"{mapName} ({coordinate.X:F1}, {coordinate.Y:F1})";
+                
+                // Insert the text coordinates at the appropriate position
+                int coordPosition = 0;
+                for (int i = 0; i < plugin.Configuration.SelectedMessageComponents.Count; i++)
+                {
+                    var component = plugin.Configuration.SelectedMessageComponents[i];
+                    if (component.Type == MessageComponentType.Coordinates)
+                    {
+                        // Found the coordinates component, insert the text at this position
+                        messageParts.Insert(coordPosition, coordText);
+                        break;
+                    }
+                    
+                    // If this component was added to messageParts, increment the position
+                    if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
+                        (component.Type == MessageComponentType.CustomMessage && 
+                         component.CustomMessageIndex >= 0 && 
+                         component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
+                    {
+                        coordPosition++;
+                    }
+                }
+            }
+        }
+        
+        return string.Join(" ", messageParts);
     }
 
     /// <summary>

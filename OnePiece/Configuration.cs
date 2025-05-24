@@ -1,4 +1,4 @@
-﻿using Dalamud.Configuration;
+using Dalamud.Configuration;
 using System;
 
 namespace OnePiece;
@@ -12,7 +12,6 @@ public class Configuration : IPluginConfiguration
     public LogLevel LogLevel { get; set; } = LogLevel.Normal;
 
     // Treasure hunt settings
-    public bool AutoOptimizeRoute { get; set; } = true;
     
     // Chat monitoring settings
     public bool EnableChatMonitoring { get; set; } = false;

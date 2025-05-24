@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Dalamud.Plugin.Services;
@@ -144,13 +144,12 @@ public class Strings
             { "GeneralSettings", "General Settings" },
             { "MovableConfigWindow", "Movable Config Window" },
             { "TreasureHuntSettings", "Treasure Hunt Settings" },
-            { "AutoOptimizeRoute", "Auto-optimize Route" },
 
             { "Language", "Language" },
             { "LogSettings", "Log Settings" },
             { "LogLevel", "Log Level" },
             { "LogLevelMinimal", "Off" },
-            { "LogLevelNormal", "Normal" },
+            { "LogLevelNormal", "Info" },
             { "LogLevelVerbose", "Debug" },
             { "LogLevelMinimalTooltip", "Turn off all logging" },
             { "LogLevelNormalTooltip", "Show normal log messages" },
@@ -237,14 +236,13 @@ public class Strings
             { "GeneralSettings", "一般設定" },
             { "MovableConfigWindow", "設定ウィンドウの移動を許可" },
             { "TreasureHuntSettings", "宝探し設定" },
-            { "AutoOptimizeRoute", "ルートを自動最適化" },
 
             { "Language", "言語" },
             { "LogSettings", "ログ設定" },
             { "LogLevel", "ログレベル" },
             { "LogLevelMinimal", "オフ" },
-            { "LogLevelNormal", "標準" },
-            { "LogLevelVerbose", "詳細" },
+            { "LogLevelNormal", "情報" },
+            { "LogLevelVerbose", "デバッグ" },
             { "LogLevelMinimalTooltip", "すべてのログをオフにする" },
             { "LogLevelNormalTooltip", "通常のログメッセージを表示" },
             { "LogLevelVerboseTooltip", "詳細なデバッグ情報を表示" },
@@ -330,14 +328,13 @@ public class Strings
             { "GeneralSettings", "常规设置" },
             { "MovableConfigWindow", "可移动配置窗口" },
             { "TreasureHuntSettings", "寻宝设置" },
-            { "AutoOptimizeRoute", "自动优化路线" },
 
             { "Language", "语言" },
             { "LogSettings", "日志设置" },
             { "LogLevel", "日志级别" },
-            { "LogLevelMinimal", "オフ" },
-            { "LogLevelNormal", "標準" },
-            { "LogLevelVerbose", "詳細" },
+            { "LogLevelMinimal", "关闭" },
+            { "LogLevelNormal", "信息" },
+            { "LogLevelVerbose", "调试" },
             { "LogLevelMinimalTooltip", "关闭所有日志" },
             { "LogLevelNormalTooltip", "显示普通日志消息" },
             { "LogLevelVerboseTooltip", "显示详细调试信息" },
@@ -381,8 +378,189 @@ public class Strings
         };
         Translations["zh"] = zh;
 
-        // Add more languages as needed (German, French, etc.)
-        // For brevity, we'll just include these three languages for now
+        // German
+        var de = new Dictionary<string, string>
+        {
+            // Main window
+            { "MainWindowTitle", "One Piece" },
+            { "MainWindowSubtitle", "Planen und optimieren Sie Ihre Schatzsuche-Route" },
+            { "Settings", "Einstellungen" },
+            { "HideSettings", "Einstellungen ausblenden" },
+            { "ClearAll", "Alles löschen" },
+            { "OptimizeRoute", "Route optimieren" },
+            { "ResetOptimization", "Optimierung zurücksetzen" },
+            { "NoCoordinates", "Noch keine Koordinaten importiert." },
+            { "UseImportSection", "Verwenden Sie den Import-Bereich oben, um Koordinaten hinzuzufügen." },
+            { "Coordinates", "Koordinaten: {0}" },
+            { "CoordinatesWithCount", "Koordinaten ({0})" },
+            { "TotalRouteDistance", "Gesamtstrecke: {0:F1}" },
+            { "OptimizedRoute", "Optimierte Route:" },
+            { "OptimizedRouteWithCount", "Optimierte Route ({0}):" },
+            { "Collected", "Gesammelt" },
+            { "Delete", "Löschen" },
+            { "Restore", "Wiederherstellen" },
+            { "SendToChat", "An Chat senden" },
+            { "TrashBin", "Papierkorb" },
+            { "TrashBinWithCount", "Papierkorb ({0})" },
+            { "ClearTrash", "Papierkorb leeren" },
+            { "EmptyTrashBin", "Papierkorb ist leer." },
+            { "ChannelSettings", "Kanal-Einstellungen" },
+            { "EnableChatMonitoring", "Kanal-Überwachung aktivieren" },
+            { "SelectChatChannel", "Kanal auswählen:" },
+            { "StartMonitoring", "Start" },
+            { "StopMonitoring", "Stopp" },
+            { "MonitoringActive", "Aktiv: {0}" },
+            { "CurrentMonitoredChannel", "Aktueller Kanal: {0}" },
+            { "PlayerCoordinates", "Spieler: {0}, Koordinaten: {1}" },
+            { "UnknownArea", "Unbekanntes Gebiet" },
+            { "MapArea", "Kartengebiet: {0}" },
+
+            // Settings window
+            { "SettingsWindowTitle", "Einstellungen" },
+            { "GeneralSettings", "Allgemeine Einstellungen" },
+            { "MovableConfigWindow", "Bewegbares Konfigurationsfenster" },
+            { "TreasureHuntSettings", "Schatzsuche-Einstellungen" },
+
+            { "Language", "Sprache" },
+            { "LogSettings", "Protokoll-Einstellungen" },
+            { "LogLevel", "Protokollierungsstufe" },
+            { "LogLevelMinimal", "Aus" },
+            { "LogLevelNormal", "Info" },
+            { "LogLevelVerbose", "Debug" },
+            { "LogLevelMinimalTooltip", "Alle Protokollierung ausschalten" },
+            { "LogLevelNormalTooltip", "Normale Protokollmeldungen anzeigen" },
+            { "LogLevelVerboseTooltip", "Detaillierte Debug-Informationen anzeigen" },
+
+            // Chat channels
+            { "Say", "Sagen" },
+            { "Yell", "Rufen" },
+            { "Shout", "Schreien" },
+            { "Party", "Gruppe" },
+            { "Alliance", "Allianz" },
+            { "FreeCompany", "Freie Gesellschaft" },
+            { "LinkShell1", "Linkshell 1" },
+            { "LinkShell2", "Linkshell 2" },
+            { "LinkShell3", "Linkshell 3" },
+            { "LinkShell4", "Linkshell 4" },
+            { "LinkShell5", "Linkshell 5" },
+            { "LinkShell6", "Linkshell 6" },
+            { "LinkShell7", "Linkshell 7" },
+            { "LinkShell8", "Linkshell 8" },
+            { "CrossWorldLinkShell1", "Cross-World Linkshell 1" },
+            { "CrossWorldLinkShell2", "Cross-World Linkshell 2" },
+            { "CrossWorldLinkShell3", "Cross-World Linkshell 3" },
+            { "CrossWorldLinkShell4", "Cross-World Linkshell 4" },
+            { "CrossWorldLinkShell5", "Cross-World Linkshell 5" },
+            { "CrossWorldLinkShell6", "Cross-World Linkshell 6" },
+            { "CrossWorldLinkShell7", "Cross-World Linkshell 7" },
+            { "CrossWorldLinkShell8", "Cross-World Linkshell 8" },
+
+            // Messages
+            { "CoordinatesImported", "{0} Koordinaten importiert." },
+            { "CoordinatesImportedFromClipboard", "{0} Koordinaten aus der Zwischenablage importiert." },
+            { "NoCoordinatesImported", "Keine Koordinaten importiert." },
+            { "ClipboardEmpty", "Zwischenablage ist leer." },
+            { "CoordinatesExportedToClipboard", "Koordinaten in die Zwischenablage exportiert." },
+            { "Export", "Exportieren" },
+            { "Import", "Importieren" },
+            { "CoordinateDetected", "Koordinate von {0} erkannt: {1}" },
+            { "RouteOptimized", "Route mit {0} Punkten optimiert." },
+            { "Error", "Fehler" },
+            { "Success", "Erfolg" }
+        };
+        Translations["de"] = de;
+
+        // French
+        var fr = new Dictionary<string, string>
+        {
+            // Main window
+            { "MainWindowTitle", "One Piece" },
+            { "MainWindowSubtitle", "Planifiez et optimisez votre route de chasse au trésor" },
+            { "Settings", "Paramètres" },
+            { "HideSettings", "Masquer les paramètres" },
+            { "ClearAll", "Tout effacer" },
+            { "OptimizeRoute", "Optimiser la route" },
+            { "ResetOptimization", "Réinitialiser l'optimisation" },
+            { "NoCoordinates", "Aucune coordonnée importée pour le moment." },
+            { "UseImportSection", "Utilisez la section d'importation ci-dessus pour ajouter des coordonnées." },
+            { "Coordinates", "Coordonnées: {0}" },
+            { "CoordinatesWithCount", "Coordonnées ({0})" },
+            { "TotalRouteDistance", "Distance totale du trajet: {0:F1}" },
+            { "OptimizedRoute", "Route optimisée:" },
+            { "OptimizedRouteWithCount", "Route optimisée ({0}):" },
+            { "Collected", "Collecté" },
+            { "Delete", "Supprimer" },
+            { "Restore", "Restaurer" },
+            { "SendToChat", "Envoyer au chat" },
+            { "TrashBin", "Corbeille" },
+            { "TrashBinWithCount", "Corbeille ({0})" },
+            { "ClearTrash", "Vider la corbeille" },
+            { "EmptyTrashBin", "La corbeille est vide." },
+            { "ChannelSettings", "Paramètres du canal" },
+            { "EnableChatMonitoring", "Activer la surveillance du canal" },
+            { "SelectChatChannel", "Sélectionner le canal:" },
+            { "StartMonitoring", "Démarrer" },
+            { "StopMonitoring", "Arrêter" },
+            { "MonitoringActive", "Actif: {0}" },
+            { "CurrentMonitoredChannel", "Canal actuel: {0}" },
+            { "PlayerCoordinates", "Joueur: {0}, Coordonnées: {1}" },
+            { "UnknownArea", "Zone inconnue" },
+            { "MapArea", "Zone de carte: {0}" },
+
+            // Settings window
+            { "SettingsWindowTitle", "Paramètres" },
+            { "GeneralSettings", "Paramètres généraux" },
+            { "MovableConfigWindow", "Fenêtre de configuration déplaçable" },
+            { "TreasureHuntSettings", "Paramètres de chasse au trésor" },
+
+            { "Language", "Langue" },
+            { "LogSettings", "Paramètres du journal" },
+            { "LogLevel", "Niveau de journalisation" },
+            { "LogLevelMinimal", "Désactivé" },
+            { "LogLevelNormal", "Info" },
+            { "LogLevelVerbose", "Débogage" },
+            { "LogLevelMinimalTooltip", "Désactiver toute journalisation" },
+            { "LogLevelNormalTooltip", "Afficher les messages de journal normaux" },
+            { "LogLevelVerboseTooltip", "Afficher les informations de débogage détaillées" },
+
+            // Chat channels
+            { "Say", "Dire" },
+            { "Yell", "Crier" },
+            { "Shout", "Hurler" },
+            { "Party", "Équipe" },
+            { "Alliance", "Alliance" },
+            { "FreeCompany", "Compagnie libre" },
+            { "LinkShell1", "Linkshell 1" },
+            { "LinkShell2", "Linkshell 2" },
+            { "LinkShell3", "Linkshell 3" },
+            { "LinkShell4", "Linkshell 4" },
+            { "LinkShell5", "Linkshell 5" },
+            { "LinkShell6", "Linkshell 6" },
+            { "LinkShell7", "Linkshell 7" },
+            { "LinkShell8", "Linkshell 8" },
+            { "CrossWorldLinkShell1", "Linkshell inter-mondes 1" },
+            { "CrossWorldLinkShell2", "Linkshell inter-mondes 2" },
+            { "CrossWorldLinkShell3", "Linkshell inter-mondes 3" },
+            { "CrossWorldLinkShell4", "Linkshell inter-mondes 4" },
+            { "CrossWorldLinkShell5", "Linkshell inter-mondes 5" },
+            { "CrossWorldLinkShell6", "Linkshell inter-mondes 6" },
+            { "CrossWorldLinkShell7", "Linkshell inter-mondes 7" },
+            { "CrossWorldLinkShell8", "Linkshell inter-mondes 8" },
+
+            // Messages
+            { "CoordinatesImported", "{0} coordonnées importées." },
+            { "CoordinatesImportedFromClipboard", "{0} coordonnées importées du presse-papiers." },
+            { "NoCoordinatesImported", "Aucune coordonnée n'a été importée." },
+            { "ClipboardEmpty", "Le presse-papiers est vide." },
+            { "CoordinatesExportedToClipboard", "Coordonnées exportées vers le presse-papiers." },
+            { "Export", "Exporter" },
+            { "Import", "Importer" },
+            { "CoordinateDetected", "Coordonnée détectée de {0}: {1}" },
+            { "RouteOptimized", "Route optimisée avec {0} points." },
+            { "Error", "Erreur" },
+            { "Success", "Succès" }
+        };
+        Translations["fr"] = fr;
     }
 }
 

@@ -132,11 +132,7 @@ public class TreasureHuntService
             importedCount = ImportCoordinatesFromText(text);
         }
 
-        // If auto-optimize is enabled, optimize the route
-        if (plugin.Configuration.AutoOptimizeRoute && Coordinates.Count > 0)
-        {
-            OptimizeRoute();
-        }
+
 
         // Raise the event
         OnCoordinatesImported?.Invoke(this, importedCount);
@@ -238,11 +234,7 @@ public class TreasureHuntService
         // Add the coordinate
         Coordinates.Add(coordinate);
 
-        // If auto-optimize is enabled, optimize the route
-        if (plugin.Configuration.AutoOptimizeRoute && Coordinates.Count > 0)
-        {
-            OptimizeRoute();
-        }
+
     }
 
     /// <summary>
@@ -259,7 +251,7 @@ public class TreasureHuntService
     }
 
     /// <summary>
-    /// Resets the route optimization, restoring the original order.
+    /// Resets the route optimization, restoring the original order and resetting all collection states.
     /// </summary>
     public void ResetRouteOptimization()
     {
@@ -269,6 +261,12 @@ public class TreasureHuntService
             Coordinates.Clear();
             Coordinates.AddRange(OriginalOrder);
 
+            // Reset collection state for all coordinates
+            foreach (var coordinate in Coordinates)
+            {
+                coordinate.IsCollected = false;
+            }
+
             // Clear the optimized route to indicate we're no longer in optimized mode
             OptimizedRoute.Clear();
 
@@ -276,7 +274,7 @@ public class TreasureHuntService
             OriginalOrder.Clear();
 
             // Log the reset
-            Plugin.Log.Information($"Route optimization reset. Restored {Coordinates.Count} coordinates to original order.");
+            Plugin.Log.Information($"Route optimization reset. Restored {Coordinates.Count} coordinates to original order and reset collection states.");
 
             // Raise the event
             OnRouteOptimizationReset?.Invoke(this, EventArgs.Empty);
@@ -301,12 +299,7 @@ public class TreasureHuntService
         DeletedCoordinates.Add(coordinate);
         Coordinates.RemoveAt(index);
 
-        // If auto-optimize is enabled, optimize the route
-        if (plugin.Configuration.AutoOptimizeRoute && Coordinates.Count > 0)
-        {
-            OptimizeRoute();
-        }
-        else if (Coordinates.Count == 0)
+        if (Coordinates.Count == 0)
         {
             OptimizedRoute.Clear();
         }
@@ -331,11 +324,7 @@ public class TreasureHuntService
         Coordinates.Add(coordinate);
         DeletedCoordinates.RemoveAt(index);
 
-        // If auto-optimize is enabled, optimize the route
-        if (plugin.Configuration.AutoOptimizeRoute && Coordinates.Count > 0)
-        {
-            OptimizeRoute();
-        }
+
 
         // Raise the event
         OnCoordinateRestored?.Invoke(this, coordinate);
@@ -498,13 +487,8 @@ public class TreasureHuntService
             // Add the optimized route for this map area to the overall route
             if (mapRoute.Count > 0)
             {
-                // If this is not the first area and we teleported here, mark the first coordinate
-                if (route.Count > 0 && currentMapArea != nextMapArea && mapRoute.Count > 0)
-                {
-                    // Mark that we teleported to reach this coordinate
-                    var firstInNewArea = mapRoute[0];
-                    firstInNewArea.Name = $"[Teleport to {nextMapArea}] {firstInNewArea.Name}".Trim();
-                }
+                // We've changed areas, but we're not adding teleport information to the coordinate name anymore
+                // This improves the clarity of the displayed information
                 
                 route.AddRange(mapRoute);
                 

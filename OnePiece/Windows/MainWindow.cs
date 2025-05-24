@@ -112,66 +112,105 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Separator();
 
-        // General Settings section
-        ImGui.TextUnformatted(Strings.GetString("GeneralSettings"));
-
         // Calculate optimal width for labels and controls
         float labelWidth = 220; // Increased from 180 to 220 to ensure labels are not cut off
         float controlWidth = 250; // Keep the same control width
 
-        // Language selection
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(Strings.GetString("Language"));
-        ImGui.SameLine(labelWidth);
-        ImGui.SetNextItemWidth(controlWidth);
-        if (ImGui.Combo("##LanguageSelector", ref selectedLanguageIndex, supportedLanguages, supportedLanguages.Length))
+        // General Settings section with collapsing header
+        if (ImGui.CollapsingHeader(Strings.GetString("GeneralSettings")))
         {
-            plugin.Configuration.Language = supportedLanguages[selectedLanguageIndex];
-            Strings.SetLanguage(plugin.Configuration.Language);
-            plugin.Configuration.Save();
-
-            // Refresh localized strings
-            InitializeChatChannelNames();
-            InitializeLogLevels();
-        }
-
-        // Log level
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(Strings.GetString("LogLevel"));
-        ImGui.SameLine(labelWidth);
-        ImGui.SetNextItemWidth(controlWidth);
-        if (ImGui.Combo("##LogLevelSelector", ref selectedLogLevelIndex, logLevels, logLevels.Length))
-        {
-            plugin.Configuration.LogLevel = (LogLevel)selectedLogLevelIndex;
-            plugin.Configuration.Save();
-        }
-
-        // Show tooltip for the selected log level
-        if (ImGui.IsItemHovered())
-        {
-            switch (plugin.Configuration.LogLevel)
+            // Language selection
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(Strings.GetString("Language"));
+            ImGui.SameLine(labelWidth);
+            ImGui.SetNextItemWidth(controlWidth);
+            if (ImGui.Combo("##LanguageSelector", ref selectedLanguageIndex, supportedLanguages, supportedLanguages.Length))
             {
-                case LogLevel.Minimal:
-                    ImGui.SetTooltip(Strings.GetString("LogLevelMinimalTooltip"));
-                    break;
-                case LogLevel.Normal:
-                    ImGui.SetTooltip(Strings.GetString("LogLevelNormalTooltip"));
-                    break;
-                case LogLevel.Verbose:
-                    ImGui.SetTooltip(Strings.GetString("LogLevelVerboseTooltip"));
-                    break;
+                plugin.Configuration.Language = supportedLanguages[selectedLanguageIndex];
+                Strings.SetLanguage(plugin.Configuration.Language);
+                plugin.Configuration.Save();
+
+                // Refresh localized strings
+                InitializeChatChannelNames();
+                InitializeLogLevels();
+            }
+
+            // Log level
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(Strings.GetString("LogLevel"));
+            ImGui.SameLine(labelWidth);
+            ImGui.SetNextItemWidth(controlWidth);
+            if (ImGui.Combo("##LogLevelSelector", ref selectedLogLevelIndex, logLevels, logLevels.Length))
+            {
+                plugin.Configuration.LogLevel = (LogLevel)selectedLogLevelIndex;
+                plugin.Configuration.Save();
+            }
+
+            // Show tooltip for the selected log level
+            if (ImGui.IsItemHovered())
+            {
+                switch (plugin.Configuration.LogLevel)
+                {
+                    case LogLevel.Minimal:
+                        ImGui.SetTooltip(Strings.GetString("LogLevelMinimalTooltip"));
+                        break;
+                    case LogLevel.Normal:
+                        ImGui.SetTooltip(Strings.GetString("LogLevelNormalTooltip"));
+                        break;
+                    case LogLevel.Verbose:
+                        ImGui.SetTooltip(Strings.GetString("LogLevelVerboseTooltip"));
+                        break;
+                }
             }
         }
 
-        // Auto-optimize route
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(Strings.GetString("AutoOptimizeRoute"));
-        ImGui.SameLine(labelWidth);
-        var autoOptimize = plugin.Configuration.AutoOptimizeRoute;
-        if (ImGui.Checkbox("##AutoOptimizeRoute", ref autoOptimize))
+        ImGui.Separator();
+
+        // Channel settings section with collapsing header
+        if (ImGui.CollapsingHeader(Strings.GetString("ChannelSettings")))
         {
-            plugin.Configuration.AutoOptimizeRoute = autoOptimize;
-            plugin.Configuration.Save();
+            // Chat channel selection - moved to be inline with the label
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(Strings.GetString("SelectChatChannel"));
+            ImGui.SameLine(labelWidth);
+            ImGui.SetNextItemWidth(controlWidth);
+            
+            // Get monitoring status
+            bool isMonitoring = plugin.ChatMonitorService.IsMonitoring;
+            
+            // Disable the combo box if monitoring is active
+            if (isMonitoring)
+            {
+                ImGui.BeginDisabled();
+            }
+            
+            if (ImGui.Combo("##ChatChannelSelector", ref selectedChatChannelIndex, chatChannelNames, chatChannelNames.Length))
+            {
+                plugin.Configuration.MonitoredChatChannel = (ChatChannelType)selectedChatChannelIndex;
+                plugin.Configuration.Save();
+            }
+            
+            // End the disabled state if monitoring is active
+            if (isMonitoring)
+            {
+                ImGui.EndDisabled();
+            }
+
+            // Monitoring control buttons (without status display)
+            if (isMonitoring)
+            {
+                if (ImGui.Button(Strings.GetString("StopMonitoring")))
+                {
+                    plugin.ChatMonitorService.StopMonitoring();
+                }
+            }
+            else
+            {
+                if (ImGui.Button(Strings.GetString("StartMonitoring")))
+                {
+                    plugin.ChatMonitorService.StartMonitoring();
+                }
+            }
         }
 
         ImGui.Separator();
@@ -233,54 +272,6 @@ public class MainWindow : Window, IDisposable
             else
             {
                 Plugin.ChatGui.Print(Strings.GetString("ClipboardEmpty"));
-            }
-        }
-
-        ImGui.Separator();
-
-        // Channel settings section
-        ImGui.TextUnformatted(Strings.GetString("ChannelSettings"));
-
-        // Chat channel selection - moved to be inline with the label
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(Strings.GetString("SelectChatChannel"));
-        ImGui.SameLine(labelWidth);
-        ImGui.SetNextItemWidth(controlWidth);
-        
-        // Get monitoring status
-        bool isMonitoring = plugin.ChatMonitorService.IsMonitoring;
-        
-        // Disable the combo box if monitoring is active
-        if (isMonitoring)
-        {
-            ImGui.BeginDisabled();
-        }
-        
-        if (ImGui.Combo("##ChatChannelSelector", ref selectedChatChannelIndex, chatChannelNames, chatChannelNames.Length))
-        {
-            plugin.Configuration.MonitoredChatChannel = (ChatChannelType)selectedChatChannelIndex;
-            plugin.Configuration.Save();
-        }
-        
-        // End the disabled state if monitoring is active
-        if (isMonitoring)
-        {
-            ImGui.EndDisabled();
-        }
-
-        // Monitoring control buttons (without status display)
-        if (isMonitoring)
-        {
-            if (ImGui.Button(Strings.GetString("StopMonitoring")))
-            {
-                plugin.ChatMonitorService.StopMonitoring();
-            }
-        }
-        else
-        {
-            if (ImGui.Button(Strings.GetString("StartMonitoring")))
-            {
-                plugin.ChatMonitorService.StartMonitoring();
             }
         }
 
@@ -370,10 +361,20 @@ public class MainWindow : Window, IDisposable
 
                                 ImGui.SameLine();
 
-                                // Send to Chat button
+                                // Send to Chat button - disable if the coordinate is already collected
+                                if (isCollected)
+                                {
+                                    ImGui.BeginDisabled();
+                                }
+                                
                                 if (ImGui.SmallButton(Strings.GetString("SendToChat") + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
                                     plugin.ChatMonitorService.SendCoordinateToChat(coord);
+                                }
+                                
+                                if (isCollected)
+                                {
+                                    ImGui.EndDisabled();
                                 }
 
                                 ImGui.SameLine();

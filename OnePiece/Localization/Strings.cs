@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Dalamud.Plugin.Services;
@@ -128,12 +128,12 @@ public class Strings
             { "TrashBinWithCount", "Trash Bin ({0})" },
             { "ClearTrash", "Clear Trash" },
             { "EmptyTrashBin", "Trash bin is empty." },
-            { "ChatChannelMonitoring", "Chat Channel Monitoring" },
-            { "EnableChatMonitoring", "Enable Chat Monitoring" },
-            { "SelectChatChannel", "Select Chat Channel:" },
-            { "StartMonitoring", "Start Monitoring" },
-            { "StopMonitoring", "Stop Monitoring" },
-            { "MonitoringActive", "Monitoring Active: {0}" },
+            { "ChannelSettings", "Channel Settings" },
+            { "EnableChatMonitoring", "Enable Channel Monitoring" },
+            { "SelectChatChannel", "Select Channel:" },
+            { "StartMonitoring", "Start" },
+            { "StopMonitoring", "Stop" },
+            { "MonitoringActive", "Active: {0}" },
             { "CurrentMonitoredChannel", "Current Channel: {0}" },
             { "PlayerCoordinates", "Player: {0}, Coordinates: {1}" },
             { "UnknownArea", "Unknown Area" },
@@ -148,7 +148,7 @@ public class Strings
 
             { "Language", "Language" },
             { "LogSettings", "Log Settings" },
-            { "LogLevel", "Log Level:" },
+            { "LogLevel", "Log Level" },
             { "LogLevelMinimal", "Off" },
             { "LogLevelNormal", "Normal" },
             { "LogLevelVerbose", "Debug" },
@@ -221,12 +221,12 @@ public class Strings
             { "TrashBinWithCount", "ごみ箱 ({0})" },
             { "ClearTrash", "ごみ箱を空にする" },
             { "EmptyTrashBin", "ごみ箱は空です。" },
-            { "ChatChannelMonitoring", "チャットチャンネル監視" },
-            { "EnableChatMonitoring", "チャット監視を有効にする" },
-            { "SelectChatChannel", "チャットチャンネルを選択:" },
-            { "StartMonitoring", "監視開始" },
-            { "StopMonitoring", "監視停止" },
-            { "MonitoringActive", "監視アクティブ: {0}" },
+            { "ChannelSettings", "チャンネル設定" },
+            { "EnableChatMonitoring", "チャンネル監視を有効にする" },
+            { "SelectChatChannel", "チャンネルを選択:" },
+            { "StartMonitoring", "開始" },
+            { "StopMonitoring", "停止" },
+            { "MonitoringActive", "アクティブ: {0}" },
             { "CurrentMonitoredChannel", "現在のチャンネル: {0}" },
             { "PlayerCoordinates", "プレイヤー: {0}, 座標: {1}" },
             { "UnknownArea", "不明なエリア" },
@@ -241,10 +241,10 @@ public class Strings
 
             { "Language", "言語" },
             { "LogSettings", "ログ設定" },
-            { "LogLevel", "ログレベル:" },
-            { "LogLevelMinimal", "关闭" },
-            { "LogLevelNormal", "普通" },
-            { "LogLevelVerbose", "调试" },
+            { "LogLevel", "ログレベル" },
+            { "LogLevelMinimal", "オフ" },
+            { "LogLevelNormal", "標準" },
+            { "LogLevelVerbose", "詳細" },
             { "LogLevelMinimalTooltip", "すべてのログをオフにする" },
             { "LogLevelNormalTooltip", "通常のログメッセージを表示" },
             { "LogLevelVerboseTooltip", "詳細なデバッグ情報を表示" },
@@ -314,12 +314,12 @@ public class Strings
             { "TrashBinWithCount", "垃圾箱 ({0})" },
             { "ClearTrash", "清空垃圾箱" },
             { "EmptyTrashBin", "垃圾箱是空的。" },
-            { "ChatChannelMonitoring", "聊天频道监控" },
-            { "EnableChatMonitoring", "启用聊天监控" },
-            { "SelectChatChannel", "选择聊天频道:" },
-            { "StartMonitoring", "开始监控" },
-            { "StopMonitoring", "停止监控" },
-            { "MonitoringActive", "监控活动: {0}" },
+            { "ChannelSettings", "频道设置" },
+            { "EnableChatMonitoring", "启用频道监控" },
+            { "SelectChatChannel", "选择频道:" },
+            { "StartMonitoring", "开始" },
+            { "StopMonitoring", "停止" },
+            { "MonitoringActive", "活动状态: {0}" },
             { "CurrentMonitoredChannel", "当前频道: {0}" },
             { "PlayerCoordinates", "玩家: {0}, 藏宝图坐标: {1}" },
             { "UnknownArea", "未知区域" },
@@ -334,10 +334,10 @@ public class Strings
 
             { "Language", "语言" },
             { "LogSettings", "日志设置" },
-            { "LogLevel", "日志级别:" },
-            { "LogLevelMinimal", "关闭" },
-            { "LogLevelNormal", "普通" },
-            { "LogLevelVerbose", "调试" },
+            { "LogLevel", "日志级别" },
+            { "LogLevelMinimal", "オフ" },
+            { "LogLevelNormal", "標準" },
+            { "LogLevelVerbose", "詳細" },
             { "LogLevelMinimalTooltip", "关闭所有日志" },
             { "LogLevelNormalTooltip", "显示普通日志消息" },
             { "LogLevelVerboseTooltip", "显示详细调试信息" },
@@ -385,4 +385,9 @@ public class Strings
         // For brevity, we'll just include these three languages for now
     }
 }
+
+
+
+
+
 

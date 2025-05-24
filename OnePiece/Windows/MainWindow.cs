@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Numerics;
 using System.Collections.Generic;
 using Dalamud.Interface.Utility.Raii;
@@ -238,8 +238,8 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Separator();
 
-        // Chat monitoring section
-        ImGui.TextUnformatted(Strings.GetString("ChatChannelMonitoring"));
+        // Channel settings section
+        ImGui.TextUnformatted(Strings.GetString("ChannelSettings"));
 
         // Chat channel selection - moved to be inline with the label
         ImGui.AlignTextToFramePadding();

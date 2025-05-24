@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🗺️ One Piece FFXIV Plugin
+<img src="https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/logo.png" alt="One Piece Logo" width="128" height="128">
+
+# One Piece FFXIV Plugin
 
 [![GitHub release](https://img.shields.io/github/v/release/dalamudx/onepiece?include_prereleases&style=flat)](https://github.com/dalamudx/onepiece/releases)
 [![GitHub issues](https://img.shields.io/github/issues/dalamudx/onepiece)](https://github.com/dalamudx/onepiece/issues)

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text.Json;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
@@ -34,6 +36,9 @@ public class AetheryteService
         this.log = log;
         this.territoryManager = territoryManager;
         LoadAetherytes();
+        
+        // Try to load aetheryte positions from JSON file
+        LoadAetherytePositionsFromJson();
     }
 
     /// <summary>
@@ -229,8 +234,8 @@ public class AetheryteService
             this.aetherytes = loadedAetherytes;
             log.Information($"Loaded {this.aetherytes.Count} aetherytes");
 
-            // Try to update positions from the game data if possible
-            UpdateAetherytePositions();
+            // Load positions from the JSON file instead of setting default positions
+            LoadAetherytePositionsFromJson();
         }
         catch (Exception ex)
         {
@@ -239,38 +244,177 @@ public class AetheryteService
     }
 
     /// <summary>
-    /// Updates aetheryte positions from the game data if possible.
+    /// This method is kept for API compatibility but no longer sets default positions.
+    /// Positions are now exclusively loaded from the JSON file.
     /// </summary>
     private void UpdateAetherytePositions()
     {
+        // This method is intentionally empty as we no longer set default positions
+        // All aetheryte positions should be loaded from the JSON file
+        log.Information("UpdateAetherytePositions is disabled - using JSON data for positions");
+    }
+    
+    /// <summary>
+    /// Loads aetheryte positions from the aetheryte.json file.
+    /// </summary>
+    private void LoadAetherytePositionsFromJson()
+    {
         try
         {
-            // Try to get aetheryte positions from the game data
-            // This is a simplified implementation and might need to be improved
-            foreach (var aetheryte in aetherytes)
+            // 使用 PluginInterface 获取插件目录
+            string pluginDirectory = Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName);
+            log.Information($"Plugin directory from PluginInterface: {pluginDirectory}");
+            
+            // 定义要加载的文件名
+            const string fileName = "aetheryte.json";
+            
+            // 在插件目录下查找文件
+            string aetheryteJsonPath = Path.Combine(pluginDirectory, fileName);
+            log.Information($"Looking for aetheryte.json in plugin directory: {aetheryteJsonPath}");
+            
+            // 检查文件是否存在
+            if (!File.Exists(aetheryteJsonPath))
             {
+                log.Error($"Aetheryte JSON file not found in plugin directory: {aetheryteJsonPath}");
+                return;
+            }
+            
+            log.Information($"Found aetheryte.json at: {aetheryteJsonPath}");
+            
+            // 读取JSON文件
+            string jsonContent = File.ReadAllText(aetheryteJsonPath);
+            log.Debug($"Read JSON content with length: {jsonContent.Length}");
+            
+            // 如果JSON内容为空，记录错误并返回
+            if (string.IsNullOrWhiteSpace(jsonContent))
+            {
+                log.Error("aetheryte.json file is empty");
+                return;
+            }
+            
+            // 尝试反序列化JSON
+            JsonSerializerOptions options = new JsonSerializerOptions
+            {
+                AllowTrailingCommas = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                PropertyNameCaseInsensitive = true
+            };
+            
+            var aetheryteData = JsonSerializer.Deserialize<AetheryteJsonData>(jsonContent, options);
+            
+            if (aetheryteData == null)
+            {
+                log.Error("Failed to deserialize aetheryte data from JSON: result was null");
+                return;
+            }
+            
+            if (aetheryteData.Aetherytes == null || aetheryteData.Aetherytes.Count == 0)
+            {
+                log.Error("Deserialized aetheryte data contains no aetherytes");
+                return;
+            }
+            
+            log.Information($"Successfully loaded {aetheryteData.Aetherytes.Count} aetherytes from JSON file");
+            
+            // 更新现有的传送点数据或添加新的传送点
+            int updatedCount = 0;
+            foreach (var jsonAetheryte in aetheryteData.Aetherytes)
+            {
+                var existingAetheryte = aetherytes.FirstOrDefault(a => a.AetheryteRowId == jsonAetheryte.AetheryteRowId);
+                if (existingAetheryte != null)
+                {
+                    existingAetheryte.Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y);
+                    existingAetheryte.MapArea = jsonAetheryte.MapArea;
+                    existingAetheryte.BaseTeleportFee = jsonAetheryte.BaseTeleportFee;
+                    updatedCount++;
+                    log.Debug($"Updated existing aetheryte: {existingAetheryte.Name} in {existingAetheryte.MapArea} at position ({existingAetheryte.Position.X}, {existingAetheryte.Position.Y})");
+                }
+                else
+                {
+                    // 创建新的传送点如果之前的列表中不存在
+                    var newAetheryte = new AetheryteInfo
+                    {
+                        Id = jsonAetheryte.AetheryteRowId,
+                        AetheryteRowId = jsonAetheryte.AetheryteRowId,
+                        Name = jsonAetheryte.Name,
+                        MapArea = jsonAetheryte.MapArea,
+                        Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y),
+                        BaseTeleportFee = jsonAetheryte.BaseTeleportFee,
+                        ActualTeleportFee = 0, // 在需要时更新
+                        TerritoryId = 0, // JSON中没有这个信息
+                        MapId = 0 // JSON中没有这个信息
+                    };
+                    
+                    aetherytes.Add(newAetheryte);
+                    updatedCount++;
+                    log.Debug($"Added new aetheryte: {newAetheryte.Name} in {newAetheryte.MapArea} at position ({newAetheryte.Position.X}, {newAetheryte.Position.Y})");
+                }
+            }
+            
+            log.Information($"Successfully updated or added {updatedCount} aetherytes from JSON file");
+        }
+        catch (Exception ex)
+        {
+            log.Error($"Error loading aetheryte positions from JSON: {ex.Message}");
+            log.Error(ex.StackTrace);
+        }
+    }
+    
+    /// <summary>
+    /// 记录指定目录及其子目录的内容，用于调试
+    /// </summary>
+    /// <param name="directory">要检查的目录</param>
+    private void LogAllDirectoryContents(string directory)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+            {
+                log.Error($"Cannot log directory contents: Directory does not exist or is null: {directory}");
+                return;
+            }
+            
+            log.Information($"Logging contents of directory: {directory}");
+            
+            // 记录当前目录中的所有文件
+            var files = Directory.GetFiles(directory);
+            log.Information($"Found {files.Length} files in {directory}:");
+            foreach (var file in files)
+            {
+                log.Information($"  - {Path.GetFileName(file)}");
+            }
+            
+            // 记录子目录
+            var subDirs = Directory.GetDirectories(directory);
+            log.Information($"Found {subDirs.Length} subdirectories in {directory}:");
+            foreach (var subDir in subDirs)
+            {
+                log.Information($"  - {Path.GetFileName(subDir)}");
+                
+                // 递归检查子目录中的文件（仅一级，避免日志过多）
                 try
                 {
-                    // Get the aetheryte row from the game data
-                    var aetheryteRow = data.GetExcelSheet<Aetheryte>()?.GetRow(aetheryte.AetheryteRowId);
-                    if (aetheryteRow == null)
-                        continue;
-
-                    // Set a default position since we can't easily access the map marker data
-                    // In a real implementation, you would need to use the proper conversion from world coordinates to map coordinates
-                    // For now, we'll use a simplified approach
-                    aetheryte.Position = new Vector2(10, 10); // Default position in the center of the map
-                    log.Debug($"Set default position for {aetheryte.Name}: (10, 10)");
+                    var subFiles = Directory.GetFiles(subDir);
+                    log.Information($"    Contains {subFiles.Length} files");
+                    // 只记录前5个文件，避免日志过多
+                    foreach (var file in subFiles.Take(5))
+                    {
+                        log.Information($"    - {Path.GetFileName(file)}");
+                    }
+                    if (subFiles.Length > 5)
+                    {
+                        log.Information($"    ... and {subFiles.Length - 5} more files");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    log.Error($"Error updating position for aetheryte {aetheryte.Id}: {ex.Message}");
+                    log.Error($"Error listing files in subdirectory {subDir}: {ex.Message}");
                 }
             }
         }
         catch (Exception ex)
         {
-            log.Error($"Error updating aetheryte positions: {ex.Message}");
+            log.Error($"Error logging directory contents: {ex.Message}");
         }
     }
 
@@ -283,4 +427,61 @@ public class AetheryteService
         // Use a standard base teleport fee
         return 100;
     }
+}
+
+/// <summary>
+/// Class for deserializing aetheryte.json data.
+/// </summary>
+public class AetheryteJsonData
+{
+    /// <summary>
+    /// Gets or sets the timestamp when the data was generated.
+    /// </summary>
+    public string Timestamp { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Gets or sets the game version.
+    /// </summary>
+    public string GameVersion { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Gets or sets the list of aetherytes.
+    /// </summary>
+    public List<AetheryteJsonEntry> Aetherytes { get; set; } = new();
+}
+
+/// <summary>
+/// Class for deserializing individual aetheryte entries from JSON.
+/// </summary>
+public class AetheryteJsonEntry
+{
+    /// <summary>
+    /// Gets or sets the aetheryte row ID.
+    /// </summary>
+    public uint AetheryteRowId { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the aetheryte name.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Gets or sets the map area name.
+    /// </summary>
+    public string MapArea { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Gets or sets the base teleport fee.
+    /// </summary>
+    public int BaseTeleportFee { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the X coordinate.
+    /// </summary>
+    public double X { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the Y coordinate.
+    /// </summary>
+    public double Y { get; set; }
 }

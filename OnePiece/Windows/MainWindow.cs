@@ -111,8 +111,25 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
-        // Get window width for centering
+        // Get window width and height for centering
         float windowWidth = ImGui.GetWindowWidth();
+        float windowHeight = ImGui.GetWindowHeight();
+        
+        // Check if player is logged in
+        bool isLoggedIn = Plugin.ClientState.IsLoggedIn;
+        
+        // If not logged in, display warning at the top of the window
+        if (!isLoggedIn)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f)); // Yellow warning text
+            string message = Strings.GetString("NotLoggedIn");
+            float warningWidth = ImGui.CalcTextSize(message).X;
+            ImGui.SetCursorPosX((windowWidth - warningWidth) * 0.5f);
+            ImGui.TextUnformatted(message);
+            ImGui.PopStyleColor();
+            
+            ImGui.Separator();
+        }
 
         // Display subtitle (centered)
         string subtitle = Strings.GetString("MainWindowSubtitle");
@@ -121,6 +138,12 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted(subtitle);
 
         ImGui.Separator();
+        
+        // Begin disabled group if player is not logged in
+        if (!isLoggedIn)
+        {
+            ImGui.BeginDisabled();
+        }
 
         // Calculate optimal width for labels and controls dynamically based on content
         float maxLabelWidth = 0;
@@ -594,6 +617,12 @@ public class MainWindow : Window, IDisposable
                     ImGui.TextUnformatted(Strings.GetString("EmptyTrashBin"));
                 }
             }
+        }
+        
+        // End disabled group if player is not logged in
+        if (!isLoggedIn)
+        {
+            ImGui.EndDisabled();
         }
     }
 

@@ -139,6 +139,9 @@ public class Strings
             { "PlayerCoordinates", "Player: {0}, Coordinates: {1}" },
             { "UnknownArea", "Unknown Area" },
             { "MapArea", "Map Area: {0}" },
+            
+            // Login status messages
+            { "NotLoggedIn", "Please log into the game to use this plugin." },
 
             // General settings section
             { "GeneralSettings", "General Settings" },
@@ -281,6 +284,9 @@ public class Strings
             { "PlayerCoordinates", "プレイヤー: {0}, 座標: {1}" },
             { "UnknownArea", "不明なエリア" },
             { "MapArea", "マップエリア: {0}" },
+            
+            // Login status messages
+            { "NotLoggedIn", "このプラグインを使用するには、ゲームにログインしてください。" },
 
             // General settings section
             { "GeneralSettings", "一般設定" },
@@ -424,6 +430,9 @@ public class Strings
             { "PlayerCoordinates", "玩家: {0}, 藏宝图坐标: {1}" },
             { "UnknownArea", "未知区域" },
             { "MapArea", "地图区域: {0}" },
+            
+            // Login status messages
+            { "NotLoggedIn", "请登录游戏后再使用此插件。" },
 
             // General settings section
             { "GeneralSettings", "常规设置" },
@@ -567,6 +576,9 @@ public class Strings
             { "PlayerCoordinates", "Spieler: {0}, Koordinaten: {1}" },
             { "UnknownArea", "Unbekanntes Gebiet" },
             { "MapArea", "Kartengebiet: {0}" },
+            
+            // Login status messages
+            { "NotLoggedIn", "Bitte melden Sie sich im Spiel an, um dieses Plugin zu verwenden." },
 
             // General settings section
             { "GeneralSettings", "Allgemeine Einstellungen" },
@@ -709,6 +721,9 @@ public class Strings
             { "PlayerCoordinates", "Joueur: {0}, Coordonnées: {1}" },
             { "UnknownArea", "Zone inconnue" },
             { "MapArea", "Zone de carte: {0}" },
+            
+            // Login status messages
+            { "NotLoggedIn", "Veuillez vous connecter au jeu pour utiliser ce plugin." },
 
             // General settings section
             { "GeneralSettings", "Paramètres généraux" },

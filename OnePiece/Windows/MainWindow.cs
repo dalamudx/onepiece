@@ -246,14 +246,29 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted(Strings.GetString("SelectChatChannel"));
         ImGui.SameLine(labelWidth);
         ImGui.SetNextItemWidth(controlWidth);
+        
+        // Get monitoring status
+        bool isMonitoring = plugin.ChatMonitorService.IsMonitoring;
+        
+        // Disable the combo box if monitoring is active
+        if (isMonitoring)
+        {
+            ImGui.BeginDisabled();
+        }
+        
         if (ImGui.Combo("##ChatChannelSelector", ref selectedChatChannelIndex, chatChannelNames, chatChannelNames.Length))
         {
             plugin.Configuration.MonitoredChatChannel = (ChatChannelType)selectedChatChannelIndex;
             plugin.Configuration.Save();
         }
+        
+        // End the disabled state if monitoring is active
+        if (isMonitoring)
+        {
+            ImGui.EndDisabled();
+        }
 
         // Monitoring control buttons (without status display)
-        var isMonitoring = plugin.ChatMonitorService.IsMonitoring;
         if (isMonitoring)
         {
             if (ImGui.Button(Strings.GetString("StopMonitoring")))

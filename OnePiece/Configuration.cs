@@ -104,7 +104,10 @@ public enum MessageComponentType
 {
     PlayerName,     // The name of the player who shared the coordinates
     Coordinates,    // The coordinates (including map name if available)
-    CustomMessage   // A custom message defined by the user
+    CustomMessage,  // A custom message defined by the user
+    Number,         // Displays a number (1-8) based on the map index
+    BoxedNumber,    // Displays a boxed number (1-8) based on the map index
+    BoxedOutlinedNumber // Displays a boxed outlined number (0-9) based on the map index
 }
 
 /// <summary>

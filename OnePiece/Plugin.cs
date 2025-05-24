@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Game.Command;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -12,6 +13,16 @@ namespace OnePiece;
 
 public sealed class Plugin : IDalamudPlugin
 {
+    // Event to notify when message templates or components have been updated
+    public event EventHandler? MessageTemplateUpdated;
+    
+    // Method to trigger the MessageTemplateUpdated event
+    public void NotifyMessageTemplateUpdated()
+    {
+        MessageTemplateUpdated?.Invoke(this, EventArgs.Empty);
+        Log.Information("MessageTemplateUpdated event triggered");
+    }
+    
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
@@ -149,13 +160,9 @@ public sealed class Plugin : IDalamudPlugin
             hasLoggedFirstDraw = true;
         }
         
-        // If custom window should be open, log it
-        if (CustomMessageWindow != null && CustomMessageWindow.IsOpen)
-        {
-            Log.Debug("Drawing CustomMessageWindow (IsOpen=true)");
-        }
+        // We previously had logging here for CustomMessageWindow, but it was causing a loop issue
+        // Removed the logging to prevent excessive log output
         
         WindowSystem.Draw();
     }
 }
-

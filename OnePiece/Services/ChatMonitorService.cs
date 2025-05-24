@@ -533,6 +533,34 @@ public class ChatMonitorService : IDisposable
                     }
                     break;
                     
+                case MessageComponentType.Number:
+                    // Get index from coordinate or active route
+                    int index = GetCoordinateIndex(coordinate);
+                    if (index >= 0 && index < 8)
+                    {
+                        // Insert the Number1-Number8 special characters into chat using direct Unicode values
+                        // According to SeIconChar source, Number1 = 0xE061, and so on
+                        // This is a more direct approach that inserts the actual character into the text
+                        int unicodeValue = 0xE061 + index; // SeIconChar.Number1 + index offset
+                        string iconChar = char.ConvertFromUtf32(unicodeValue);
+                        messageParts.Add(iconChar);
+                    }
+                    break;
+                    
+                case MessageComponentType.BoxedNumber:
+                    // Get index from coordinate or active route
+                    int boxedIndex = GetCoordinateIndex(coordinate);
+                    if (boxedIndex >= 0 && boxedIndex < 8)
+                    {
+                        // Insert the BoxedNumber1-BoxedNumber8 special characters into chat using direct Unicode values
+                        // According to SeIconChar source, BoxedNumber1 = 0xE090, and so on
+                        // This is a more direct approach that inserts the actual character into the text
+                        int unicodeValue = 0xE090 + boxedIndex; // SeIconChar.BoxedNumber1 + index offset
+                        string iconChar = char.ConvertFromUtf32(unicodeValue);
+                        messageParts.Add(iconChar);
+                    }
+                    break;
+                    
                 case MessageComponentType.CustomMessage:
                     if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
                     {
@@ -561,6 +589,8 @@ public class ChatMonitorService : IDisposable
                     
                     // If this component was added to messageParts, increment the position
                     if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
+                        (component.Type == MessageComponentType.Number && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
+                        (component.Type == MessageComponentType.BoxedNumber && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
                         (component.Type == MessageComponentType.CustomMessage && 
                          component.CustomMessageIndex >= 0 && 
                          component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
@@ -591,6 +621,8 @@ public class ChatMonitorService : IDisposable
                     
                     // If this component was added to messageParts, increment the position
                     if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
+                        (component.Type == MessageComponentType.Number && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
+                        (component.Type == MessageComponentType.BoxedNumber && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
                         (component.Type == MessageComponentType.CustomMessage && 
                          component.CustomMessageIndex >= 0 && 
                          component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
@@ -604,6 +636,36 @@ public class ChatMonitorService : IDisposable
         return string.Join(" ", messageParts);
     }
 
+    /// <summary>
+    /// Gets the index of a coordinate in the active route, or determines an appropriate index.
+    /// </summary>
+    /// <param name="coordinate">The coordinate to find the index for.</param>
+    /// <returns>The index of the coordinate (0-7) or -1 if not found.</returns>
+    private int GetCoordinateIndex(TreasureCoordinate coordinate)
+    {
+        // First check if this coordinate is in the optimized route
+        var route = plugin.TreasureHuntService.OptimizedRoute;
+        if (route != null && route.Count > 0)
+        {
+            // Look for this coordinate in the route by matching X and Y values (approximate match)
+            for (int i = 0; i < route.Count && i < 8; i++) // Limit to 8 since that's the max we can represent
+            {
+                var routeCoord = route[i];
+                // Use approximate matching (within a small tolerance)
+                if (Math.Abs(routeCoord.X - coordinate.X) < 0.1f && Math.Abs(routeCoord.Y - coordinate.Y) < 0.1f)
+                {
+                    return i; // Return the index in the route (0-based)
+                }
+            }
+        }
+        
+        // If we couldn't find the coordinate in the route or there is no active route,
+        // assign a default index based on a hash of the coordinates to ensure consistency
+        // This ensures the same coordinate always gets the same number
+        int hash = (int)((coordinate.X * 100 + coordinate.Y) % 8);
+        return hash;
+    }
+    
     /// <summary>
     /// Gets the chat command for a specific chat channel.
     /// </summary>

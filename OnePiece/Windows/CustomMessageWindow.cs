@@ -60,9 +60,6 @@ public class CustomMessageWindow : Window, IDisposable
     {
         // Update window title to reflect current language
         WindowName = Strings.GetString("CustomMessageSettings") + "##OnePiece";
-
-        // Log that the Draw method was called
-        Plugin.Log.Debug("CustomMessageWindow.Draw called, IsOpen = {0}", IsOpen);
         
         // Get window width for centering
         float windowWidth = ImGui.GetWindowWidth();
@@ -130,19 +127,49 @@ public class CustomMessageWindow : Window, IDisposable
             if (selectedTemplateIndex >= 0 && selectedTemplateIndex < plugin.Configuration.MessageTemplates.Count)
             {
                 // Template selected, show actions
-                if (ImGui.Button(Strings.GetString("SetAsActiveTemplate")))
+                bool isCurrentlyActive = plugin.Configuration.ActiveTemplateIndex == selectedTemplateIndex;
+                
+                // Show different button based on whether the template is already active
+                if (isCurrentlyActive)
                 {
-                    plugin.Configuration.ActiveTemplateIndex = selectedTemplateIndex;
-                    plugin.Configuration.SelectedMessageComponents = new List<MessageComponent>();
+                    // Show button to clear active template with red color
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.3f, 0.3f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
                     
-                    // Copy components from template to current selection
-                    foreach (var component in plugin.Configuration.MessageTemplates[selectedTemplateIndex].Components)
+                    if (ImGui.Button(Strings.GetString("ClearActiveTemplate")))
                     {
-                        plugin.Configuration.SelectedMessageComponents.Add(
-                            new MessageComponent(component.Type, component.CustomMessageIndex));
+                        // Clear the active template
+                        plugin.Configuration.ActiveTemplateIndex = -1;
+                        plugin.Configuration.SelectedMessageComponents.Clear();
+                        plugin.Configuration.Save();
                     }
                     
-                    plugin.Configuration.Save();
+                    ImGui.PopStyleColor(3);
+                }
+                else
+                {
+                    // Show button to set as active template with green color
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.7f, 0.2f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.8f, 0.3f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.2f, 0.9f, 0.2f, 1.0f));
+                    
+                    if (ImGui.Button(Strings.GetString("SetAsActiveTemplate")))
+                    {
+                        plugin.Configuration.ActiveTemplateIndex = selectedTemplateIndex;
+                        plugin.Configuration.SelectedMessageComponents = new List<MessageComponent>();
+                        
+                        // Copy components from template to current selection
+                        foreach (var component in plugin.Configuration.MessageTemplates[selectedTemplateIndex].Components)
+                        {
+                            plugin.Configuration.SelectedMessageComponents.Add(
+                                new MessageComponent(component.Type, component.CustomMessageIndex));
+                        }
+                        
+                        plugin.Configuration.Save();
+                    }
+                    
+                    ImGui.PopStyleColor(3);
                 }
                 
                 ImGui.SameLine();
@@ -224,7 +251,7 @@ public class CustomMessageWindow : Window, IDisposable
                 
                 // Edit button
                 ImGui.SameLine();
-                if (ImGui.SmallButton("Edit##" + i))
+                if (ImGui.SmallButton(Strings.GetString("Edit") + "##" + i))
                 {
                     editingCustomMessageIndex = i;
                     editingCustomMessage = message;
@@ -232,7 +259,7 @@ public class CustomMessageWindow : Window, IDisposable
                 
                 // Delete button
                 ImGui.SameLine();
-                if (ImGui.SmallButton("Delete##" + i))
+                if (ImGui.SmallButton(Strings.GetString("Delete") + "##" + i))
                 {
                     plugin.Configuration.CustomMessages.RemoveAt(i);
                     
@@ -333,9 +360,16 @@ public class CustomMessageWindow : Window, IDisposable
                 // Simple display without drag functionality
                 ImGui.Text($"{i + 1}. {componentText}");
                 
-                // Up/Down buttons for reordering
+                // Up/Down buttons for reordering with fixed width and tooltips
                 ImGui.SameLine();
-                if (i > 0 && ImGui.SmallButton(Strings.GetString("MoveUp") + "##" + i))
+                string moveUpText = Strings.GetString("MoveUp");
+                // Check if window width is too small for full text
+                if (ImGui.GetWindowWidth() < 550)
+                {
+                    moveUpText = "↑"; // Use just an up arrow symbol if window is small
+                }
+                
+                if (i > 0 && ImGui.SmallButton(moveUpText + "##" + i))
                 {
                     // Move component up
                     var component = componentsToEdit[i];
@@ -344,8 +378,21 @@ public class CustomMessageWindow : Window, IDisposable
                     SaveComponentChanges();
                 }
                 
+                // Add tooltip for the move up button
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Strings.GetString("MoveUp"));
+                }
+                
                 ImGui.SameLine();
-                if (i < componentsToEdit.Count - 1 && ImGui.SmallButton(Strings.GetString("MoveDown") + "##" + i))
+                string moveDownText = Strings.GetString("MoveDown");
+                // Check if window width is too small for full text
+                if (ImGui.GetWindowWidth() < 550)
+                {
+                    moveDownText = "↓"; // Use just a down arrow symbol if window is small
+                }
+                
+                if (i < componentsToEdit.Count - 1 && ImGui.SmallButton(moveDownText + "##" + i))
                 {
                     // Move component down
                     var component = componentsToEdit[i];
@@ -354,13 +401,32 @@ public class CustomMessageWindow : Window, IDisposable
                     SaveComponentChanges();
                 }
                 
-                // Remove button
+                // Add tooltip for the move down button
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Strings.GetString("MoveDown"));
+                }
+                
+                // Remove button with adaptive text based on window width
                 ImGui.SameLine();
-                if (ImGui.SmallButton(Strings.GetString("Delete") + "##" + i))
+                string deleteText = Strings.GetString("Delete");
+                // Check if window width is too small for full text
+                if (ImGui.GetWindowWidth() < 550)
+                {
+                    deleteText = "X"; // Use just an X symbol if window is small
+                }
+                
+                if (ImGui.SmallButton(deleteText + "##" + i))
                 {
                     componentsToEdit.RemoveAt(i);
                     SaveComponentChanges();
                     i--; // Adjust for the removed item
+                }
+                
+                // Add tooltip for the delete button
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Strings.GetString("Delete"));
                 }
                 
                 ImGui.PopID();
@@ -385,6 +451,33 @@ public class CustomMessageWindow : Window, IDisposable
         if (ImGui.Button(Strings.GetString("AddCoordinates")))
         {
             componentsToEdit.Add(new MessageComponent(MessageComponentType.Coordinates));
+            SaveComponentChanges();
+        }
+        
+        ImGui.SameLine();
+        
+        // Number button
+        if (ImGui.Button(Strings.GetString("AddNumber")))
+        {
+            componentsToEdit.Add(new MessageComponent(MessageComponentType.Number));
+            SaveComponentChanges();
+        }
+        
+        ImGui.SameLine();
+        
+        // BoxedNumber button
+        if (ImGui.Button(Strings.GetString("AddBoxedNumber")))
+        {
+            componentsToEdit.Add(new MessageComponent(MessageComponentType.BoxedNumber));
+            SaveComponentChanges();
+        }
+        
+        ImGui.SameLine();
+        
+        // BoxedOutlinedNumber button
+        if (ImGui.Button(Strings.GetString("AddBoxedOutlinedNumber")))
+        {
+            componentsToEdit.Add(new MessageComponent(MessageComponentType.BoxedOutlinedNumber));
             SaveComponentChanges();
         }
         
@@ -509,10 +602,28 @@ public class CustomMessageWindow : Window, IDisposable
             switch (component.Type)
             {
                 case MessageComponentType.PlayerName:
-                    previewParts.Add(Strings.GetString("PlayerNamePreview"));
+                    // Use a specific player name example for better preview
+                    previewParts.Add("Tataru Taru");
                     break;
                 case MessageComponentType.Coordinates:
-                    previewParts.Add(Strings.GetString("TreasureMapCoordinatesPreview"));
+                    // Use a specific map location example with special LinkMarker character from SeIconChar
+                    string linkMarker = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.LinkMarker);
+                    previewParts.Add($"{linkMarker} Limsa Lominsa Lower Decks ( 9.5 , 11.2 )");
+                    break;
+                case MessageComponentType.Number:
+                    // Show specific Number1 special character using the actual Unicode value from SeIconChar
+                    string number1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.Number1);
+                    previewParts.Add(number1);
+                    break;
+                case MessageComponentType.BoxedNumber:
+                    // Show specific BoxedNumber1 special character using the actual Unicode value from SeIconChar
+                    string boxedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedNumber1);
+                    previewParts.Add(boxedNumber1);
+                    break;
+                case MessageComponentType.BoxedOutlinedNumber:
+                    // Show specific BoxedOutlinedNumber1 special character using the actual Unicode value from SeIconChar
+                    string boxedOutlinedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedOutlinedNumber1);
+                    previewParts.Add(boxedOutlinedNumber1);
                     break;
                 case MessageComponentType.CustomMessage:
                     if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
@@ -535,6 +646,12 @@ public class CustomMessageWindow : Window, IDisposable
                 return Strings.GetString("PlayerName");
             case MessageComponentType.Coordinates:
                 return Strings.GetString("TreasureMapCoordinates");
+            case MessageComponentType.Number:
+                return Strings.GetString("Number");
+            case MessageComponentType.BoxedNumber:
+                return Strings.GetString("BoxedNumber");
+            case MessageComponentType.BoxedOutlinedNumber:
+                return Strings.GetString("BoxedOutlinedNumber");
             case MessageComponentType.CustomMessage:
                 if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
                 {
@@ -568,6 +685,9 @@ public class CustomMessageWindow : Window, IDisposable
             // Update the template in the configuration
             plugin.Configuration.MessageTemplates[selectedTemplateIndex] = currentTemplate;
             plugin.Configuration.Save();
+            
+            // Notify other windows about the template update
+            plugin.NotifyMessageTemplateUpdated();
         }
     }
     
@@ -578,6 +698,9 @@ public class CustomMessageWindow : Window, IDisposable
         {
             // Saving changes to main selected components
             plugin.Configuration.Save();
+            
+            // Notify other windows about the component update
+            plugin.NotifyMessageTemplateUpdated();
         }
     }
     

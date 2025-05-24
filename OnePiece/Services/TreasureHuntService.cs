@@ -109,10 +109,17 @@ public class TreasureHuntService
 
                 if (coordinates != null)
                 {
-                    foreach (var coordinate in coordinates)
+                    // Limit to maximum of 8 coordinates for Number/BoxedNumber components
+                    foreach (var coordinate in coordinates.Take(8))
                     {
                         AddCoordinate(coordinate);
                         importedCount++;
+                    }
+
+                    // Log a warning if more than 8 coordinates were provided
+                    if (coordinates.Count > 8)
+                    {
+                        Plugin.Log.Warning($"Only imported the first 8 coordinates out of {coordinates.Count}. Additional coordinates were ignored.");
                     }
 
                     Plugin.Log.Debug($"Imported {importedCount} coordinates from Base64 encoded data");
@@ -155,9 +162,17 @@ public class TreasureHuntService
         var matches = regex.Matches(text);
 
         var importedCount = 0;
+        var matchCount = 0;
+
+        // Limit to maximum of 8 coordinates for Number/BoxedNumber components
         foreach (Match match in matches)
         {
-            if (match.Groups.Count >= 4 &&
+            // Count all matches, even if we don't import them
+            matchCount++;
+
+            // Only process the first 8 matches
+            if (importedCount < 8 &&
+                match.Groups.Count >= 4 &&
                 float.TryParse(match.Groups[2].Value, out var x) &&
                 float.TryParse(match.Groups[3].Value, out var y))
             {
@@ -167,6 +182,12 @@ public class TreasureHuntService
                 AddCoordinate(new TreasureCoordinate(x, y, mapArea));
                 importedCount++;
             }
+        }
+
+        // Log a warning if more than 8 coordinates were found
+        if (matchCount > 8)
+        {
+            Plugin.Log.Warning($"Only imported the first 8 coordinates out of {matchCount} found in text. Additional coordinates were ignored.");
         }
 
         return importedCount;

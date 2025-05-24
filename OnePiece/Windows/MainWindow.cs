@@ -55,6 +55,9 @@ public class MainWindow : Window, IDisposable
         // Subscribe to events
         this.plugin.TreasureHuntService.OnCoordinatesImported += OnCoordinatesImported;
         this.plugin.TreasureHuntService.OnRouteOptimized += OnRouteOptimized;
+        
+        // Subscribe to message template updates from CustomMessageWindow
+        this.plugin.MessageTemplateUpdated += OnMessageTemplateUpdated;
     }
 
     private void InitializeChatChannelNames()
@@ -103,6 +106,7 @@ public class MainWindow : Window, IDisposable
         // Unsubscribe from events
         plugin.TreasureHuntService.OnCoordinatesImported -= OnCoordinatesImported;
         plugin.TreasureHuntService.OnRouteOptimized -= OnRouteOptimized;
+        plugin.MessageTemplateUpdated -= OnMessageTemplateUpdated;
     }
 
     public override void Draw()
@@ -118,8 +122,29 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Separator();
 
-        // Calculate optimal width for labels and controls
-        float labelWidth = 220; // Increased from 180 to 220 to ensure labels are not cut off
+        // Calculate optimal width for labels and controls dynamically based on content
+        float maxLabelWidth = 0;
+        
+        // Calculate the width needed for the longest label
+        string[] labelsToMeasure = new string[] {
+            Strings.GetString("Language"),
+            Strings.GetString("LogLevel"),
+            Strings.GetString("SelectChatChannel")
+        };
+        
+        foreach (var label in labelsToMeasure)
+        {
+            float width = ImGui.CalcTextSize(label).X;
+            maxLabelWidth = Math.Max(maxLabelWidth, width);
+        }
+        
+        // Add padding to the calculated width
+        float labelWidth = maxLabelWidth + 40; // Add padding for comfortable spacing
+        // Ensure a minimum width
+        labelWidth = Math.Max(labelWidth, 180);
+        // Cap the maximum width to avoid taking too much space
+        labelWidth = Math.Min(labelWidth, 260);
+        
         float controlWidth = 250; // Keep the same control width
 
         // General Settings section with collapsing header
@@ -205,14 +230,14 @@ public class MainWindow : Window, IDisposable
             // Monitoring control buttons (without status display)
             if (isMonitoring)
             {
-                if (ImGui.Button(Strings.GetString("StopMonitoring")))
+                if (ImGui.Button(Strings.GetString("StopMonitoring"), new Vector2(150, 0)))
                 {
                     plugin.ChatMonitorService.StopMonitoring();
                 }
             }
             else
             {
-                if (ImGui.Button(Strings.GetString("StartMonitoring")))
+                if (ImGui.Button(Strings.GetString("StartMonitoring"), new Vector2(150, 0)))
                 {
                     plugin.ChatMonitorService.StartMonitoring();
                 }
@@ -590,25 +615,80 @@ public class MainWindow : Window, IDisposable
         }
     }
     
+    // Handles the MessageTemplateUpdated event from CustomMessageWindow
+    private void OnMessageTemplateUpdated(object? sender, EventArgs e)
+    {
+        // Log the event at debug level
+        if (plugin.Configuration.LogLevel >= LogLevel.Verbose)
+        {
+            Plugin.Log.Debug("MainWindow received MessageTemplateUpdated event, refreshing preview");
+        }
+        
+        // Note: No specific action needed here as the Draw method will call GeneratePreviewMessage
+        // which reads directly from the configuration. The UI will be refreshed on the next frame.
+        // If needed, we could force a redraw here, but the ImGui system will handle it automatically.
+    }
+    
     // Generates a preview of the message that will be sent
     private string GeneratePreviewMessage()
     {
-        if (plugin.Configuration.SelectedMessageComponents.Count == 0)
+        // Get the components to preview - either from active template or from selected components
+        List<MessageComponent> componentsToPreview;
+        
+        // Check if there's an active template
+        if (plugin.Configuration.ActiveTemplateIndex >= 0 && 
+            plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
         {
-            return Strings.GetString("OnlyTreasureMarker");
+            // Use components from the active template
+            componentsToPreview = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Components;
+            
+            // If the active template has no components, show only treasure marker message
+            if (componentsToPreview.Count == 0)
+            {
+                return Strings.GetString("OnlyTreasureMarker");
+            }
+        }
+        else
+        {
+            // No active template, use selected components
+            componentsToPreview = plugin.Configuration.SelectedMessageComponents;
+            
+            // If no selected components, show only treasure marker message
+            if (componentsToPreview.Count == 0)
+            {
+                return Strings.GetString("OnlyTreasureMarker");
+            }
         }
         
         var previewParts = new List<string>();
         
-        foreach (var component in plugin.Configuration.SelectedMessageComponents)
+        foreach (var component in componentsToPreview)
         {
             switch (component.Type)
             {
                 case MessageComponentType.PlayerName:
-                    previewParts.Add(Strings.GetString("PlayerNamePreview"));
+                    // Use a specific player name example for better preview
+                    previewParts.Add("Tataru Taru");
                     break;
                 case MessageComponentType.Coordinates:
-                    previewParts.Add(Strings.GetString("TreasureMapCoordinatesPreview"));
+                    // Use a specific map location example with special LinkMarker character from SeIconChar
+                    string linkMarker = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.LinkMarker);
+                    previewParts.Add($"{linkMarker} Limsa Lominsa Lower Decks ( 9.5 , 11.2 )");
+                    break;
+                case MessageComponentType.Number:
+                    // Show specific Number1 special character using the actual Unicode value from SeIconChar
+                    string number1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.Number1);
+                    previewParts.Add(number1);
+                    break;
+                case MessageComponentType.BoxedNumber:
+                    // Show specific BoxedNumber1 special character using the actual Unicode value from SeIconChar
+                    string boxedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedNumber1);
+                    previewParts.Add(boxedNumber1);
+                    break;
+                case MessageComponentType.BoxedOutlinedNumber:
+                    // Show specific BoxedOutlinedNumber1 special character using the actual Unicode value from SeIconChar
+                    string boxedOutlinedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedOutlinedNumber1);
+                    previewParts.Add(boxedOutlinedNumber1);
                     break;
                 case MessageComponentType.CustomMessage:
                     if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)

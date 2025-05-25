@@ -39,6 +39,16 @@ public class TreasureCoordinate
     public string MapArea { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets a general purpose tag to store additional information.
+    /// </summary>
+    public string Tag { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the navigation instruction for reaching this coordinate from the previous point.
+    /// </summary>
+    public string NavigationInstruction { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets the position as a Vector2.
     /// </summary>
     public Vector2 Position => new(X, Y);

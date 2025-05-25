@@ -439,8 +439,42 @@ public class MainWindow : Window, IDisposable
                                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
                                 }
 
-                                // Display player name and coordinates
-                                var displayText = $"{optimizedRoute.IndexOf(coord) + 1}. ";
+                                // Check if this is a teleport point coordinate (teleport point name contains [Teleport])
+                                bool isTeleportPoint = coord.Name != null && coord.Name.Contains("[Teleport]");
+
+                                // If it's a teleport point, skip displaying it but pass its information to the next coordinate
+                                if (isTeleportPoint)
+                                {
+                                    // Store teleport info to add to the next coordinate
+                                    if (i + 1 < mapAreaCoords.Count)
+                                    {
+                                        var nextCoord = mapAreaCoords[i + 1];
+                                        // Extract teleport information
+                                        string aetheryteName = "";
+                                        if (coord.Name.StartsWith("[Teleport] "))
+                                        {
+                                            aetheryteName = coord.Name.Substring("[Teleport] ".Length);
+                                            // Store teleport info in the next coordinate's Tag property
+                                            nextCoord.Tag = $"[Teleport to {aetheryteName}]";
+                                        }
+                                    }
+                                    // Skip displaying teleport points
+                                    continue;
+                                }
+
+                                // Calculate the actual index (only counting non-teleport coordinates)
+                                int realIndex = 1;
+                                for (int j = 0; j < optimizedRoute.IndexOf(coord); j++)
+                                {
+                                    var prevCoord = optimizedRoute[j];
+                                    if (!(prevCoord.Name != null && prevCoord.Name.Contains("[Teleport]")))
+                                    {
+                                        realIndex++;
+                                    }
+                                }
+
+                                // Display player name and coordinates with correct numbering
+                                var displayText = $"{realIndex}. ";
                                 if (!string.IsNullOrEmpty(coord.PlayerName))
                                 {
                                     displayText += $"{coord.PlayerName}: ";
@@ -454,6 +488,54 @@ public class MainWindow : Window, IDisposable
                                 }
 
                                 ImGui.TextUnformatted(displayText);
+
+                                // Display navigation instructions if available
+                                if (!string.IsNullOrEmpty(coord.NavigationInstruction))
+                                {
+                                    ImGui.Indent(20);
+                                    
+                                    // Determine if this is a teleport or direct travel instruction
+                                    bool isTeleport = coord.NavigationInstruction.Contains("Teleport");
+                                    
+                                    // Check if this coordinate has a teleport tag from a previous teleport point
+                                    bool hasTeleportTag = !string.IsNullOrEmpty(coord.Tag);
+                                    
+                                    if (isTeleport || hasTeleportTag)
+                                    {
+                                        // Get teleport information
+                                        string teleportInfo = "";
+                                        
+                                        if (hasTeleportTag)
+                                        {
+                                            // Use the tag information stored from a previous teleport point
+                                            teleportInfo = coord.Tag;
+                                        }
+                                        else
+                                        {
+                                            // Extract teleport information from navigation instruction
+                                            int teleportToIndex = coord.NavigationInstruction.IndexOf("to ");
+                                            int endIndex = coord.NavigationInstruction.IndexOf(" (", teleportToIndex);
+                                            if (teleportToIndex > 0 && endIndex > teleportToIndex)
+                                            {
+                                                string aetheryteName = coord.NavigationInstruction.Substring(teleportToIndex + 3, endIndex - teleportToIndex - 3);
+                                                teleportInfo = $"[Teleport to {aetheryteName}]";
+                                            }
+                                        }
+                                        
+                                        // Teleport instruction - blue color
+                                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.5f, 1.0f, 1.0f));
+                                        ImGui.TextUnformatted($"{teleportInfo} -> 径直前往该坐标");
+                                    }
+                                    else
+                                    {
+                                        // Direct travel instruction - green color
+                                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.8f, 0.4f, 1.0f));
+                                        ImGui.TextUnformatted($"-> 径直前往该坐标");
+                                    }
+                                    
+                                    ImGui.PopStyleColor();
+                                    ImGui.Unindent(20);
+                                }
 
                                 if (isCollected)
                                 {

@@ -508,8 +508,23 @@ public class TreasureHuntService
                 currentLocation = aetheryteCoord;
             }
 
-            // Use time-based path optimization algorithm to optimize the route
-            var mapRoute = pathFinder.OptimizeRouteByTime(currentLocation, mapCoordinates, mapAetheryte);
+            // Get all aetherytes in the current map area for better path optimization
+            var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(nextMapArea);
+            List<AetheryteInfo> allMapAetherytes;
+            
+            if (aetherytesInMap == null || !aetherytesInMap.Any())
+            {
+                // If no aetherytes found in the map area, use the provided one
+                allMapAetherytes = new List<AetheryteInfo> { mapAetheryte };
+            }
+            else
+            {
+                // Convert IReadOnlyList to List for compatibility
+                allMapAetherytes = aetherytesInMap.ToList();
+            }
+            
+            // Use time-based path optimization algorithm to optimize the route with all available aetherytes
+            var mapRoute = pathFinder.OptimizeRouteByTime(currentLocation, mapCoordinates, allMapAetherytes);
             
             // Estimate the time needed to complete this part of the route
             float estimatedTime = pathFinder.EstimateCompletionTime(mapRoute);

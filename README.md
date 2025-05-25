@@ -106,6 +106,7 @@ The following features are planned for future releases:
 * **Optimized Coordinate List Display**: Improve the visual presentation and organization of coordinate lists
 * **Support for Related Plugins**: Add integration capabilities with complementary FFXIV plugins
 * **Dynamic Aetheryte Teleport Point Coordinates**: Automatically fetch and update aetheryte teleport point locations
+* **Non-English Client Adaptation**: Improve compatibility with non-English language clients for more comprehensive localization support
 
 ---
 

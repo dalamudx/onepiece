@@ -13,6 +13,11 @@ namespace OnePiece.Services;
 public class TreasureHuntService
 {
     private readonly Plugin plugin;
+    
+    /// <summary>
+    /// Time-based path finder
+    /// </summary>
+    private readonly TimeBasedPathFinder pathFinder;
 
     /// <summary>
     /// Gets the list of treasure coordinates.
@@ -81,6 +86,7 @@ public class TreasureHuntService
     public TreasureHuntService(Plugin plugin)
     {
         this.plugin = plugin;
+        this.pathFinder = new TimeBasedPathFinder();
     }
 
     /// <summary>
@@ -502,8 +508,12 @@ public class TreasureHuntService
                 currentLocation = aetheryteCoord;
             }
 
-            // Optimize the route within this map area, starting from current location
-            var mapRoute = OptimizeRouteFromAetheryte(currentLocation, mapCoordinates, mapAetheryte);
+            // Use time-based path optimization algorithm to optimize the route
+            var mapRoute = pathFinder.OptimizeRouteByTime(currentLocation, mapCoordinates, mapAetheryte);
+            
+            // Estimate the time needed to complete this part of the route
+            float estimatedTime = pathFinder.EstimateCompletionTime(mapRoute);
+            Plugin.Log.Information($"Estimated time to complete {mapRoute.Count} treasure points in '{nextMapArea}' map: {estimatedTime:F2} seconds");
 
             // Add the optimized route for this map area to the overall route
             if (mapRoute.Count > 0)
@@ -732,142 +742,6 @@ public class TreasureHuntService
 
         // Return the average distance
         return pairCount > 0 ? totalDistance / pairCount : 0;
-    }
-
-    /// <summary>
-    /// Optimizes the route within a map area, considering either starting from the player's location or teleporting to an aetheryte.
-    /// Prioritizes coordinates closer to teleport points, and teleports between coordinates as needed.
-    /// </summary>
-    /// <param name="startLocation">The starting location.</param>
-    /// <param name="coordinates">The coordinates in the map area.</param>
-    /// <param name="aetheryte">The aetheryte in the map area.</param>
-    /// <returns>The optimized route within the map area.</returns>
-    private List<TreasureCoordinate> OptimizeRouteFromAetheryte(TreasureCoordinate startLocation, List<TreasureCoordinate> coordinates, AetheryteInfo aetheryte)
-    {
-        if (coordinates.Count == 0)
-            return new List<TreasureCoordinate>();
-
-        if (coordinates.Count == 1)
-            return new List<TreasureCoordinate>(coordinates);
-
-        // Create a new list to avoid modifying the original list
-        var coordsToSort = new List<TreasureCoordinate>(coordinates);
-        List<TreasureCoordinate> optimizedPath = new List<TreasureCoordinate>();
-
-        // Create a coordinate for the aetheryte position
-        var aetheryteCoord = aetheryte != null
-            ? new TreasureCoordinate(aetheryte.Position.X, aetheryte.Position.Y, aetheryte.MapArea)
-            : new TreasureCoordinate(0, 0, string.Empty);
-
-        // Determine if we're already in the same map area
-        bool inSameMapArea = startLocation.MapArea == coordinates[0].MapArea;
-        var currentPos = inSameMapArea ? startLocation : aetheryteCoord;
-        
-        // Track if we need to indicate a teleport to aetheryte before the next coordinate
-        bool shouldTeleportToAetheryte = false;
-
-        // Distance threshold factor - if distance between points is greater than this factor * average distance, consider teleporting
-        const float distanceThresholdFactor = 2.0f;
-        
-        // Calculate the average distance between coordinates to determine when teleporting makes sense
-        float avgDistance = CalculateAverageDistanceBetweenCoordinates(coordinates);
-        float teleportThreshold = avgDistance * distanceThresholdFactor;
-
-        Plugin.Log.Debug($"Average distance between coordinates: {avgDistance}, Teleport threshold: {teleportThreshold}");
-
-        // Pre-calculate distances from all coordinates to the aetheryte for later optimization
-        var distancesToAetheryte = new Dictionary<TreasureCoordinate, float>();
-        foreach (var coord in coordsToSort)
-        {
-            distancesToAetheryte[coord] = aetheryteCoord.DistanceTo(coord);
-        }
-        
-        // If the initial position is near the aetheryte, prioritize coordinates closer to the aetheryte
-        if (!inSameMapArea || currentPos.DistanceTo(aetheryteCoord) < 1.0f)
-        {
-            // First sort coordinates based on their distance to the aetheryte
-            coordsToSort = coordsToSort.OrderBy(c => distancesToAetheryte[c]).ToList();
-            Plugin.Log.Debug("Initializing path, prioritizing coordinates closer to the aetheryte");
-        }
-
-        // Build the optimized path
-        while (coordsToSort.Count > 0)
-        {
-            // When selecting the next coordinate, consider both distance from current position and distance to the aetheryte
-            var nextCoordCandidates = coordsToSort.Select(c => new
-            {
-                Coordinate = c,
-                DistanceToCurrent = c.DistanceTo(currentPos),
-                DistanceToAetheryte = distancesToAetheryte[c],
-                // Calculate a combined score: weighted value of distance from current position and distance to aetheryte
-                // Weights can be adjusted, here using 0.7:0.3 meaning distance to current position has 70% importance, distance to aetheryte has 30%
-                Score = c.DistanceTo(currentPos) * 0.7f + distancesToAetheryte[c] * 0.3f
-            }).OrderBy(x => x.Score).ToList();
-            
-            var nextCoordInfo = nextCoordCandidates.First();
-            var nextCoord = nextCoordInfo.Coordinate;
-            float directDistance = nextCoordInfo.DistanceToCurrent;
-            
-            Plugin.Log.Debug($"Selected coordinate: ({nextCoord.X}, {nextCoord.Y}), distance from current: {directDistance:F1}, distance to aetheryte: {nextCoordInfo.DistanceToAetheryte:F1}, score: {nextCoordInfo.Score:F1}");
-
-            // If the distance from current position is too far, consider if teleporting to the aetheryte would be more efficient
-            if (aetheryte != null && directDistance > teleportThreshold)
-            {
-                // Distance to reach the target via the aetheryte
-                float aetheryteDistance = distancesToAetheryte[nextCoord];
-                
-                // If the path via aetheryte is significantly shorter, choose to teleport
-                if (aetheryteDistance < directDistance * 0.7f)
-                {
-                    // Mark that we need to teleport to the aetheryte first
-                    shouldTeleportToAetheryte = true;
-                    currentPos = aetheryteCoord;
-                    
-                    // Find the nearest coordinate from the aetheryte
-                    nextCoordCandidates = coordsToSort.Select(c => new
-                    {
-                        Coordinate = c,
-                        DistanceToCurrent = aetheryteCoord.DistanceTo(c),
-                        DistanceToAetheryte = distancesToAetheryte[c],
-                        Score = aetheryteCoord.DistanceTo(c)
-                    }).OrderBy(x => x.Score).ToList();
-                    
-                    nextCoordInfo = nextCoordCandidates.First();
-                    nextCoord = nextCoordInfo.Coordinate;
-
-                    Plugin.Log.Debug($"Decided to teleport to the aetheryte first, then proceed to coordinate ({nextCoord.X}, {nextCoord.Y}), distance: {nextCoordInfo.DistanceToCurrent:F1}");
-                }
-            }
-
-            // Add coordinate to path
-            nextCoord.Name = shouldTeleportToAetheryte ? $"[Teleport] {nextCoord.Name}" : nextCoord.Name;
-            optimizedPath.Add(nextCoord);
-            coordsToSort.Remove(nextCoord);
-            currentPos = nextCoord;
-            shouldTeleportToAetheryte = false;
-
-            // Check if we should consider teleporting to the aetheryte for remaining coordinates
-            if (coordsToSort.Count > 0 && aetheryte != null)
-            {
-                // Find the nearest remaining coordinate to the current position
-                var nearestRemaining = coordsToSort.OrderBy(c => c.DistanceTo(currentPos)).First();
-                float directDistanceToNext = currentPos.DistanceTo(nearestRemaining);
-                
-                // Find the nearest remaining coordinate to the aetheryte
-                var nearestToAetheryte = coordsToSort.OrderBy(c => distancesToAetheryte[c]).First();
-                float aetheryteDistanceToNearest = distancesToAetheryte[nearestToAetheryte];
-                
-                // If direct distance is too large and the aetheryte provides a better starting point
-                if (directDistanceToNext > teleportThreshold && aetheryteDistanceToNearest < directDistanceToNext * 0.8f)
-                {
-                    shouldTeleportToAetheryte = true;
-                    currentPos = aetheryteCoord;
-                    Plugin.Log.Debug($"Will teleport back to the aetheryte to continue finding coordinates. Direct distance: {directDistanceToNext:F1}, via aetheryte: {aetheryteDistanceToNearest:F1}");
-                }
-            }
-        }
-
-        return optimizedPath;
     }
 
     /// <summary>

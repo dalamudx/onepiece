@@ -118,6 +118,12 @@ public class TreasureHuntService
                     // Limit to maximum of 8 coordinates for Number/BoxedNumber components
                     foreach (var coordinate in coordinates.Take(8))
                     {
+                        // Clean player name from special characters
+                        if (!string.IsNullOrEmpty(coordinate.PlayerName))
+                        {
+                            coordinate.PlayerName = RemoveSpecialCharactersFromName(coordinate.PlayerName);
+                        }
+                        
                         AddCoordinate(coordinate);
                         importedCount++;
                     }
@@ -160,33 +166,52 @@ public class TreasureHuntService
     /// <returns>The number of coordinates imported.</returns>
     private int ImportCoordinatesFromText(string text)
     {
+        // Regular expression to match player names in copied chat messages like [21:50](Player Name) Text...
+        var playerNameRegex = new Regex(@"\[\d+:\d+\]\s*\(([^)]+)\)|\(([^)]+)\)", RegexOptions.IgnoreCase);
+        
         // Regular expression to match coordinates with map area in the format "MapName (x, y)" or just "(x, y)"
         // Group 1: Map area (optional)
         // Group 2: X coordinate
         // Group 3: Y coordinate
-        var regex = new Regex(@"(?:([A-Za-z0-9\s']+)?\s*\(?\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)?)", RegexOptions.IgnoreCase);
-        var matches = regex.Matches(text);
+        var coordinateRegex = new Regex(@"(?:([A-Za-z0-9\s']+)?\s*\(?\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)?)", RegexOptions.IgnoreCase);
 
         var importedCount = 0;
         var matchCount = 0;
-
-        // Limit to maximum of 8 coordinates for Number/BoxedNumber components
-        foreach (Match match in matches)
+        
+        // Split text into segments if it contains multiple entries
+        string[] segments = SplitTextIntoSegments(text);
+        
+        // Process each segment
+        foreach (string segment in segments)
         {
-            // Count all matches, even if we don't import them
-            matchCount++;
-
-            // Only process the first 8 matches
-            if (importedCount < 8 &&
-                match.Groups.Count >= 4 &&
-                float.TryParse(match.Groups[2].Value, out var x) &&
-                float.TryParse(match.Groups[3].Value, out var y))
+            // Try to extract player name from segment
+            string playerName = ExtractPlayerNameFromSegment(segment, playerNameRegex);
+            
+            var matches = coordinateRegex.Matches(segment);
+            foreach (Match match in matches)
             {
-                // Extract map area (if present)
-                string mapArea = match.Groups[1].Success ? match.Groups[1].Value.Trim() : string.Empty;
+                // Count all matches, even if we don't import them
+                matchCount++;
 
-                AddCoordinate(new TreasureCoordinate(x, y, mapArea));
-                importedCount++;
+                // Only process the first 8 matches
+                if (importedCount < 8 &&
+                    match.Groups.Count >= 4 &&
+                    float.TryParse(match.Groups[2].Value, out var x) &&
+                    float.TryParse(match.Groups[3].Value, out var y))
+                {
+                    // Extract map area (if present)
+                    string mapArea = match.Groups[1].Success ? match.Groups[1].Value.Trim() : string.Empty;
+                    
+                    // Remove player name from map area if it was incorrectly captured
+                    if (!string.IsNullOrEmpty(playerName) && !string.IsNullOrEmpty(mapArea))
+                    {
+                        mapArea = RemovePlayerNameFromMapArea(mapArea, playerName);
+                    }
+
+                    // Create coordinate with player name if available
+                    AddCoordinate(new TreasureCoordinate(x, y, mapArea, "", playerName));
+                    importedCount++;
+                }
             }
         }
 
@@ -197,6 +222,112 @@ public class TreasureHuntService
         }
 
         return importedCount;
+    }
+
+    /// <summary>
+    /// Splits a text into segments that might contain individual coordinates.
+    /// </summary>
+    /// <param name="text">The text to split.</param>
+    /// <returns>An array of text segments.</returns>
+    private string[] SplitTextIntoSegments(string text)
+    {
+        // Try to split the text at timestamps like [21:50]
+        var timestampSegments = Regex.Split(text, @"(?=\[\d+:\d+\])");
+        
+        // If no timestamps found or only one segment, return the whole text
+        if (timestampSegments.Length <= 1)
+        {
+            return new[] { text };
+        }
+        
+        // Filter out empty segments
+        return timestampSegments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+    }
+
+    /// <summary>
+    /// Extracts player name from a text segment.
+    /// </summary>
+    /// <param name="segment">The text segment.</param>
+    /// <param name="playerNameRegex">The regex to use for player name extraction.</param>
+    /// <returns>The extracted player name, or empty string if none found.</returns>
+    private string ExtractPlayerNameFromSegment(string segment, Regex playerNameRegex)
+    {
+        var match = playerNameRegex.Match(segment);
+        if (match.Success)
+        {
+            // Group 1 contains the player name if it matched the first pattern ([21:50](Player Name))
+            // Group 2 contains the player name if it matched the second pattern ((Player Name))
+            string playerName = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+            return RemoveSpecialCharactersFromName(playerName.Trim());
+        }
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Removes special characters from player names like BoxedNumber and BoxedOutlinedNumber
+    /// </summary>
+    /// <param name="name">The name that might contain special characters</param>
+    /// <returns>The name with special characters removed</returns>
+    private string RemoveSpecialCharactersFromName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return name;
+
+        // Create a StringBuilder to build the cleaned name
+        var cleanedName = new System.Text.StringBuilder(name.Length);
+        
+        // Process each character in the name
+        foreach (var c in name)
+        {   
+            // Check for BoxedNumber character range (0xE090 to 0xE097)
+            // These are game-specific number icons
+            if ((int)c >= 0xE090 && (int)c <= 0xE097)
+                continue;
+            
+            // Check for BoxedOutlinedNumber character range (0xE0E1 to 0xE0E9)
+            // These are game-specific outlined number icons
+            if ((int)c >= 0xE0E1 && (int)c <= 0xE0E9)
+                continue;
+            
+            // Remove star character (★) often used in player names
+            if (c == '★')
+                continue;
+        
+            // Any other special characters that need to be filtered can be added here
+        
+            // Add the character to the cleaned name if it passed all filters
+            cleanedName.Append(c);
+        }
+        
+        return cleanedName.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Removes player name from map area if it was incorrectly captured.
+    /// </summary>
+    /// <param name="mapArea">The map area string.</param>
+    /// <param name="playerName">The player name to remove.</param>
+    /// <returns>The cleaned map area string.</returns>
+    private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
+    {
+        // If the map area starts with the player name, remove it
+        if (mapArea.StartsWith(playerName, StringComparison.OrdinalIgnoreCase))
+        {
+            mapArea = mapArea.Substring(playerName.Length).Trim();
+        
+            // If map area starts with "さん" or other player suffixes, remove them too
+            string[] suffixes = new[] { "さん", "san", "の", "no" };
+            foreach (var suffix in suffixes)
+            {
+                if (mapArea.StartsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    mapArea = mapArea.Substring(suffix.Length).Trim();
+                    break;
+                }
+            }
+        }
+    
+        return mapArea;
     }
 
     /// <summary>
@@ -258,10 +389,14 @@ public class TreasureHuntService
     /// <param name="coordinate">The coordinate to add.</param>
     public void AddCoordinate(TreasureCoordinate coordinate)
     {
+        // Clean player name from special characters if it's not empty
+        if (!string.IsNullOrEmpty(coordinate.PlayerName))
+        {
+            coordinate.PlayerName = RemoveSpecialCharactersFromName(coordinate.PlayerName);
+        }
+        
         // Add the coordinate
         Coordinates.Add(coordinate);
-
-
     }
 
     /// <summary>
@@ -372,18 +507,19 @@ public class TreasureHuntService
     /// </summary>
     public void OptimizeRoute()
     {
+        // Always save the original order before optimization to enable reset functionality
+        // This fixes the edge case where reset wasn't possible with 0-1 coordinates
+        if (OriginalOrder.Count == 0)
+        {
+            OriginalOrder = new List<TreasureCoordinate>(Coordinates);
+            Plugin.Log.Debug($"Saved original order with {OriginalOrder.Count} coordinates.");
+        }
+        
         if (Coordinates.Count <= 1)
         {
             OptimizedRoute = new List<TreasureCoordinate>(Coordinates);
             OnRouteOptimized?.Invoke(this, OptimizedRoute.Count);
             return;
-        }
-
-        // Save the original order before optimization, but only if this is the first optimization
-        if (OriginalOrder.Count == 0)
-        {
-            OriginalOrder = new List<TreasureCoordinate>(Coordinates);
-            Plugin.Log.Debug($"Saved original order with {OriginalOrder.Count} coordinates.");
         }
 
         // Get player's current location

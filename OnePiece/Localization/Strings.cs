@@ -114,6 +114,7 @@ public class Strings
             { "ClearAll", "Clear All" },
             { "OptimizeRoute", "Optimize Route" },
             { "ResetOptimization", "Reset Optimization" },
+            { "NoCoordinatesToOptimize", "No coordinates to optimize. Please import coordinates first." },
             { "NoCoordinates", "No coordinates imported yet." },
             { "UseImportSection", "Use the import section above to add coordinates." },
             { "Coordinates", "Coordinates: {0}" },
@@ -193,6 +194,13 @@ public class Strings
             { "Error", "Error" },
             { "Success", "Success" },
             
+            // Teleport related
+            { "TeleportButton", "Teleport" },
+            { "TeleportingTo", "Teleporting to {0} (ID: {1})..." },
+            { "TeleportTo", "Teleport to: {0}" },
+            { "TeleportCost", "Cost: {0} gil" },
+            { "TeleportCostUnknown", "Cost: Unknown" },
+            
             // Custom message settings
             { "CustomMessageSettings", "Custom Message Settings" },
             { "MessageSettings", "Message Settings" },
@@ -232,6 +240,7 @@ public class Strings
             { "TreasureMapCoordinates", "Treasure Map Coordinates" },
             { "Number", "Number (1-8)" },
             { "BoxedNumber", "Boxed Number (1-8)" },
+            { "BoxedOutlinedNumber", "Boxed Outlined Number (1-8)" },
             { "CustomMessagePrefix", "Custom: {0}" },
             { "InvalidCustomMessage", "Invalid Custom Message" },
             { "UnknownComponent", "Unknown Component" },
@@ -389,7 +398,14 @@ public class Strings
             { "CoordinateDetected", "{0}から座標を検出しました: {1}" },
             { "RouteOptimized", "{0}ポイントでルートが最適化されました。" },
             { "Error", "エラー" },
-            { "Success", "成功" }
+            { "Success", "成功" },
+            
+            // Teleport related
+            { "TeleportButton", "テレポ" },
+            { "TeleportingTo", "{0} (ID: {1})にテレポします..." },
+            { "TeleportTo", "テレポ先: {0}" },
+            { "TeleportCost", "料金: {0} ギル" },
+            { "TeleportCostUnknown", "料金: 不明" }
         };
         Translations["ja"] = ja;
 
@@ -405,6 +421,7 @@ public class Strings
             { "ClearAll", "清除全部" },
             { "OptimizeRoute", "优化路线" },
             { "ResetOptimization", "重置优化" },
+            { "NoCoordinatesToOptimize", "没有可优化的坐标。请先导入坐标。" },
             { "NoCoordinates", "尚未导入藏宝图坐标。" },
             { "UseImportSection", "使用上方的导入部分添加藏宝图坐标。" },
             { "Coordinates", "藏宝图坐标: {0}" },
@@ -525,17 +542,24 @@ public class Strings
             { "CrossWorldLinkShell8", "跨服通讯贝 8" },
 
             // Messages
-            { "CoordinatesImported", "已导入{0}个藏宝图坐标。" },
-            { "CoordinatesImportedFromClipboard", "从剪贴板导入了{0}个坐标。" },
+            { "CoordinatesImported", "{0} 个坐标已导入。" },
+            { "CoordinatesImportedFromClipboard", "从剪贴板导入了{0} 个坐标。" },
             { "NoCoordinatesImported", "没有导入任何坐标。" },
             { "ClipboardEmpty", "剪贴板为空。" },
             { "CoordinatesExportedToClipboard", "坐标已导出到剪贴板。" },
             { "Export", "导出" },
             { "Import", "导入" },
-            { "CoordinateDetected", "从{0}检测到藏宝图坐标: {1}" },
-            { "RouteOptimized", "已优化包含{0}个点的路线。" },
+            { "CoordinateDetected", "从{0}检测到坐标: {1}" },
+            { "RouteOptimized", "已优化包含{0} 个点的路线。" },
             { "Error", "错误" },
-            { "Success", "成功" }
+            { "Success", "成功" },
+            
+            // Teleport related
+            { "TeleportButton", "传送" },
+            { "TeleportingTo", "正在传送至 {0} (ID: {1})..." },
+            { "TeleportTo", "传送到: {0}" },
+            { "TeleportCost", "花费: {0} 金币" },
+            { "TeleportCostUnknown", "花费: 未知" }
         };
         Translations["zh"] = zh;
 
@@ -681,7 +705,14 @@ public class Strings
             { "CoordinateDetected", "Koordinate von {0} erkannt: {1}" },
             { "RouteOptimized", "Route mit {0} Punkten optimiert." },
             { "Error", "Fehler" },
-            { "Success", "Erfolg" }
+            { "Success", "Erfolg" },
+            
+            // Teleport related
+            { "TeleportButton", "Teleportieren" },
+            { "TeleportingTo", "Teleportiere zu {0} (ID: {1})..." },
+            { "TeleportTo", "Teleportieren zu: {0}" },
+            { "TeleportCost", "Kosten: {0} Gil" },
+            { "TeleportCostUnknown", "Kosten: Unbekannt" }
         };
         Translations["de"] = de;
 

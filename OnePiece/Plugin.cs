@@ -84,7 +84,7 @@ public sealed class Plugin : IDalamudPlugin
         PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager);
 
         // Initialize aetheryte service
-        AetheryteService = new AetheryteService(DataManager, ClientState, Log, TerritoryManager);
+        AetheryteService = new AetheryteService(DataManager, ClientState, Log, TerritoryManager, ChatGui, CommandManager);
 
         // Initialize treasure hunt service
         TreasureHuntService = new TreasureHuntService(this);

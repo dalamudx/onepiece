@@ -333,9 +333,28 @@ public class MainWindow : Window, IDisposable
         }
         else
         {
+            // 检查坐标列表是否为空，如果为空则禁用优化路径按钮
+            bool hasCoordinates = plugin.TreasureHuntService.Coordinates.Count > 0;
+            
+            if (!hasCoordinates)
+            {
+                ImGui.BeginDisabled();
+            }
+            
             if (ImGui.Button(Strings.GetString("OptimizeRoute")))
             {
                 plugin.TreasureHuntService.OptimizeRoute();
+            }
+            
+            if (!hasCoordinates)
+            {
+                ImGui.EndDisabled();
+                
+                // 显示悬停提示，说明为什么按钮被禁用
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(Strings.GetString("NoCoordinatesToOptimize"));
+                }
             }
         }
 
@@ -391,8 +410,18 @@ public class MainWindow : Window, IDisposable
                     // Display the optimized route
                     if (optimizedRoute.Count > 0)
                     {
-                        // Display optimized route title with count
-                        ImGui.TextUnformatted(string.Format(Strings.GetString("OptimizedRouteWithCount"), optimizedRoute.Count));
+                        // Count non-teleport coordinates for display
+                        int nonTeleportCount = 0;
+                        foreach (var coord in optimizedRoute)
+                        {
+                            if (coord.Name == null || !coord.Name.Contains("[Teleport]"))
+                            {
+                                nonTeleportCount++;
+                            }
+                        }
+                        
+                        // Display optimized route title with count (excluding teleport points)
+                        ImGui.TextUnformatted(string.Format(Strings.GetString("OptimizedRouteWithCount"), nonTeleportCount));
 
                         // Group coordinates by map area - optimize by using a more efficient approach
                         // Pre-allocate the dictionary with expected capacity to avoid resizing
@@ -463,11 +492,11 @@ public class MainWindow : Window, IDisposable
                                 }
 
                                 // Calculate the actual index (only counting non-teleport coordinates)
-                                int realIndex = 1;
-                                for (int j = 0; j < optimizedRoute.IndexOf(coord); j++)
+                                int realIndex = 0; // Start from 0 and increment first
+                                for (int j = 0; j <= optimizedRoute.IndexOf(coord); j++)
                                 {
-                                    var prevCoord = optimizedRoute[j];
-                                    if (!(prevCoord.Name != null && prevCoord.Name.Contains("[Teleport]")))
+                                    var checkCoord = optimizedRoute[j];
+                                    if (!(checkCoord.Name != null && checkCoord.Name.Contains("[Teleport]")))
                                     {
                                         realIndex++;
                                     }
@@ -489,52 +518,81 @@ public class MainWindow : Window, IDisposable
 
                                 ImGui.TextUnformatted(displayText);
 
-                                // Display navigation instructions if available
-                                if (!string.IsNullOrEmpty(coord.NavigationInstruction))
+                                // Check if this coordinate has teleport information
+                                bool isTeleport = coord.NavigationInstruction != null && coord.NavigationInstruction.Contains("Teleport");
+                                bool hasTeleportTag = !string.IsNullOrEmpty(coord.Tag);
+                                
+                                // Add teleport button if needed
+                                if (isTeleport || hasTeleportTag)
                                 {
-                                    ImGui.Indent(20);
+                                    // Get teleport information
+                                    string aetheryteName = "";
+                                    int teleportPrice = 0;
                                     
-                                    // Determine if this is a teleport or direct travel instruction
-                                    bool isTeleport = coord.NavigationInstruction.Contains("Teleport");
-                                    
-                                    // Check if this coordinate has a teleport tag from a previous teleport point
-                                    bool hasTeleportTag = !string.IsNullOrEmpty(coord.Tag);
-                                    
-                                    if (isTeleport || hasTeleportTag)
+                                    if (hasTeleportTag)
                                     {
-                                        // Get teleport information
-                                        string teleportInfo = "";
-                                        
-                                        if (hasTeleportTag)
+                                        // Extract aetheryte name from tag
+                                        if (coord.Tag.Contains("[Teleport to "))
                                         {
-                                            // Use the tag information stored from a previous teleport point
-                                            teleportInfo = coord.Tag;
+                                            aetheryteName = coord.Tag.Replace("[Teleport to ", "").Replace("]", "");
+                                        }
+                                    }
+                                    else if (isTeleport)
+                                    {
+                                        // Extract aetheryte name from navigation instruction
+                                        int teleportToIndex = coord.NavigationInstruction.IndexOf("to ");
+                                        int endIndex = coord.NavigationInstruction.IndexOf(" (", teleportToIndex);
+                                        if (teleportToIndex > 0 && endIndex > teleportToIndex)
+                                        {
+                                            aetheryteName = coord.NavigationInstruction.Substring(teleportToIndex + 3, endIndex - teleportToIndex - 3);
+                                        }
+                                    }
+                                    
+                                    // Calculate estimated teleport price based on distance (simplified calculation)
+                                    if (!string.IsNullOrEmpty(aetheryteName))
+                                    {
+                                        // Find aetheryte information if available
+                                        var aetheryteInfo = plugin.AetheryteService?.GetAetheryteByName(aetheryteName);
+                                        if (aetheryteInfo != null)
+                                        {
+                                            teleportPrice = plugin.AetheryteService.CalculateTeleportPrice(aetheryteInfo);
                                         }
                                         else
                                         {
-                                            // Extract teleport information from navigation instruction
-                                            int teleportToIndex = coord.NavigationInstruction.IndexOf("to ");
-                                            int endIndex = coord.NavigationInstruction.IndexOf(" (", teleportToIndex);
-                                            if (teleportToIndex > 0 && endIndex > teleportToIndex)
+                                            // Fallback price estimate
+                                            teleportPrice = 999; // Unknown price
+                                        }
+                                        
+                                        // Add teleport button
+                                        ImGui.SameLine();
+                                        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.5f, 1.0f, 0.7f));
+                                        if (ImGui.SmallButton($"{Strings.GetString("TeleportButton")}##{optimizedRoute.IndexOf(coord)}"))
+                                        {
+                                            // Teleport action - can be implemented to call the teleport function
+                                            if (aetheryteInfo != null)
                                             {
-                                                string aetheryteName = coord.NavigationInstruction.Substring(teleportToIndex + 3, endIndex - teleportToIndex - 3);
-                                                teleportInfo = $"[Teleport to {aetheryteName}]";
+                                                plugin.AetheryteService.TeleportToAetheryte(aetheryteInfo);
                                             }
                                         }
                                         
-                                        // Teleport instruction - blue color
-                                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.5f, 1.0f, 1.0f));
-                                        ImGui.TextUnformatted($"{teleportInfo} -> 径直前往该坐标");
+                                        // Add tooltip with teleport information
+                                        if (ImGui.IsItemHovered())
+                                        {
+                                            ImGui.BeginTooltip();
+                                            ImGui.Text(string.Format(Strings.GetString("TeleportTo"), aetheryteName));
+                                            if (teleportPrice > 0 && teleportPrice < 999)
+                                            {
+                                                ImGui.Text(string.Format(Strings.GetString("TeleportCost"), teleportPrice));
+                                            }
+                                            else if (teleportPrice >= 999)
+                                            {
+                                                ImGui.Text(Strings.GetString("TeleportCostUnknown"));
+                                            }
+                                            ImGui.EndTooltip();
+                                        }
+                                        
+                                        ImGui.PopStyleColor();
                                     }
-                                    else
-                                    {
-                                        // Direct travel instruction - green color
-                                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.8f, 0.4f, 1.0f));
-                                        ImGui.TextUnformatted($"-> 径直前往该坐标");
-                                    }
-                                    
-                                    ImGui.PopStyleColor();
-                                    ImGui.Unindent(20);
                                 }
 
                                 if (isCollected)
@@ -587,6 +645,12 @@ public class MainWindow : Window, IDisposable
 
                             // Display coordinate with map area if available
                             string displayText = $"{i + 1}. ";
+                            
+                            // Display player name if available
+                            if (!string.IsNullOrEmpty(coord.PlayerName))
+                            {
+                                displayText += $"{coord.PlayerName}: ";
+                            }
 
                             // Add map area with colored text if available
                             if (!string.IsNullOrEmpty(coord.MapArea))
@@ -599,7 +663,7 @@ public class MainWindow : Window, IDisposable
                             }
                             else
                             {
-                                ImGui.TextUnformatted($"{displayText}{coord}");
+                                ImGui.TextUnformatted($"{displayText}({coord.X:F1}, {coord.Y:F1})");
                             }
 
                             // No Collected button for raw coordinates

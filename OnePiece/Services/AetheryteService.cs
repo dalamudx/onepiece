@@ -8,6 +8,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 using OnePiece.Models;
+using OnePiece.Localization;
 
 namespace OnePiece.Services;
 
@@ -20,6 +21,8 @@ public class AetheryteService
     private readonly IClientState clientState;
     private readonly IPluginLog log;
     private readonly TerritoryManager territoryManager;
+    private readonly IChatGui chatGui;
+    private readonly ICommandManager commandManager;
     private List<AetheryteInfo> aetherytes = new();
 
     /// <summary>
@@ -29,12 +32,16 @@ public class AetheryteService
     /// <param name="clientState">The client state.</param>
     /// <param name="log">The plugin log.</param>
     /// <param name="territoryManager">The territory manager.</param>
-    public AetheryteService(IDataManager data, IClientState clientState, IPluginLog log, TerritoryManager territoryManager)
+    /// <param name="chatGui">The chat GUI service.</param>
+    /// <param name="commandManager">The command manager.</param>
+    public AetheryteService(IDataManager data, IClientState clientState, IPluginLog log, TerritoryManager territoryManager, IChatGui chatGui, ICommandManager commandManager)
     {
         this.data = data;
         this.clientState = clientState;
         this.log = log;
         this.territoryManager = territoryManager;
+        this.chatGui = chatGui;
+        this.commandManager = commandManager;
         
         // LoadAetherytes also calls LoadAetherytePositionsFromJson internally
         LoadAetherytes();
@@ -74,6 +81,19 @@ public class AetheryteService
             return null;
 
         return aetherytesInMap.OrderBy(a => a.DistanceTo(coordinate)).FirstOrDefault();
+    }
+    
+    /// <summary>
+    /// Gets an aetheryte by its name.
+    /// </summary>
+    /// <param name="name">The name of the aetheryte.</param>
+    /// <returns>The aetheryte info, or null if not found.</returns>
+    public AetheryteInfo? GetAetheryteByName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return null;
+            
+        return aetherytes.FirstOrDefault(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -358,6 +378,77 @@ public class AetheryteService
     {
         // Use a standard base teleport fee
         return 100;
+    }
+    
+    /// <summary>
+    /// Calculates the teleport price for a given aetheryte.
+    /// </summary>
+    /// <param name="aetheryte">The aetheryte to calculate the teleport price for.</param>
+    /// <returns>The teleport price in gil.</returns>
+    public int CalculateTeleportPrice(AetheryteInfo aetheryte)
+    {
+        if (aetheryte == null)
+            return 999; // Default price for unknown aetherytes
+            
+        // Check if we already have an actual teleport fee
+        if (aetheryte.ActualTeleportFee > 0)
+            return aetheryte.ActualTeleportFee;
+            
+        // Calculate teleport fee based on base fee and distance factors
+        // This is a simplified calculation and may not match the actual game logic
+        int basePrice = aetheryte.BaseTeleportFee > 0 ? aetheryte.BaseTeleportFee : 100;
+        
+        // Determine if it's a preferred aetheryte (free or reduced)
+        // For now we'll assume standard pricing, but this could be expanded
+        return basePrice;
+    }
+    
+    /// <summary>
+    /// Teleports the player to the specified aetheryte.
+    /// </summary>
+    /// <param name="aetheryte">The aetheryte to teleport to.</param>
+    /// <returns>True if the teleport command was sent successfully, false otherwise.</returns>
+    public bool TeleportToAetheryte(AetheryteInfo aetheryte)
+    {
+        if (aetheryte == null || aetheryte.AetheryteRowId == 0)
+            return false;
+            
+        try
+        {
+            // Format the command for teleporting using AetheryteRowId
+            // We use /tport which accepts row IDs rather than names
+            string teleportCommand = $"/tport {aetheryte.AetheryteRowId}";
+            
+            // Send the command through the chat system
+            chatGui.Print(string.Format(Strings.GetString("TeleportingTo"), aetheryte.Name, aetheryte.AetheryteRowId));
+            commandManager.ProcessCommand(teleportCommand);
+            
+            // Fallback: If /tport command doesn't work, also try the Telepo API directly
+            unsafe
+            {
+                try
+                {
+                    var telepo = FFXIVClientStructs.FFXIV.Client.Game.UI.Telepo.Instance();
+                    if (telepo != null)
+                    {
+                        telepo->Teleport(aetheryte.AetheryteRowId, 0);
+                        log.Debug($"Used Telepo API to teleport to {aetheryte.Name} (ID: {aetheryte.AetheryteRowId})");
+                    }
+                }
+                catch (Exception innerEx)
+                {
+                    log.Error($"Error using Telepo API: {innerEx.Message}");
+                    // Continue with command-based approach
+                }
+            }
+            
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log.Error($"Error teleporting to aetheryte {aetheryte.Name} (ID: {aetheryte.AetheryteRowId}): {ex.Message}");
+            return false;
+        }
     }
 }
 

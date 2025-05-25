@@ -93,6 +93,14 @@ public class AetheryteDataEntry
     /// <returns>The distance value</returns>
     public float DistanceTo(TreasureCoordinate coordinate)
     {
+        // Check coordinate system consistency
+        // We assume aetheryte coordinates are always in Map coordinate system
+        if (coordinate.CoordinateSystem != CoordinateSystemType.Map)
+        {
+            // Log warning about mismatched coordinate systems
+            Plugin.Log.Warning($"Comparing aetheryte with coordinate using different coordinate systems: Map vs {coordinate.CoordinateSystem}");
+        }
+        
         // Calculate Euclidean distance
         float dx = X - coordinate.X;
         float dy = Y - coordinate.Y;

@@ -330,7 +330,7 @@ private void ExtractCoordinates(string messageText, string playerName)
             string mapArea = match.Groups[1].Success ? match.Groups[1].Value.Trim() : string.Empty;
 
             // Use the cleaned player name to create the coordinate
-            var coordinate = new TreasureCoordinate(x, y, mapArea, "", playerName);
+            var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", playerName);
 
             log.Information($"Detected coordinate from {playerName}: {mapArea} ({x}, {y})");
 
@@ -390,7 +390,7 @@ public bool ProcessChatMessage(string playerName, string message)
                         mapArea = RemovePlayerNameFromMapArea(mapArea, effectivePlayerName);
                     }
 
-                    var coordinate = new TreasureCoordinate(x, y, mapArea, "", effectivePlayerName);
+                    var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", effectivePlayerName);
 
                     log.Information($"Manually processed coordinate from {effectivePlayerName}: {mapArea} ({x}, {y})");
 

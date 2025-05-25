@@ -86,7 +86,7 @@ public class TreasureHuntService
     public TreasureHuntService(Plugin plugin)
     {
         this.plugin = plugin;
-        this.pathFinder = new TimeBasedPathFinder();
+        this.pathFinder = new TimeBasedPathFinder(plugin);
     }
 
     /// <summary>
@@ -209,7 +209,7 @@ public class TreasureHuntService
                     }
 
                     // Create coordinate with player name if available
-                    AddCoordinate(new TreasureCoordinate(x, y, mapArea, "", playerName));
+                    AddCoordinate(new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", playerName));
                     importedCount++;
                 }
             }
@@ -550,15 +550,19 @@ public class TreasureHuntService
         var currentLocation = playerLocation;
         var currentMapArea = playerLocation.MapArea;
 
+#if DEBUG
         // Log initial state
         Plugin.Log.Debug($"Starting optimization with {coordinatesByMap.Count} map areas and {Coordinates.Count} total coordinates");
         foreach (var mapArea in coordinatesByMap.Keys)
         {
             Plugin.Log.Debug($"Map area '{mapArea}' has {coordinatesByMap[mapArea].Count} coordinates");
         }
+#endif
 
         // Get all teleport costs upfront for better decision making
         var mapAreaTeleportCosts = GetAllMapAreaTeleportCosts(currentMapArea, coordinatesByMap.Keys.ToList());
+        
+#if DEBUG
         Plugin.Log.Debug($"Calculated teleport costs for {mapAreaTeleportCosts.Count} map areas");
         
         // Log teleport costs for better understanding
@@ -566,6 +570,7 @@ public class TreasureHuntService
         {
             Plugin.Log.Debug($"Teleport cost to {mapCost.Key}: {mapCost.Value} gil");
         }
+#endif
 
         // Process all map areas until all coordinates are visited
         while (coordinatesByMap.Count > 0)
@@ -576,7 +581,9 @@ public class TreasureHuntService
             if (coordinatesByMap.ContainsKey(currentMapArea))
             {
                 nextMapArea = currentMapArea;
+#if DEBUG
                 Plugin.Log.Debug($"Prioritizing current map area: {currentMapArea}");
+#endif
             }
             else
             {
@@ -587,7 +594,9 @@ public class TreasureHuntService
                 {
                     cost = mapCost;
                 }
+#if DEBUG
                 Plugin.Log.Debug($"Selected next map area: {nextMapArea}, teleport cost: {cost} gil");
+#endif
             }
 
             var mapCoordinates = coordinatesByMap[nextMapArea];
@@ -600,11 +609,13 @@ public class TreasureHuntService
             {
                 plugin.AetheryteService.UpdateTeleportFees(mapAetherytes);
                 
+#if DEBUG
                 // Log aetherytes in this map area
                 foreach (var aetheryte in mapAetherytes)
                 {
                     Plugin.Log.Debug($"Aetheryte in {nextMapArea}: {aetheryte.Name} at ({aetheryte.Position.X:F1}, {aetheryte.Position.Y:F1}), fee: {aetheryte.CalculateTeleportFee()} gil");
                 }
+#endif
             }
             
             // Get the best aetheryte in this map area, considering distance to treasure coordinates
@@ -623,22 +634,89 @@ public class TreasureHuntService
             }
             else
             {
+#if DEBUG
                 Plugin.Log.Debug($"Using aetheryte {mapAetheryte.Name} with teleport fee {mapAetheryte.CalculateTeleportFee()} gil");
+#endif
             }
 
-            // If player is not in this map area, they need to teleport to the aetheryte first
+            // Check if player needs to teleport to the map area
+            bool needsTeleport = false;
+            
             if (currentMapArea != nextMapArea)
             {
+                // Different map - definitely need to teleport
+                needsTeleport = true;
                 if (mapAetheryte != null)
                 {
                     Plugin.Log.Debug($"Player needs to teleport from {currentMapArea} to {nextMapArea} at aetheryte {mapAetheryte.Name} ({mapAetheryte.Position.X:F1}, {mapAetheryte.Position.Y:F1})");
                 }
+            }
+            else if (mapCoordinates.Count > 0)
+            {
+                // Same map - check if player is far from all coordinates and closer to an aetheryte
+                bool isCloseToAnyTarget = false;
+                float closestTargetDistance = float.MaxValue;
+                float closestAetheryteDistance = float.MaxValue;
                 
+                // Find distance to closest target and closest aetheryte
+                foreach (var coord in mapCoordinates)
+                {
+                    // Distance calculation now automatically handles coordinate system differences
+                    float distance = currentLocation.DistanceTo(coord);
+                    
+#if DEBUG
+                    Plugin.Log.Debug($"Distance from player {currentLocation} to coordinate {coord}: {distance:F2} units");
+#endif
+                    
+                    if (distance < closestTargetDistance)
+                        closestTargetDistance = distance;
+                        
+                    // If player is within 20 units of any target, consider them close
+                    if (distance < 20.0f)
+                        isCloseToAnyTarget = true;
+                }
+                
+                if (mapAetheryte != null)
+                {
+                    var aetherytePos = new TreasureCoordinate(
+                        mapAetheryte.Position.X,
+                        mapAetheryte.Position.Y,
+                        mapAetheryte.MapArea,
+                        CoordinateSystemType.Map);
+                    
+                    // Distance calculation now automatically handles coordinate system differences
+                    closestAetheryteDistance = currentLocation.DistanceTo(aetherytePos);
+                    
+#if DEBUG
+                    Plugin.Log.Debug($"Distance from player {currentLocation} to aetheryte {mapAetheryte.Name}: {closestAetheryteDistance:F2} units");
+#endif
+                }
+                
+                // Only teleport if player is not close to any target and closer to aetheryte than targets
+                if (!isCloseToAnyTarget && closestAetheryteDistance < closestTargetDistance)
+                {
+                    needsTeleport = true;
+#if DEBUG
+                    Plugin.Log.Debug($"Player is in same map but far from targets ({closestTargetDistance:F1} units) and closer to aetheryte ({closestAetheryteDistance:F1} units)");
+#endif
+                }
+                else
+                {
+#if DEBUG
+                    Plugin.Log.Debug($"Player is already in same map and {(isCloseToAnyTarget ? "close to a target" : "closer to targets than aetheryte")}. Distance to closest target: {closestTargetDistance:F1} units");
+#endif
+                }
+            }
+            
+            // If teleport is needed, start from the aetheryte
+            if (needsTeleport && mapAetheryte != null)
+            {
                 // Create a coordinate for the aetheryte position
                 var aetheryteCoord = new TreasureCoordinate(
                     mapAetheryte.Position.X,
                     mapAetheryte.Position.Y,
-                    mapAetheryte.MapArea);
+                    mapAetheryte.MapArea,
+                    CoordinateSystemType.Map);
                 
                 // Start from the aetheryte after teleporting
                 currentLocation = aetheryteCoord;
@@ -757,7 +835,8 @@ public class TreasureHuntService
                 var aetheryteCoord = new TreasureCoordinate(
                     bestAetheryte.Position.X,
                     bestAetheryte.Position.Y,
-                    mapArea);
+                    mapArea,
+                    CoordinateSystemType.Map);
                 
                 // Find the nearest coordinate to the aetheryte
                 var nearestCoordinate = mapCoordinates.OrderBy(c => aetheryteCoord.DistanceTo(c)).FirstOrDefault();

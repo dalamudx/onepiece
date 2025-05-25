@@ -81,7 +81,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
         // Initialize player location service
-        PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager);
+        PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager, GameGui, DataManager);
 
         // Initialize aetheryte service
         AetheryteService = new AetheryteService(DataManager, ClientState, Log, TerritoryManager, ChatGui, CommandManager);

@@ -90,13 +90,18 @@ public class AetheryteInfo
     /// <returns>The distance in map units.</returns>
     public float DistanceTo(TreasureCoordinate coordinate)
     {
+        // We assume aetheryte positions are always in Map coordinate system
+        if (coordinate.CoordinateSystem != CoordinateSystemType.Map)
+        {
+            // Log warning about mismatched coordinate systems
+            Plugin.Log.Warning($"Comparing aetheryte position with coordinate using different coordinate systems: Map vs {coordinate.CoordinateSystem}");
+        }
+        
         // Calculate Euclidean distance between the two points
         float dx = Position.X - coordinate.X;
         float dy = Position.Y - coordinate.Y;
         float distance = (float)Math.Sqrt(dx * dx + dy * dy);
-
-        // Removed debug logging to improve performance
-
+        
         return distance;
     }
 }

@@ -11,6 +11,7 @@ namespace OnePiece.Services
     /// </summary>
     public class TimeBasedPathFinder
     {
+        private readonly Plugin plugin;
         // Constants definition
         private const float MOUNT_SUMMON_TIME = 1.0f; // Mount summoning time (seconds)
         private const float MOUNT_SPEED = 0.403f; // Mount movement speed (units/second)
@@ -20,10 +21,12 @@ namespace OnePiece.Services
         private const float LONG_DISTANCE_PENALTY = 5.0f; // Additional penalty for long distance travel (seconds)
 
         /// <summary>
-        /// Initialize a new instance of <see cref="TimeBasedPathFinder"/>
+        /// Constructor for TimeBasedPathFinder
         /// </summary>
-        public TimeBasedPathFinder()
+        /// <param name="plugin">Reference to the plugin instance</param>
+        public TimeBasedPathFinder(Plugin plugin)
         {
+            this.plugin = plugin;
         }
 
         /// <summary>
@@ -45,7 +48,11 @@ namespace OnePiece.Services
             {
                 // Apply penalty proportional to how much the distance exceeds the threshold
                 longDistancePenalty = LONG_DISTANCE_PENALTY * (distance / LONG_DISTANCE_THRESHOLD - 1);
-                Plugin.Log.Debug($"Applied long distance penalty of {longDistancePenalty:F2}s for distance {distance:F2}");
+                // Only log in verbose mode
+                if (plugin.Configuration.VerboseLogging)
+                {
+                    Plugin.Log.Debug($"Applied long distance penalty of {longDistancePenalty:F2}s for distance {distance:F2}");
+                }
             }
             
             if (isStartAetheryte)
@@ -88,6 +95,44 @@ namespace OnePiece.Services
             // If already at an aetheryte, direct travel is always better
             if (isStartAetheryte)
                 return directTime;
+            
+            // 1. Enhanced proximity check: If the distance is within proximity threshold, always prefer direct travel
+            // This prevents unnecessarily teleporting when player is already close to the target
+            float proximityThreshold = 20.0f; // Increased from 15.0f to be more generous
+            if (start.DistanceTo(end) < proximityThreshold)
+            {
+                Plugin.Log.Debug($"Start point is close to end point ({start.DistanceTo(end):F2} < {proximityThreshold:F2}), preferring direct travel");
+                bestAetheryte = null;
+                return directTime;
+            }
+            
+            // 2. New check: If player and target are in the same map, consider distance to nearest aetheryte
+            // If player is closer to the target than to the nearest aetheryte, prefer direct travel
+            if (start.MapArea == end.MapArea)
+            {
+                // Find closest aetheryte to player
+                float closestAetheryteDistance = float.MaxValue;
+                TreasureCoordinate closestAetheryte = null;
+                
+                foreach (var aetheryte in aetherytes)
+                {
+                    float distance = start.DistanceTo(aetheryte);
+                    if (distance < closestAetheryteDistance)
+                    {
+                        closestAetheryteDistance = distance;
+                        closestAetheryte = aetheryte;
+                    }
+                }
+                
+                // If player is closer to target than to closest aetheryte, or very close to target, prefer direct travel
+                float targetDistance = start.DistanceTo(end);
+                if (targetDistance < closestAetheryteDistance || targetDistance < 30.0f)
+                {
+                    Plugin.Log.Debug($"Player closer to target ({targetDistance:F2}) than to nearest aetheryte ({closestAetheryteDistance:F2}), preferring direct travel");
+                    bestAetheryte = null;
+                    return directTime;
+                }
+            }
                 
             // Calculate time via each aetheryte
             float bestTime = directTime;
@@ -102,13 +147,24 @@ namespace OnePiece.Services
                 // Travel from aetheryte to destination
                 float fromAetheryteTime = CalculateTimeCost(aetheryte, end, true, false);
                 float totalTime = teleportTime + fromAetheryteTime;
-                Plugin.Log.Debug($"Teleport to {aetheryte.Name}: teleport time {teleportTime:F2}s + travel time {fromAetheryteTime:F2}s = {totalTime:F2}s");
+                // Only log in verbose mode
+                if (plugin.Configuration.VerboseLogging)
+                {
+                    Plugin.Log.Debug($"Teleport to {aetheryte.Name}: teleport time {teleportTime:F2}s + travel time {fromAetheryteTime:F2}s = {totalTime:F2}s (vs direct {directTime:F2}s)");
+                }
                 
                 // If this route is faster, update the best time
-                if (totalTime < bestTime)
+                // Add a slight preference for direct travel by requiring teleport to be at least 20% faster
+                float teleportPreferenceFactor = 0.8f;
+                if (totalTime < bestTime * teleportPreferenceFactor)
                 {
                     bestTime = totalTime;
                     bestAetheryte = aetheryte;
+                    // Only log in verbose mode
+                    if (plugin.Configuration.VerboseLogging)
+                    {
+                        Plugin.Log.Debug($"Found better path via {aetheryte.Name} ({totalTime:F2}s vs {directTime:F2}s)");
+                    }
                 }
             }
             
@@ -138,6 +194,7 @@ namespace OnePiece.Services
                     aetheryte.Position.X, 
                     aetheryte.Position.Y, 
                     aetheryte.MapArea,
+                    CoordinateSystemType.Map,
                     aetheryte.Name);
                 aetheryteCoords.Add(aetheryteCoord);
             }
@@ -153,13 +210,21 @@ namespace OnePiece.Services
             var primaryAetheryte = mapAetherytes[0];
                 
             // Log recording
-            Plugin.Log.Debug($"Starting path optimization, start point: ({startLocation.X:F1}, {startLocation.Y:F1}), {coordinates.Count} treasure points, {aetheryteCoords.Count} aetherytes available");
+            // Only log in verbose mode
+            if (plugin.Configuration.VerboseLogging)
+            {
+                Plugin.Log.Debug($"Starting path optimization, start point: ({startLocation.X:F1}, {startLocation.Y:F1}), {coordinates.Count} treasure points, {aetheryteCoords.Count} aetherytes available");
+            }
             
             // For 7 or fewer points, use permutation to find the optimal solution
             // This threshold is chosen based on the current maximum limit of 8 coordinates
             if (coordinates.Count <= 7)
             {
-                Plugin.Log.Debug($"Using permutation method to optimize path for {coordinates.Count} points");
+                // Only log in verbose mode
+                if (plugin.Configuration.VerboseLogging)
+                {
+                    Plugin.Log.Debug($"Using permutation method to optimize path for {coordinates.Count} points");
+                }
                 var route = FindOptimalRouteByPermutation(startLocation, coordinates, aetheryteCoords);
                 
                 // Apply 2-opt local optimization
@@ -169,7 +234,11 @@ namespace OnePiece.Services
             // For 8 points (at the maximum limit), use a hybrid approach
             if (coordinates.Count == 8)
             {
-                Plugin.Log.Debug("Using hybrid approach for 8 points - comparing permutation and nearest neighbor");
+                // Only log in verbose mode
+                if (plugin.Configuration.VerboseLogging)
+                {
+                    Plugin.Log.Debug("Using hybrid approach for 8 points - comparing permutation and nearest neighbor");
+                }
                 
                 // Try both methods and choose the better result
                 // First, use the nearest neighbor algorithm with 2-opt
@@ -190,20 +259,32 @@ namespace OnePiece.Services
                 }
                 else
                 {
+                    // Only log in verbose mode
+                if (plugin.Configuration.VerboseLogging)
+                {
                     Plugin.Log.Debug($"Nearest neighbor result is better or equal: {nnTime:F2}s vs {permTime:F2}s");
+                }
                     return optimizedNnRoute;
                 }
             }
             
             // For more than 8 points (future-proofing for possible limit increases)
-            Plugin.Log.Debug($"Using approximation algorithm to optimize path for {coordinates.Count} points");
+            // Only log in verbose mode
+            if (plugin.Configuration.VerboseLogging)
+            {
+                Plugin.Log.Debug($"Using approximation algorithm to optimize path for {coordinates.Count} points");
+            }
             var initialRoute = FindOptimalRouteByNearestNeighbor(startLocation, coordinates, aetheryteCoords);
             var optimizedRoute = ApplyTwoOpt(initialRoute, aetheryteCoords);
             
             // For a very large number of points (15+), further use simulated annealing
             if (coordinates.Count >= 15)
             {
-                Plugin.Log.Debug("Using simulated annealing algorithm to further optimize the path");
+                // Only log in verbose mode
+                if (plugin.Configuration.VerboseLogging)
+                {
+                    Plugin.Log.Debug("Using simulated annealing algorithm to further optimize the path");
+                }
                 return OptimizeBySimulatedAnnealing(optimizedRoute, aetheryteCoords);
             }
             
@@ -213,6 +294,9 @@ namespace OnePiece.Services
         /// <summary>
         /// Use permutation method to find the optimal path (suitable for a small number of points)
         /// </summary>
+        /// <remarks>
+        /// Optimized to reduce redundant path calculations by caching calculated time costs
+        /// </remarks>
         private List<TreasureCoordinate> FindOptimalRouteByPermutation(
             TreasureCoordinate startLocation, 
             List<TreasureCoordinate> coordinates, 
@@ -222,6 +306,9 @@ namespace OnePiece.Services
             var bestRoute = new List<TreasureCoordinate>();
             float bestTime = float.MaxValue;
             
+            // Cache time costs to avoid redundant calculations
+            var timeCostCache = new Dictionary<(string, string, bool), (float, TreasureCoordinate)>();
+            
             foreach (var perm in allPermutations)
             {
                 float totalTime = 0;
@@ -229,19 +316,54 @@ namespace OnePiece.Services
                 var currentPos = startLocation;
                 bool isCurrentAetheryte = IsLocationAtAetheryte(currentPos, aetheryteCoords);
                 
+                // Flag to track if this is the first point in the route
+                bool isFirstPoint = true;
+                
                 // For each point in this permutation
                 foreach (var coord in perm)
                 {
                     // Calculate the best path to this coordinate, considering all aetherytes
                     TreasureCoordinate bestAetheryte = null;
-                    float bestTimeCost = CalculateBestTimeCost(currentPos, coord, isCurrentAetheryte, aetheryteCoords, out bestAetheryte);
+                    float bestTimeCost;
+                    
+                    // Check if we've already calculated this path
+                    var cacheKey = (currentPos.ToString(), coord.ToString(), isCurrentAetheryte);
+                    if (timeCostCache.TryGetValue(cacheKey, out var cachedResult))
+                    {
+                        bestTimeCost = cachedResult.Item1;
+                        bestAetheryte = cachedResult.Item2;
+                    }
+                    else
+                    {
+                        // Calculate and cache the result
+                        bestTimeCost = CalculateBestTimeCost(currentPos, coord, isCurrentAetheryte, aetheryteCoords, out bestAetheryte);
+                        timeCostCache[cacheKey] = (bestTimeCost, bestAetheryte);
+                    }
+                    
                     totalTime += bestTimeCost;
+                    
+                    // Special case for first point: Add extra preference for direct travel
+                    // if player is already on the same map and relatively close
+                    if (isFirstPoint && currentPos.MapArea == coord.MapArea && bestAetheryte != null)
+                    {
+                        float directDistance = currentPos.DistanceTo(coord);
+                        // If player is reasonably close to first point (within 40 units), prefer direct travel
+                        if (directDistance < 40.0f)
+                        {
+                            // Override the aetheryte decision and choose direct travel instead
+                            if (plugin.Configuration.VerboseLogging)
+                            {
+                                Plugin.Log.Debug($"First point special case: Override teleport decision, preferring direct travel to first point ({directDistance:F2} units away)");
+                            }
+                            bestAetheryte = null;
+                        }
+                    }
                     
                     // If using an aetheryte is better, add it to the path first
                     if (bestAetheryte != null)
                     {
                         // Create a teleport coordinate
-                        var teleportCoord = new TreasureCoordinate(bestAetheryte.X, bestAetheryte.Y, bestAetheryte.MapArea, bestAetheryte.Name, bestAetheryte.PlayerName);
+                        var teleportCoord = new TreasureCoordinate(bestAetheryte.X, bestAetheryte.Y, bestAetheryte.MapArea, CoordinateSystemType.Map, bestAetheryte.Name, bestAetheryte.PlayerName);
                         teleportCoord.Name = "[Teleport] " + teleportCoord.Name;
                         teleportCoord.NavigationInstruction = $"Teleport from ({currentPos.X:F1}, {currentPos.Y:F1}) to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1})";
                         
@@ -267,6 +389,9 @@ namespace OnePiece.Services
                     
                     // Add the coordinate to the route
                     route.Add(coord);
+                    
+                    // No longer the first point
+                    isFirstPoint = false;
                 }
                 
                 // Update best route if this permutation is better
@@ -274,7 +399,11 @@ namespace OnePiece.Services
                 {
                     bestTime = totalTime;
                     bestRoute = new List<TreasureCoordinate>(route);
-                    Plugin.Log.Debug($"Found better path, total time: {bestTime:F2} seconds");
+                    // Only log in verbose mode
+                    if (plugin.Configuration.VerboseLogging)
+                    {
+                        Plugin.Log.Debug($"Found better path, total time: {bestTime:F2} seconds");
+                    }
                 }
             }
             
@@ -339,9 +468,15 @@ namespace OnePiece.Services
         /// <summary>
         /// Use improved nearest neighbor algorithm to find approximate optimal path (suitable for a larger number of points)
         /// </summary>
+        /// <summary>
+        /// Use nearest neighbor to find an approximation of the optimal path
+        /// </summary>
+        /// <remarks>
+        /// Optimized to reduce redundant path calculations by caching calculated time costs
+        /// </remarks>
         private List<TreasureCoordinate> FindOptimalRouteByNearestNeighbor(
             TreasureCoordinate startLocation, 
-            List<TreasureCoordinate> coordinates, 
+            List<TreasureCoordinate> coordinates,
             List<TreasureCoordinate> aetheryteCoords)
         {
             var remainingCoords = new List<TreasureCoordinate>(coordinates);
@@ -349,6 +484,9 @@ namespace OnePiece.Services
             var currentPos = startLocation;
             bool isCurrentAetheryte = currentPos.MapArea != coordinates[0].MapArea || 
                                      IsLocationAtAetheryte(currentPos, aetheryteCoords);
+            
+            // Flag to track if this is the first point in the route
+            bool isFirstPoint = true;
             
             // While there are still unvisited treasure points
             while (remainingCoords.Count > 0)
@@ -373,11 +511,28 @@ namespace OnePiece.Services
                     }
                 }
                 
+                // Special case for first point: Add extra preference for direct travel
+                // when player is already on the same map and relatively close
+                if (isFirstPoint && currentPos.MapArea == bestNextCoord.MapArea && bestAetheryte != null)
+                {
+                    float directDistance = currentPos.DistanceTo(bestNextCoord);
+                    // If player is reasonably close to first point (within 40 units), prefer direct travel
+                    if (directDistance < 40.0f)
+                    {
+                        // Override the aetheryte decision and choose direct travel instead
+                        if (plugin.Configuration.VerboseLogging)
+                        {
+                            Plugin.Log.Debug($"First point special case (nearest neighbor): Override teleport decision, preferring direct travel to first point ({directDistance:F2} units away)");
+                        }
+                        bestAetheryte = null;
+                    }
+                }
+                
                 // Add to path
                 if (bestAetheryte != null)
                 {
                     // First teleport to the aetheryte
-                    var teleportCoord = new TreasureCoordinate(bestAetheryte.X, bestAetheryte.Y, bestAetheryte.MapArea, bestAetheryte.Name, bestAetheryte.PlayerName);
+                    var teleportCoord = new TreasureCoordinate(bestAetheryte.X, bestAetheryte.Y, bestAetheryte.MapArea, CoordinateSystemType.Map, bestAetheryte.Name, bestAetheryte.PlayerName);
                     teleportCoord.Name = "[Teleport] " + teleportCoord.Name;
                     teleportCoord.NavigationInstruction = $"Teleport from ({currentPos.X:F1}, {currentPos.Y:F1}) to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1})";
                     route.Add(teleportCoord);
@@ -387,6 +542,7 @@ namespace OnePiece.Services
                     route.Add(bestNextCoord);
                     currentPos = bestNextCoord;
                     isCurrentAetheryte = false;
+                    isFirstPoint = false; // No longer the first point after adding it to the route
                 }
                 else
                 {
@@ -395,6 +551,7 @@ namespace OnePiece.Services
                     route.Add(bestNextCoord);
                     currentPos = bestNextCoord;
                     isCurrentAetheryte = false;
+                    isFirstPoint = false; // No longer the first point after adding it to the route
                 }
                 
                 // Remove visited treasure point from remaining list
@@ -470,7 +627,11 @@ namespace OnePiece.Services
                         right--;
                     }
                     
-                    Plugin.Log.Debug($"Applied 2-opt optimization, improvement time: {bestGain:F2} seconds");
+                    // Only log in verbose mode
+                    if (plugin.Configuration.VerboseLogging)
+                    {
+                        Plugin.Log.Debug($"Applied 2-opt optimization, improvement time: {bestGain:F2} seconds");
+                    }
                 }
                 
                 iteration++;

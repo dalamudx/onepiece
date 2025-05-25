@@ -11,6 +11,7 @@ public class Configuration : IPluginConfiguration
 
     public string Language { get; set; } = "en";
     public LogLevel LogLevel { get; set; } = LogLevel.Normal;
+    public bool VerboseLogging { get; set; } = false; // Enable detailed debug logging
 
     // Treasure hunt settings
     

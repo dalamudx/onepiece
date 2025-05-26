@@ -5,3 +5,5 @@ OnePiece/obj/
 OnePiece/bin/
 *.user
 global.json
+getAetheryteData.py
+.windsurf/

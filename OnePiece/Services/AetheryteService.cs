@@ -95,6 +95,19 @@ public class AetheryteService
             
         return aetherytes.FirstOrDefault(a => a.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
+    
+    /// <summary>
+    /// Gets an aetheryte by its row ID.
+    /// </summary>
+    /// <param name="id">The row ID of the aetheryte.</param>
+    /// <returns>The aetheryte info, or null if not found.</returns>
+    public AetheryteInfo? GetAetheryteById(uint id)
+    {
+        if (id == 0)
+            return null;
+            
+        return aetherytes.FirstOrDefault(a => a.AetheryteRowId == id);
+    }
 
     /// <summary>
     /// Gets the cheapest aetheryte to teleport to in a specific map area.

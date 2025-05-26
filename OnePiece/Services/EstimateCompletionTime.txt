@@ -1,0 +1,26 @@
+        /// <summary>
+        /// Estimate the total time needed to complete the entire path
+        /// </summary>
+        /// <param name="route">Optimized path</param>
+        /// <returns>Estimated completion time (seconds)</returns>
+        public float EstimateCompletionTime(List<TreasureCoordinate> route)
+        {
+            if (route.Count <= 1)
+                return 0;
+                
+            float totalTime = 0;
+            for (int i = 0; i < route.Count - 1; i++)
+            {
+                // Check teleport capability using AetheryteId
+                bool isStartAetheryte = route[i].AetheryteId > 0;
+                bool isEndAetheryte = route[i+1].AetheryteId > 0;
+                totalTime += CalculateTimeCost(route[i], route[i+1], isStartAetheryte, isEndAetheryte);
+            }
+            
+            // Consider collection time for each treasure point (assumed to be 10 seconds)
+            // Using AetheryteId instead of Type property to identify teleport points
+            int treasurePoints = route.Count(c => c.AetheryteId == 0);
+            totalTime += treasurePoints * 10;
+            
+            return totalTime;
+        }

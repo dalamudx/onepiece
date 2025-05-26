@@ -22,6 +22,32 @@ public enum CoordinateSystemType
     World
 }
 
+/// <summary>
+/// Represents the type of coordinate point.
+/// </summary>
+public enum CoordinateType
+{
+    /// <summary>
+    /// A regular treasure hunt point
+    /// </summary>
+    TreasurePoint,
+    
+    /// <summary>
+    /// A teleport point (aetheryte)
+    /// </summary>
+    TeleportPoint,
+    
+    /// <summary>
+    /// A waypoint for navigation
+    /// </summary>
+    WayPoint,
+    
+    /// <summary>
+    /// Player's current position
+    /// </summary>
+    PlayerPosition
+}
+
 public class TreasureCoordinate
 {
     /// <summary>
@@ -75,9 +101,26 @@ public class TreasureCoordinate
     public string Notes { get; set; } = string.Empty;
     
     /// <summary>
-    /// Gets or sets a value indicating whether this coordinate is a teleport point.
+    /// Gets or sets the type of this coordinate point.
     /// </summary>
-    public bool IsTeleportPoint { get; set; } = false;
+    public CoordinateType Type { get; set; } = CoordinateType.TreasurePoint;
+    
+    /// <summary>
+    /// Gets or sets a value indicating whether this coordinate is a teleport point.
+    /// This property is maintained for backward compatibility.
+    /// New code should use the Type property instead.
+    /// </summary>
+    public bool IsTeleportPoint
+    {
+        get { return Type == CoordinateType.TeleportPoint; }
+        set { Type = value ? CoordinateType.TeleportPoint : CoordinateType.TreasurePoint; }
+    }
+    
+    /// <summary>
+    /// Gets or sets the Aetheryte ID for teleportation.
+    /// This is the direct reference to an Aetheryte in the game data.
+    /// </summary>
+    public uint AetheryteId { get; set; }
 
     /// <summary>
     /// Gets the position as a Vector2.

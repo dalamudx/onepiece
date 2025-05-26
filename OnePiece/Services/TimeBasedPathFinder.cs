@@ -96,42 +96,16 @@ namespace OnePiece.Services
             if (isStartAetheryte)
                 return directTime;
             
-            // 1. Enhanced proximity check: If the distance is within proximity threshold, always prefer direct travel
-            // This prevents unnecessarily teleporting when player is already close to the target
-            float proximityThreshold = 20.0f; // Increased from 15.0f to be more generous
-            if (start.DistanceTo(end) < proximityThreshold)
-            {
-                Plugin.Log.Debug($"Start point is close to end point ({start.DistanceTo(end):F2} < {proximityThreshold:F2}), preferring direct travel");
-                bestAetheryte = null;
-                return directTime;
-            }
+            // 完全基于时间的计算，不再使用固定距离阈值
+            // 通过将所有路径的时间成本相互比较，找出最优解
             
-            // 2. New check: If player and target are in the same map, consider distance to nearest aetheryte
-            // If player is closer to the target than to the nearest aetheryte, prefer direct travel
-            if (start.MapArea == end.MapArea)
+            // 记录当前计算的路径信息，用于调试日志
+            float startToEndDistance = start.DistanceTo(end);
+            bool sameMapArea = start.MapArea == end.MapArea;
+            
+            if (plugin.Configuration.VerboseLogging)
             {
-                // Find closest aetheryte to player
-                float closestAetheryteDistance = float.MaxValue;
-                TreasureCoordinate closestAetheryte = null;
-                
-                foreach (var aetheryte in aetherytes)
-                {
-                    float distance = start.DistanceTo(aetheryte);
-                    if (distance < closestAetheryteDistance)
-                    {
-                        closestAetheryteDistance = distance;
-                        closestAetheryte = aetheryte;
-                    }
-                }
-                
-                // If player is closer to target than to closest aetheryte, or very close to target, prefer direct travel
-                float targetDistance = start.DistanceTo(end);
-                if (targetDistance < closestAetheryteDistance || targetDistance < 30.0f)
-                {
-                    Plugin.Log.Debug($"Player closer to target ({targetDistance:F2}) than to nearest aetheryte ({closestAetheryteDistance:F2}), preferring direct travel");
-                    bestAetheryte = null;
-                    return directTime;
-                }
+                Plugin.Log.Debug($"Calculating best path from {start.MapArea}({start.X:F1},{start.Y:F1}) to {end.MapArea}({end.X:F1},{end.Y:F1}), direct distance: {startToEndDistance:F2}");
             }
                 
             // Calculate time via each aetheryte
@@ -153,9 +127,18 @@ namespace OnePiece.Services
                     Plugin.Log.Debug($"Teleport to {aetheryte.Name}: teleport time {teleportTime:F2}s + travel time {fromAetheryteTime:F2}s = {totalTime:F2}s (vs direct {directTime:F2}s)");
                 }
                 
-                // If this route is faster, update the best time
-                // Add a slight preference for direct travel by requiring teleport to be at least 20% faster
-                float teleportPreferenceFactor = 0.8f;
+                // 从用户配置读取传送偏好因子
+                // 值越大，越倾向于使用传送点；值越小，越倾向于直接移动
+                // 默认值0.8意味着传送需要比直接移动快20%才会被选择
+                float teleportPreferenceFactor = plugin.Configuration.TeleportPreferenceFactor;
+                
+                // 记录详细的时间比较日志
+                if (plugin.Configuration.VerboseLogging)
+                {
+                    Plugin.Log.Debug($"Comparing path via {aetheryte.Name}: teleport route ({totalTime:F2}s) vs direct ({directTime:F2}s), preference factor: {teleportPreferenceFactor:F2}");
+                }
+                
+                // 根据传送偏好因子进行比较
                 if (totalTime < bestTime * teleportPreferenceFactor)
                 {
                     bestTime = totalTime;
@@ -359,19 +342,20 @@ namespace OnePiece.Services
                         }
                     }
                     
-                    // If using an aetheryte is better, add it to the path first
+                    // If using an aetheryte is better, set teleport info directly on the target coordinate
                     if (bestAetheryte != null)
                     {
-                        // Create a teleport coordinate
-                        var teleportCoord = new TreasureCoordinate(bestAetheryte.X, bestAetheryte.Y, bestAetheryte.MapArea, CoordinateSystemType.Map, bestAetheryte.Name, bestAetheryte.PlayerName);
-                        teleportCoord.Name = "[Teleport] " + teleportCoord.Name;
-                        teleportCoord.NavigationInstruction = $"Teleport from ({currentPos.X:F1}, {currentPos.Y:F1}) to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1})";
+                        // Set comprehensive navigation instructions for the treasure point
+                        coord.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({coord.X:F1}, {coord.Y:F1})";
                         
-                        // Add to route
-                        route.Add(teleportCoord);
+                        // Set AetheryteId on the treasure coordinate for teleport button
+                        coord.AetheryteId = bestAetheryte.AetheryteId;
                         
-                        // Add navigation instruction for the treasure point
-                        coord.NavigationInstruction = $"Travel from {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}) to ({coord.X:F1}, {coord.Y:F1})";
+                        // Add debug log to verify AetheryteId is set
+                        if (plugin.Configuration.VerboseLogging)
+                        {
+                            Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({coord.X:F1}, {coord.Y:F1})");
+                        }
                         
                         // Update current position and flag
                         currentPos = coord;
@@ -528,17 +512,21 @@ namespace OnePiece.Services
                     }
                 }
                 
-                // Add to path
+                // Add to path with teleport info if needed
                 if (bestAetheryte != null)
                 {
-                    // First teleport to the aetheryte
-                    var teleportCoord = new TreasureCoordinate(bestAetheryte.X, bestAetheryte.Y, bestAetheryte.MapArea, CoordinateSystemType.Map, bestAetheryte.Name, bestAetheryte.PlayerName);
-                    teleportCoord.Name = "[Teleport] " + teleportCoord.Name;
-                    teleportCoord.NavigationInstruction = $"Teleport from ({currentPos.X:F1}, {currentPos.Y:F1}) to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1})";
-                    route.Add(teleportCoord);
+                    // Set teleport information directly on the next coordinate
+                    // Add comprehensive navigation instruction including teleport and travel
+                    bestNextCoord.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({bestNextCoord.X:F1}, {bestNextCoord.Y:F1})";
                     
-                    // Add navigation instruction for travel from aetheryte to target
-                    bestNextCoord.NavigationInstruction = $"Travel from {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}) to ({bestNextCoord.X:F1}, {bestNextCoord.Y:F1})";
+                    // Set AetheryteId on the treasure coordinate for teleport button
+                    bestNextCoord.AetheryteId = bestAetheryte.AetheryteId;
+                    
+                    // Add debug log to verify AetheryteId is set
+                    if (plugin.Configuration.VerboseLogging)
+                    {
+                        Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({bestNextCoord.X:F1}, {bestNextCoord.Y:F1})");
+                    }
                     route.Add(bestNextCoord);
                     currentPos = bestNextCoord;
                     isCurrentAetheryte = false;
@@ -585,9 +573,9 @@ namespace OnePiece.Services
                 {
                     for (int j = i + 2; j < route.Count - 1; j++)
                     {
-                        // Skip edges containing aetherytes (points marked with [Teleport])
-                        if (route[i].Name.Contains("[Teleport]") || route[i+1].Name.Contains("[Teleport]") ||
-                            route[j].Name.Contains("[Teleport]") || route[j+1].Name.Contains("[Teleport]"))
+                        // Skip edges containing aetherytes (using AetheryteId property)
+                        if (route[i].AetheryteId > 0 || route[i+1].AetheryteId > 0 ||
+                            route[j].AetheryteId > 0 || route[j+1].AetheryteId > 0)
                             continue;
                         
                         // Calculate time before swap using best aetheryte options
@@ -677,9 +665,10 @@ namespace OnePiece.Services
                     pos1 = random.Next(0, newRoute.Count);
                     pos2 = random.Next(0, newRoute.Count);
                     
+                    // Check if coordinates don't have teleport capability using AetheryteId
                     validSwap = pos1 != pos2 && 
-                               !newRoute[pos1].Name.Contains("[Teleport]") && 
-                               !newRoute[pos2].Name.Contains("[Teleport]");
+                               newRoute[pos1].AetheryteId == 0 && 
+                               newRoute[pos2].AetheryteId == 0;
                                
                     attempts++;
                     if (attempts > 100) break; // Avoid infinite loop
@@ -739,8 +728,9 @@ namespace OnePiece.Services
             float totalTime = 0;
             for (int i = 0; i < route.Count - 1; i++)
             {
-                bool isStartAetheryte = route[i].Name.Contains("[Teleport]");
-                bool isEndAetheryte = route[i+1].Name.Contains("[Teleport]");
+                // Check teleport capability using AetheryteId
+                bool isStartAetheryte = route[i].AetheryteId > 0;
+                bool isEndAetheryte = route[i+1].AetheryteId > 0;
                 totalTime += CalculateTimeCost(route[i], route[i+1], isStartAetheryte, isEndAetheryte);
             }
             return totalTime;
@@ -759,13 +749,15 @@ namespace OnePiece.Services
             float totalTime = 0;
             for (int i = 0; i < route.Count - 1; i++)
             {
-                bool isStartAetheryte = route[i].Name.Contains("[Teleport]");
-                bool isEndAetheryte = route[i+1].Name.Contains("[Teleport]");
+                // Check teleport capability using AetheryteId
+                bool isStartAetheryte = route[i].AetheryteId > 0;
+                bool isEndAetheryte = route[i+1].AetheryteId > 0;
                 totalTime += CalculateTimeCost(route[i], route[i+1], isStartAetheryte, isEndAetheryte);
             }
             
             // Consider collection time for each treasure point (assumed to be 10 seconds)
-            int treasurePoints = route.Count(c => !c.Name.Contains("[Teleport]"));
+            // Using AetheryteId instead of Type property to identify teleport points
+            int treasurePoints = route.Count(c => c.AetheryteId == 0);
             totalTime += treasurePoints * 10;
             
             return totalTime;

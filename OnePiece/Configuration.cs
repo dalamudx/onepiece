@@ -23,6 +23,9 @@ public class Configuration : IPluginConfiguration
     public List<string> CustomMessages { get; set; } = new List<string>();
     public List<MessageComponent> SelectedMessageComponents { get; set; } = new List<MessageComponent>();
     
+    // Route optimization settings
+    public float TeleportCostWeight { get; set; } = 0.05f; // How much weight to give to teleport cost in optimization
+    
     // Message template settings
     public List<MessageTemplate> MessageTemplates { get; set; } = new List<MessageTemplate>();
     public int ActiveTemplateIndex { get; set; } = -1; // -1 means no template is active

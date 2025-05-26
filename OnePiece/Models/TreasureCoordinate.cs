@@ -68,6 +68,16 @@ public class TreasureCoordinate
     /// Gets or sets the navigation instruction for reaching this coordinate from the previous point.
     /// </summary>
     public string NavigationInstruction { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Gets or sets additional notes about this coordinate.
+    /// </summary>
+    public string Notes { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Gets or sets a value indicating whether this coordinate is a teleport point.
+    /// </summary>
+    public bool IsTeleportPoint { get; set; } = false;
 
     /// <summary>
     /// Gets the position as a Vector2.

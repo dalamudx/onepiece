@@ -342,37 +342,45 @@ namespace OnePiece.Services
                         }
                     }
                     
-                    // If using an aetheryte is better, set teleport info directly on the target coordinate
+                    // If using an aetheryte is better, create a copy with teleport info to preserve original data
                     if (bestAetheryte != null)
                     {
+                        // Create a copy of the coordinate to preserve original player name and other data
+                        var coordWithTeleport = TreasureCoordinateBuilder.FromExisting(coord)
+                            .WithAetheryteId(bestAetheryte.AetheryteId)
+                            .Build();
+
                         // Set comprehensive navigation instructions for the treasure point
-                        coord.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({coord.X:F1}, {coord.Y:F1})";
-                        
-                        // Set AetheryteId on the treasure coordinate for teleport button
-                        coord.AetheryteId = bestAetheryte.AetheryteId;
-                        
+                        coordWithTeleport.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1})";
+
                         // Add debug log to verify AetheryteId is set
                         if (plugin.Configuration.VerboseLogging)
                         {
-                            Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({coord.X:F1}, {coord.Y:F1})");
+                            Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1}) with preserved PlayerName: {coordWithTeleport.PlayerName}");
                         }
-                        
+
+                        // Add the modified coordinate to route
+                        route.Add(coordWithTeleport);
+
                         // Update current position and flag
-                        currentPos = coord;
+                        currentPos = coordWithTeleport;
                         isCurrentAetheryte = false;
                     }
                     else
                     {
+                        // No teleport needed, create a copy to preserve original data
+                        var coordCopy = TreasureCoordinateBuilder.FromExisting(coord).Build();
+
                         // Add direct travel navigation instruction
-                        coord.NavigationInstruction = $"Direct travel from ({currentPos.X:F1}, {currentPos.Y:F1}) to ({coord.X:F1}, {coord.Y:F1})";
-                        
+                        coordCopy.NavigationInstruction = $"Direct travel from ({currentPos.X:F1}, {currentPos.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
+
+                        // Add the coordinate to the route
+                        route.Add(coordCopy);
+
                         // Update current position and flag
-                        currentPos = coord;
+                        currentPos = coordCopy;
                         isCurrentAetheryte = false;
                     }
-                    
-                    // Add the coordinate to the route
-                    route.Add(coord);
                     
                     // No longer the first point
                     isFirstPoint = false;
@@ -515,32 +523,42 @@ namespace OnePiece.Services
                 // Add to path with teleport info if needed
                 if (bestAetheryte != null)
                 {
-                    // Set teleport information directly on the next coordinate
-                    // Add comprehensive navigation instruction including teleport and travel
-                    bestNextCoord.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({bestNextCoord.X:F1}, {bestNextCoord.Y:F1})";
-                    
-                    // Set AetheryteId on the treasure coordinate for teleport button
-                    bestNextCoord.AetheryteId = bestAetheryte.AetheryteId;
-                    
-                    // Add debug log to verify AetheryteId is set
+                    // Create a copy of the coordinate to preserve original player name and other data
+                    var coordWithTeleport = TreasureCoordinateBuilder.FromExisting(bestNextCoord)
+                        .WithAetheryteId(bestAetheryte.AetheryteId)
+                        .Build();
+
+                    // Set comprehensive navigation instruction including teleport and travel
+                    coordWithTeleport.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1})";
+
+                    // Add debug log to verify AetheryteId is set and PlayerName is preserved
                     if (plugin.Configuration.VerboseLogging)
                     {
-                        Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({bestNextCoord.X:F1}, {bestNextCoord.Y:F1})");
+                        Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1}) with preserved PlayerName: {coordWithTeleport.PlayerName}");
                     }
-                    route.Add(bestNextCoord);
-                    currentPos = bestNextCoord;
-                    isCurrentAetheryte = false;
-                    isFirstPoint = false; // No longer the first point after adding it to the route
+
+                    // Add the modified coordinate to route
+                    route.Add(coordWithTeleport);
+
+                    // Update current position
+                    currentPos = coordWithTeleport;
                 }
                 else
                 {
+                    // No teleport needed, create a copy to preserve original data
+                    var coordCopy = TreasureCoordinateBuilder.FromExisting(bestNextCoord).Build();
+
                     // Add navigation instruction for direct travel
-                    bestNextCoord.NavigationInstruction = $"Direct travel from ({currentPos.X:F1}, {currentPos.Y:F1}) to ({bestNextCoord.X:F1}, {bestNextCoord.Y:F1})";
-                    route.Add(bestNextCoord);
-                    currentPos = bestNextCoord;
-                    isCurrentAetheryte = false;
-                    isFirstPoint = false; // No longer the first point after adding it to the route
+                    coordCopy.NavigationInstruction = $"Direct travel from ({currentPos.X:F1}, {currentPos.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
+
+                    // Add the coordinate to route
+                    route.Add(coordCopy);
+                    currentPos = coordCopy;
                 }
+
+                // Update flags
+                isCurrentAetheryte = false;
+                isFirstPoint = false; // No longer the first point after adding it to the route
                 
                 // Remove visited treasure point from remaining list
                 remainingCoords.Remove(bestNextCoord);

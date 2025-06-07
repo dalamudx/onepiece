@@ -334,9 +334,8 @@ private void ExtractCoordinates(string messageText, string playerName)
 
             log.Information($"Detected coordinate from {playerName}: {mapArea} ({x}, {y})");
 
-            // Import the coordinate using TreasureHuntService
-            string coordinateText = $"{mapArea} ({x}, {y})";
-            plugin.TreasureHuntService.ImportCoordinates(coordinateText);
+            // Directly add the coordinate to preserve player name instead of re-importing
+            plugin.TreasureHuntService.AddCoordinate(coordinate);
 
             // Notify the user based on log level
             if (plugin.Configuration.LogLevel >= LogLevel.Normal)
@@ -395,9 +394,8 @@ public bool ProcessChatMessage(string playerName, string message)
 
                     log.Information($"Manually processed coordinate from {effectivePlayerName}: {mapArea} ({x}, {y})");
 
-                    // Import the coordinate using TreasureHuntService
-                    string coordinateText = $"{mapArea} ({x}, {y})";
-                    plugin.TreasureHuntService.ImportCoordinates(coordinateText);
+                    // Directly add the coordinate to preserve player name instead of re-importing
+                    plugin.TreasureHuntService.AddCoordinate(coordinate);
 
                     // Notify the user based on log level
                     if (plugin.Configuration.LogLevel >= LogLevel.Normal)

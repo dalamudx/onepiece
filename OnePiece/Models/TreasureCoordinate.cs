@@ -225,6 +225,29 @@ public class TreasureCoordinate
     }
     
     /// <summary>
+    /// Creates a deep copy of this coordinate with all properties preserved.
+    /// </summary>
+    /// <returns>A new coordinate that is an exact copy of this one.</returns>
+    public TreasureCoordinate DeepCopy()
+    {
+        return new TreasureCoordinate
+        {
+            X = this.X,
+            Y = this.Y,
+            MapArea = this.MapArea,
+            Name = this.Name,
+            PlayerName = this.PlayerName,
+            IsCollected = this.IsCollected,
+            Tag = this.Tag,
+            NavigationInstruction = this.NavigationInstruction,
+            Notes = this.Notes,
+            CoordinateSystem = this.CoordinateSystem,
+            Type = this.Type,
+            AetheryteId = this.AetheryteId
+        };
+    }
+
+    /// <summary>
     /// Converts this coordinate to the specified coordinate system.
     /// </summary>
     /// <param name="targetSystem">The target coordinate system.</param>
@@ -235,17 +258,20 @@ public class TreasureCoordinate
         {
             return this; // Already in the target system
         }
-        
-        // Create a new coordinate with the same properties
+
+        // Create a new coordinate with ALL properties preserved
         var result = new TreasureCoordinate
         {
             MapArea = this.MapArea,
             Name = this.Name,
-            PlayerName = this.PlayerName,
+            PlayerName = this.PlayerName, // 确保玩家名被保留
             IsCollected = this.IsCollected,
             Tag = this.Tag,
             NavigationInstruction = this.NavigationInstruction,
-            CoordinateSystem = targetSystem
+            Notes = this.Notes,
+            CoordinateSystem = targetSystem,
+            Type = this.Type,
+            AetheryteId = this.AetheryteId
         };
         
         // Convert coordinates based on the direction of conversion
@@ -264,5 +290,99 @@ public class TreasureCoordinate
         
         // If we reach here, we have an unsupported conversion
         throw new InvalidOperationException($"Unsupported coordinate system conversion: {this.CoordinateSystem} to {targetSystem}");
+    }
+}
+
+/// <summary>
+/// Builder class for creating TreasureCoordinate objects with preserved data.
+/// </summary>
+public class TreasureCoordinateBuilder
+{
+    private TreasureCoordinate coordinate;
+
+    public TreasureCoordinateBuilder()
+    {
+        coordinate = new TreasureCoordinate();
+    }
+
+    /// <summary>
+    /// Creates a builder from an existing coordinate, preserving all data.
+    /// </summary>
+    /// <param name="source">The source coordinate to copy from.</param>
+    /// <returns>The builder instance.</returns>
+    public static TreasureCoordinateBuilder FromExisting(TreasureCoordinate source)
+    {
+        if (source == null)
+            throw new ArgumentNullException(nameof(source));
+
+        var builder = new TreasureCoordinateBuilder();
+        builder.coordinate = source.DeepCopy();
+        return builder;
+    }
+
+    /// <summary>
+    /// Sets the coordinate position.
+    /// </summary>
+    /// <param name="x">X coordinate.</param>
+    /// <param name="y">Y coordinate.</param>
+    /// <returns>The builder instance.</returns>
+    public TreasureCoordinateBuilder WithPosition(float x, float y)
+    {
+        coordinate.X = x;
+        coordinate.Y = y;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the coordinate type.
+    /// </summary>
+    /// <param name="type">The coordinate type.</param>
+    /// <returns>The builder instance.</returns>
+    public TreasureCoordinateBuilder WithType(CoordinateType type)
+    {
+        coordinate.Type = type;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the aetheryte ID for teleportation.
+    /// </summary>
+    /// <param name="aetheryteId">The aetheryte ID.</param>
+    /// <returns>The builder instance.</returns>
+    public TreasureCoordinateBuilder WithAetheryteId(uint aetheryteId)
+    {
+        coordinate.AetheryteId = aetheryteId;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the player name.
+    /// </summary>
+    /// <param name="playerName">The player name.</param>
+    /// <returns>The builder instance.</returns>
+    public TreasureCoordinateBuilder WithPlayerName(string playerName)
+    {
+        coordinate.PlayerName = playerName ?? string.Empty;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the map area.
+    /// </summary>
+    /// <param name="mapArea">The map area.</param>
+    /// <returns>The builder instance.</returns>
+    public TreasureCoordinateBuilder WithMapArea(string mapArea)
+    {
+        coordinate.MapArea = mapArea ?? string.Empty;
+        return this;
+    }
+
+    /// <summary>
+    /// Builds the final coordinate object.
+    /// </summary>
+    /// <returns>The built coordinate.</returns>
+    public TreasureCoordinate Build()
+    {
+        return coordinate.DeepCopy(); // Return a copy to prevent external modification
     }
 }

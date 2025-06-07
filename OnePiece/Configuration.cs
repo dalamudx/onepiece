@@ -23,9 +23,7 @@ public class Configuration : IPluginConfiguration
     public List<string> CustomMessages { get; set; } = new List<string>();
     public List<MessageComponent> SelectedMessageComponents { get; set; } = new List<MessageComponent>();
     
-    // Route optimization settings
-    public float TeleportCostWeight { get; set; } = 0.05f; // How much weight to give to teleport cost in optimization
-    public float TeleportPreferenceFactor { get; set; } = 0.8f; // 传送偏好因子，值越高越倾向使用传送点（默认值0.8意味着传送需要比直接移动快20%才会被选择）
+
     
     // Message template settings
     public List<MessageTemplate> MessageTemplates { get; set; } = new List<MessageTemplate>();

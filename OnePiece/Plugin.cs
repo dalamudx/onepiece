@@ -72,7 +72,7 @@ public sealed class Plugin : IDalamudPlugin
         ECommonsMain.Init(PluginInterface, this);
 
         // Initialize localization
-        Strings.Initialize();
+        LocalizationManager.Initialize();
 
         // Initialize services in the correct order
         TerritoryManager = new TerritoryManager(DataManager, Log);
@@ -93,7 +93,7 @@ public sealed class Plugin : IDalamudPlugin
         ChatMonitorService = new ChatMonitorService(this);
 
         // Set language from configuration
-        Strings.SetLanguage(Configuration.Language);
+        LocalizationManager.SetLanguage(Configuration.Language);
 
         // Initialize main window (without logo)
         MainWindow = new MainWindow(this);

@@ -24,7 +24,7 @@ public class MainWindow : Window, IDisposable
     // since we'll use the one from Plugin instance
 
     public MainWindow(Plugin plugin)
-        : base(Strings.GetString("MainWindowTitle") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base(LocalizationManager.GetString("MainWindowTitle") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -38,7 +38,7 @@ public class MainWindow : Window, IDisposable
         InitializeChatChannelNames();
 
         // Initialize language selection
-        supportedLanguages = Strings.GetSupportedLanguages();
+        supportedLanguages = LocalizationManager.GetSupportedLanguages();
         selectedLanguageIndex = Array.IndexOf(supportedLanguages, this.plugin.Configuration.Language);
         if (selectedLanguageIndex < 0) selectedLanguageIndex = 0;
 
@@ -65,28 +65,28 @@ public class MainWindow : Window, IDisposable
         // Create localized chat channel names
         chatChannelNames = new[]
         {
-            Strings.GetString("Say"),
-            Strings.GetString("Yell"),
-            Strings.GetString("Shout"),
-            Strings.GetString("Party"),
-            Strings.GetString("Alliance"),
-            Strings.GetString("FreeCompany"),
-            Strings.GetString("LinkShell1"),
-            Strings.GetString("LinkShell2"),
-            Strings.GetString("LinkShell3"),
-            Strings.GetString("LinkShell4"),
-            Strings.GetString("LinkShell5"),
-            Strings.GetString("LinkShell6"),
-            Strings.GetString("LinkShell7"),
-            Strings.GetString("LinkShell8"),
-            Strings.GetString("CrossWorldLinkShell1"),
-            Strings.GetString("CrossWorldLinkShell2"),
-            Strings.GetString("CrossWorldLinkShell3"),
-            Strings.GetString("CrossWorldLinkShell4"),
-            Strings.GetString("CrossWorldLinkShell5"),
-            Strings.GetString("CrossWorldLinkShell6"),
-            Strings.GetString("CrossWorldLinkShell7"),
-            Strings.GetString("CrossWorldLinkShell8")
+            LocalizationManager.GetString("Say"),
+            LocalizationManager.GetString("Yell"),
+            LocalizationManager.GetString("Shout"),
+            LocalizationManager.GetString("Party"),
+            LocalizationManager.GetString("Alliance"),
+            LocalizationManager.GetString("FreeCompany"),
+            LocalizationManager.GetString("LinkShell1"),
+            LocalizationManager.GetString("LinkShell2"),
+            LocalizationManager.GetString("LinkShell3"),
+            LocalizationManager.GetString("LinkShell4"),
+            LocalizationManager.GetString("LinkShell5"),
+            LocalizationManager.GetString("LinkShell6"),
+            LocalizationManager.GetString("LinkShell7"),
+            LocalizationManager.GetString("LinkShell8"),
+            LocalizationManager.GetString("CrossWorldLinkShell1"),
+            LocalizationManager.GetString("CrossWorldLinkShell2"),
+            LocalizationManager.GetString("CrossWorldLinkShell3"),
+            LocalizationManager.GetString("CrossWorldLinkShell4"),
+            LocalizationManager.GetString("CrossWorldLinkShell5"),
+            LocalizationManager.GetString("CrossWorldLinkShell6"),
+            LocalizationManager.GetString("CrossWorldLinkShell7"),
+            LocalizationManager.GetString("CrossWorldLinkShell8")
         };
     }
 
@@ -95,9 +95,9 @@ public class MainWindow : Window, IDisposable
         // Create localized log level names
         logLevels = new[]
         {
-            Strings.GetString("LogLevelMinimal"),
-            Strings.GetString("LogLevelNormal"),
-            Strings.GetString("LogLevelVerbose")
+            LocalizationManager.GetString("LogLevelMinimal"),
+            LocalizationManager.GetString("LogLevelNormal"),
+            LocalizationManager.GetString("LogLevelVerbose")
         };
     }
 
@@ -122,17 +122,17 @@ public class MainWindow : Window, IDisposable
         if (!isLoggedIn)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f)); // Yellow warning text
-            string message = Strings.GetString("NotLoggedIn");
+            string message = LocalizationManager.GetString("NotLoggedIn");
             float warningWidth = ImGui.CalcTextSize(message).X;
             ImGui.SetCursorPosX((windowWidth - warningWidth) * 0.5f);
             ImGui.TextUnformatted(message);
             ImGui.PopStyleColor();
-            
+
             ImGui.Separator();
         }
 
         // Display subtitle (centered)
-        string subtitle = Strings.GetString("MainWindowSubtitle");
+        string subtitle = LocalizationManager.GetString("MainWindowSubtitle");
         float textWidth = ImGui.CalcTextSize(subtitle).X;
         ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
         ImGui.TextUnformatted(subtitle);
@@ -150,9 +150,9 @@ public class MainWindow : Window, IDisposable
         
         // Calculate the width needed for the longest label
         string[] labelsToMeasure = new string[] {
-            Strings.GetString("Language"),
-            Strings.GetString("LogLevel"),
-            Strings.GetString("SelectChatChannel")
+            LocalizationManager.GetString("Language"),
+            LocalizationManager.GetString("LogLevel"),
+            LocalizationManager.GetString("SelectChatChannel")
         };
         
         foreach (var label in labelsToMeasure)
@@ -171,27 +171,27 @@ public class MainWindow : Window, IDisposable
         float controlWidth = 250; // Keep the same control width
 
         // General Settings section with collapsing header
-        if (ImGui.CollapsingHeader(Strings.GetString("GeneralSettings")))
+        if (ImGui.CollapsingHeader(LocalizationManager.GetString("GeneralSettings")))
         {
             // Language selection
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(Strings.GetString("Language"));
+            ImGui.TextUnformatted(LocalizationManager.GetString("Language"));
             ImGui.SameLine(labelWidth);
             ImGui.SetNextItemWidth(controlWidth);
             if (ImGui.Combo("##LanguageSelector", ref selectedLanguageIndex, supportedLanguages, supportedLanguages.Length))
             {
                 plugin.Configuration.Language = supportedLanguages[selectedLanguageIndex];
-                Strings.SetLanguage(plugin.Configuration.Language);
+                LocalizationManager.SetLanguage(plugin.Configuration.Language);
                 plugin.Configuration.Save();
 
-                // Refresh localized strings
+                // Refresh localized LocalizationManager
                 InitializeChatChannelNames();
                 InitializeLogLevels();
             }
 
             // Log level
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(Strings.GetString("LogLevel"));
+            ImGui.TextUnformatted(LocalizationManager.GetString("LogLevel"));
             ImGui.SameLine(labelWidth);
             ImGui.SetNextItemWidth(controlWidth);
             if (ImGui.Combo("##LogLevelSelector", ref selectedLogLevelIndex, logLevels, logLevels.Length))
@@ -206,13 +206,13 @@ public class MainWindow : Window, IDisposable
                 switch (plugin.Configuration.LogLevel)
                 {
                     case LogLevel.Minimal:
-                        ImGui.SetTooltip(Strings.GetString("LogLevelMinimalTooltip"));
+                        ImGui.SetTooltip(LocalizationManager.GetString("LogLevelMinimalTooltip"));
                         break;
                     case LogLevel.Normal:
-                        ImGui.SetTooltip(Strings.GetString("LogLevelNormalTooltip"));
+                        ImGui.SetTooltip(LocalizationManager.GetString("LogLevelNormalTooltip"));
                         break;
                     case LogLevel.Verbose:
-                        ImGui.SetTooltip(Strings.GetString("LogLevelVerboseTooltip"));
+                        ImGui.SetTooltip(LocalizationManager.GetString("LogLevelVerboseTooltip"));
                         break;
                 }
             }
@@ -221,11 +221,11 @@ public class MainWindow : Window, IDisposable
         ImGui.Separator();
 
         // Channel settings section with collapsing header
-        if (ImGui.CollapsingHeader(Strings.GetString("ChannelSettings")))
+        if (ImGui.CollapsingHeader(LocalizationManager.GetString("ChannelSettings")))
         {
             // Chat channel selection - moved to be inline with the label
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(Strings.GetString("SelectChatChannel"));
+            ImGui.TextUnformatted(LocalizationManager.GetString("SelectChatChannel"));
             ImGui.SameLine(labelWidth);
             ImGui.SetNextItemWidth(controlWidth);
             
@@ -253,14 +253,14 @@ public class MainWindow : Window, IDisposable
             // Monitoring control buttons (without status display)
             if (isMonitoring)
             {
-                if (ImGui.Button(Strings.GetString("StopMonitoring"), new Vector2(150, 0)))
+                if (ImGui.Button(LocalizationManager.GetString("StopMonitoring"), new Vector2(150, 0)))
                 {
                     plugin.ChatMonitorService.StopMonitoring();
                 }
             }
             else
             {
-                if (ImGui.Button(Strings.GetString("StartMonitoring"), new Vector2(150, 0)))
+                if (ImGui.Button(LocalizationManager.GetString("StartMonitoring"), new Vector2(150, 0)))
                 {
                     plugin.ChatMonitorService.StartMonitoring();
                 }
@@ -270,53 +270,14 @@ public class MainWindow : Window, IDisposable
         }
         
         ImGui.Separator();
-        
-        // Route optimization settings section with collapsing header
-        if (ImGui.CollapsingHeader("路径优化设置")) // "Route Optimization Settings"
-        {
-            // Label for the teleport preference factor slider
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("传送偏好因子"); // "Teleport Preference Factor"
-            
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("值越高越倾向使用传送点\n0.7: 强烈偏好直接移动\n0.8: 平衡模式(默认)\n0.9: 偏好使用传送点\n1.0: 尽可能使用传送点");
-            }
-            
-            ImGui.SameLine(labelWidth);
-            ImGui.SetNextItemWidth(controlWidth);
-            
-            float teleportPreferenceFactor = plugin.Configuration.TeleportPreferenceFactor;
-            if (ImGui.SliderFloat("##TeleportPreferenceFactor", ref teleportPreferenceFactor, 0.7f, 1.0f, "%.1f"))
-            {
-                plugin.Configuration.TeleportPreferenceFactor = teleportPreferenceFactor;
-                plugin.Configuration.Save();
-            }
-            
-            // Display the current setting description
-            string description = "";
-            if (teleportPreferenceFactor <= 0.75f)
-                description = "强烈偏好直接移动"; // "Strongly prefer direct movement"
-            else if (teleportPreferenceFactor <= 0.85f)
-                description = "平衡模式"; // "Balanced mode"
-            else if (teleportPreferenceFactor <= 0.95f)
-                description = "偏好使用传送点"; // "Prefer using teleport points"
-            else
-                description = "尽可能使用传送点"; // "Use teleport points whenever possible"
-            
-            ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.5f, 0.8f, 0.5f, 1.0f), description);
-        }
-        
-        ImGui.Separator();
 
         // Message settings section with collapsing header (parallel to ChannelSettings)
-        if (ImGui.CollapsingHeader(Strings.GetString("MessageSettings")))
+        if (ImGui.CollapsingHeader(LocalizationManager.GetString("MessageSettings")))
         {
             // Button to open custom message settings window
             float buttonWidth = 200; // Fixed width for the button
             
-            if (ImGui.Button(Strings.GetString("OpenSettingsWindow"), new Vector2(buttonWidth, 0)))
+            if (ImGui.Button(LocalizationManager.GetString("OpenSettingsWindow"), new Vector2(buttonWidth, 0)))
             {
                 // Force show the window through the plugin instance which owns it
                 plugin.ShowCustomMessageWindow();
@@ -330,23 +291,23 @@ public class MainWindow : Window, IDisposable
                 plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
             {
                 string templateName = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name;
-                ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), string.Format(Strings.GetString("CurrentActiveTemplate"), templateName));
+                ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), string.Format(LocalizationManager.GetString("CurrentActiveTemplate"), templateName));
                 
                 // Preview of the active template
                 ImGui.Spacing();
-                ImGui.Text(Strings.GetString("MessagePreview"));
+                ImGui.Text(LocalizationManager.GetString("MessagePreview"));
                 string previewMessage = GeneratePreviewMessage();
                 ImGui.TextWrapped(previewMessage);
             }
             else
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.GetString("NoActiveMessageTemplate"));
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), LocalizationManager.GetString("NoActiveMessageTemplate"));
                 
                 // If there are components but no template, still show preview
                 if (plugin.Configuration.SelectedMessageComponents.Count > 0)
                 {
                     ImGui.Spacing();
-                    ImGui.Text(Strings.GetString("MessagePreview"));
+                    ImGui.Text(LocalizationManager.GetString("MessagePreview"));
                     string previewMessage = GeneratePreviewMessage();
                     ImGui.TextWrapped(previewMessage);
                 }
@@ -356,7 +317,7 @@ public class MainWindow : Window, IDisposable
         ImGui.Separator();
 
         // Action buttons
-        if (ImGui.Button(Strings.GetString("ClearAll")))
+        if (ImGui.Button(LocalizationManager.GetString("ClearAll")))
         {
             plugin.TreasureHuntService.ClearCoordinates();
         }
@@ -365,7 +326,7 @@ public class MainWindow : Window, IDisposable
 
         if (plugin.TreasureHuntService.IsRouteOptimized)
         {
-            if (ImGui.Button(Strings.GetString("ResetOptimization")))
+            if (ImGui.Button(LocalizationManager.GetString("ResetOptimization")))
             {
                 plugin.TreasureHuntService.ResetRouteOptimization();
             }
@@ -380,7 +341,7 @@ public class MainWindow : Window, IDisposable
                 ImGui.BeginDisabled();
             }
             
-            if (ImGui.Button(Strings.GetString("OptimizeRoute")))
+            if (ImGui.Button(LocalizationManager.GetString("OptimizeRoute")))
             {
                 plugin.TreasureHuntService.OptimizeRoute();
             }
@@ -392,7 +353,7 @@ public class MainWindow : Window, IDisposable
                 // 显示悬停提示，说明为什么按钮被禁用
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(Strings.GetString("NoCoordinatesToOptimize"));
+                    ImGui.SetTooltip(LocalizationManager.GetString("NoCoordinatesToOptimize"));
                 }
             }
         }
@@ -400,20 +361,20 @@ public class MainWindow : Window, IDisposable
         ImGui.SameLine();
 
         // Export button
-        if (ImGui.Button(Strings.GetString("Export")))
+        if (ImGui.Button(LocalizationManager.GetString("Export")))
         {
             var exportedData = plugin.TreasureHuntService.ExportCoordinates();
             if (!string.IsNullOrEmpty(exportedData))
             {
                 ImGui.SetClipboardText(exportedData);
-                Plugin.ChatGui.Print(Strings.GetString("CoordinatesExportedToClipboard"));
+                Plugin.ChatGui.Print(LocalizationManager.GetString("CoordinatesExportedToClipboard"));
             }
         }
 
         ImGui.SameLine();
 
         // Import button
-        if (ImGui.Button(Strings.GetString("Import")))
+        if (ImGui.Button(LocalizationManager.GetString("Import")))
         {
             var clipboardText = ImGui.GetClipboardText();
             if (!string.IsNullOrEmpty(clipboardText))
@@ -421,16 +382,16 @@ public class MainWindow : Window, IDisposable
                 var importedCount = plugin.TreasureHuntService.ImportCoordinates(clipboardText);
                 if (importedCount > 0)
                 {
-                    Plugin.ChatGui.Print(string.Format(Strings.GetString("CoordinatesImportedFromClipboard"), importedCount));
+                    Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("CoordinatesImportedFromClipboard"), importedCount));
                 }
                 else
                 {
-                    Plugin.ChatGui.Print(Strings.GetString("NoCoordinatesImported"));
+                    Plugin.ChatGui.Print(LocalizationManager.GetString("NoCoordinatesImported"));
                 }
             }
             else
             {
-                Plugin.ChatGui.Print(Strings.GetString("ClipboardEmpty"));
+                Plugin.ChatGui.Print(LocalizationManager.GetString("ClipboardEmpty"));
             }
         }
 
@@ -457,7 +418,7 @@ public class MainWindow : Window, IDisposable
                         int treasurePointCount = displayRoute.Count(c => c.Type == CoordinateType.TreasurePoint);
                         
                         // Display optimized route title with count (excluding teleport points)
-                        ImGui.TextUnformatted(string.Format(Strings.GetString("OptimizedRouteWithCount"), treasurePointCount));
+                        ImGui.TextUnformatted(string.Format(LocalizationManager.GetString("OptimizedRouteWithCount"), treasurePointCount));
 
                         // Group coordinates by map area - optimize by using a more efficient approach
                         // Pre-allocate the dictionary with expected capacity to avoid resizing
@@ -488,7 +449,7 @@ public class MainWindow : Window, IDisposable
                             }
                             else
                             {
-                                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), Strings.GetString("UnknownArea"));
+                                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), LocalizationManager.GetString("UnknownArea"));
                             }
 
                             // Get coordinates for this map area while preserving the original order
@@ -504,28 +465,15 @@ public class MainWindow : Window, IDisposable
                                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
                                 }
 
-                                // Only hide actual teleport points, not treasure coordinates with teleport capability
-                                // A real teleport point is marked with CoordinateType.TeleportPoint
-                                if (coord.Type == CoordinateType.TeleportPoint)
-                                {
-                                    // We're already setting AetheryteId in TimeBasedPathFinder.cs
-                                    // Skip displaying actual teleport points
-                                    continue;
-                                }
+                                // Note: CoordinateType.TeleportPoint means this treasure coordinate should show a teleport button
+                                // We should display all treasure coordinates, regardless of their type
                                 
                                 // Note: We no longer need to pass AetheryteId to the next coordinate here
                                 // since we're now setting it directly in TimeBasedPathFinder.cs
 
-                                // Calculate the actual index (only counting non-teleport coordinates)
-                                int realIndex = 0; // Start from 0 and increment first
-                                for (int j = 0; j <= optimizedRoute.IndexOf(coord); j++)
-                                {
-                                    var checkCoord = optimizedRoute[j];
-                                    if (checkCoord.Type == CoordinateType.TreasurePoint)
-                                    {
-                                        realIndex++;
-                                    }
-                                }
+                                // Calculate the actual index (all coordinates should be counted and numbered)
+                                // Both TreasurePoint and TeleportPoint types represent treasure coordinates that need to be visited
+                                int realIndex = optimizedRoute.IndexOf(coord) + 1; // +1 to start from 1 instead of 0
 
                                 // Display player name and coordinates with correct numbering
                                 var displayText = $"{realIndex}. ";
@@ -541,52 +489,81 @@ public class MainWindow : Window, IDisposable
                                     displayText += $" - {coord.Name}";
                                 }
 
-                                ImGui.TextUnformatted(displayText);
-
                                 // Check if this coordinate has AetheryteId for teleportation
                                 bool hasTeleportId = coord.AetheryteId > 0;
-                                
+
                                 // Debug output to verify AetheryteId
                                 if (plugin.Configuration.VerboseLogging)
                                 {
                                     Plugin.Log.Debug($"Coordinate ({coord.X:F1}, {coord.Y:F1}) - AetheryteId: {coord.AetheryteId}");
                                 }
-                                
-                                // Add teleport button if needed
+
+                                // Get current button texts from localization
+                                string teleportText = LocalizationManager.GetString("TeleportButton");
+                                string chatText = LocalizationManager.GetString("SendToChat");
+                                string collectedText = LocalizationManager.GetString("Collected");
+
+                                // Calculate actual text widths for current language
+                                float teleportTextWidth = ImGui.CalcTextSize(teleportText).X;
+                                float chatTextWidth = ImGui.CalcTextSize(chatText).X;
+                                float collectedTextWidth = ImGui.CalcTextSize(collectedText).X;
+
+                                // Add padding for button content (ImGui internal padding + extra space)
+                                float buttonPadding = 24f;
+                                float teleportButtonWidth = Math.Max(teleportTextWidth + buttonPadding, 80f); // Minimum 80px
+                                float chatButtonWidth = Math.Max(chatTextWidth + buttonPadding, 100f); // Minimum 100px
+                                float collectedButtonWidth = Math.Max(collectedTextWidth + buttonPadding, 80f); // Minimum 80px
+
+                                // Use inline layout with consistent spacing like top buttons
+                                ImGui.TextUnformatted(displayText);
+
+                                // Add consistent spacing before buttons (same as top buttons)
+                                ImGui.SameLine();
+
+                                // Add minimal spacing to separate text from buttons (reduced from 10f to 5f for tighter layout)
+                                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
+
                                 if (hasTeleportId)
                                 {
                                     // Get aetheryte information directly using ID
                                     var aetheryteInfo = plugin.AetheryteService.GetAetheryteById(coord.AetheryteId);
                                     int teleportPrice = 0;
-                                    
+
                                     if (aetheryteInfo != null)
                                     {
                                         // Calculate teleport price using aetheryte info
                                         teleportPrice = plugin.AetheryteService.CalculateTeleportPrice(aetheryteInfo);
-                                        
+
                                         // Add teleport button
-                                        ImGui.SameLine();
                                         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.5f, 1.0f, 0.7f));
-                                        if (ImGui.SmallButton($"{Strings.GetString("TeleportButton")}##{optimizedRoute.IndexOf(coord)}"))
+                                        if (ImGui.SmallButton($"{LocalizationManager.GetString("TeleportButton")}##{optimizedRoute.IndexOf(coord)}"))
                                         {
                                             // Teleport directly using the aetheryte info
                                             plugin.AetheryteService.TeleportToAetheryte(aetheryteInfo);
                                         }
-                                        
+
                                         // Add tooltip with teleport information
                                         if (ImGui.IsItemHovered())
                                         {
                                             ImGui.BeginTooltip();
-                                            ImGui.Text(string.Format(Strings.GetString("TeleportTo"), aetheryteInfo.Name));
+                                            ImGui.Text(string.Format(LocalizationManager.GetString("TeleportTo"), aetheryteInfo.Name));
                                             if (teleportPrice > 0)
                                             {
-                                                ImGui.Text(string.Format(Strings.GetString("TeleportCost"), teleportPrice));
+                                                ImGui.Text(string.Format(LocalizationManager.GetString("TeleportCost"), teleportPrice));
                                             }
                                             ImGui.EndTooltip();
                                         }
-                                        
+
                                         ImGui.PopStyleColor();
+
+                                        // Add consistent spacing between buttons (same as top buttons)
+                                        ImGui.SameLine();
                                     }
+                                }
+                                else
+                                {
+                                    // If no teleport button, we don't need SameLine() here since we're already on the same line
+                                    // Just continue with the next button
                                 }
 
                                 if (isCollected)
@@ -594,28 +571,27 @@ public class MainWindow : Window, IDisposable
                                     ImGui.PopStyleColor();
                                 }
 
-                                ImGui.SameLine();
-
                                 // Send to Chat button - disable if the coordinate is already collected
                                 if (isCollected)
                                 {
                                     ImGui.BeginDisabled();
                                 }
-                                
-                                if (ImGui.SmallButton(Strings.GetString("SendToChat") + $"##{optimizedRoute.IndexOf(coord)}"))
+
+                                if (ImGui.SmallButton(LocalizationManager.GetString("SendToChat") + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
                                     plugin.ChatMonitorService.SendCoordinateToChat(coord);
                                 }
-                                
+
                                 if (isCollected)
                                 {
                                     ImGui.EndDisabled();
                                 }
 
+                                // Add consistent spacing between buttons (same as top buttons)
                                 ImGui.SameLine();
 
                                 // Collected button
-                                if (ImGui.SmallButton(Strings.GetString("Collected") + $"##{optimizedRoute.IndexOf(coord)}"))
+                                if (ImGui.SmallButton(LocalizationManager.GetString("Collected") + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
                                     var index = plugin.TreasureHuntService.Coordinates.IndexOf(coord);
                                     if (index >= 0)
@@ -631,7 +607,7 @@ public class MainWindow : Window, IDisposable
                     else
                     {
                         // Display the raw coordinates if no optimized route
-                        ImGui.TextUnformatted(string.Format(Strings.GetString("CoordinatesWithCount"), coordinates.Count));
+                        ImGui.TextUnformatted(string.Format(LocalizationManager.GetString("CoordinatesWithCount"), coordinates.Count));
 
                         for (var i = 0; i < coordinates.Count; i++)
                         {
@@ -664,7 +640,7 @@ public class MainWindow : Window, IDisposable
 
                             ImGui.SameLine();
 
-                            if (ImGui.SmallButton(Strings.GetString("Delete") + $"##raw{i}"))
+                            if (ImGui.SmallButton(LocalizationManager.GetString("Delete") + $"##raw{i}"))
                             {
                                 plugin.TreasureHuntService.DeleteCoordinate(i);
                             }
@@ -673,7 +649,7 @@ public class MainWindow : Window, IDisposable
                 }
                 else
                 {
-                    ImGui.TextUnformatted(Strings.GetString("NoCoordinates"));
+                    ImGui.TextUnformatted(LocalizationManager.GetString("NoCoordinates"));
                 }
 
                 // Display trash bin section if there are deleted coordinates
@@ -682,11 +658,11 @@ public class MainWindow : Window, IDisposable
                     ImGui.Separator();
 
                     // Display trash bin title with count
-                    ImGui.TextUnformatted(string.Format(Strings.GetString("TrashBinWithCount"), plugin.TreasureHuntService.DeletedCoordinates.Count));
+                    ImGui.TextUnformatted(string.Format(LocalizationManager.GetString("TrashBinWithCount"), plugin.TreasureHuntService.DeletedCoordinates.Count));
 
                     // Clear trash button
                     ImGui.SameLine(ImGui.GetWindowWidth() - 100);
-                    if (ImGui.SmallButton(Strings.GetString("ClearTrash")))
+                    if (ImGui.SmallButton(LocalizationManager.GetString("ClearTrash")))
                     {
                         plugin.TreasureHuntService.ClearTrash();
                     }
@@ -746,15 +722,15 @@ public class MainWindow : Window, IDisposable
                         ImGui.SameLine();
 
                         // Restore button
-                        if (ImGui.SmallButton(Strings.GetString("Restore") + $"##trash{i}"))
+                        if (ImGui.SmallButton(LocalizationManager.GetString("Restore") + $"##trash{i}"))
                         {
                             plugin.TreasureHuntService.RestoreCoordinate(i);
                         }
                     }
                 }
-                else if (ImGui.CollapsingHeader(Strings.GetString("TrashBin")))
+                else if (ImGui.CollapsingHeader(LocalizationManager.GetString("TrashBin")))
                 {
-                    ImGui.TextUnformatted(Strings.GetString("EmptyTrashBin"));
+                    ImGui.TextUnformatted(LocalizationManager.GetString("EmptyTrashBin"));
                 }
             }
         }
@@ -771,7 +747,7 @@ public class MainWindow : Window, IDisposable
         // Only show log message if log level is Normal or higher
         if (plugin.Configuration.LogLevel >= LogLevel.Normal)
         {
-            Plugin.ChatGui.Print(string.Format(Strings.GetString("CoordinatesImported"), count));
+            Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("CoordinatesImported"), count));
         }
     }
 
@@ -780,7 +756,7 @@ public class MainWindow : Window, IDisposable
         // Only show log message if log level is Normal or higher
         if (plugin.Configuration.LogLevel >= LogLevel.Normal)
         {
-            Plugin.ChatGui.Print(string.Format(Strings.GetString("RouteOptimized"), count));
+            Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("RouteOptimized"), count));
         }
     }
     
@@ -814,7 +790,7 @@ public class MainWindow : Window, IDisposable
             // If the active template has no components, show only treasure marker message
             if (componentsToPreview.Count == 0)
             {
-                return Strings.GetString("OnlyTreasureMarker");
+                return LocalizationManager.GetString("OnlyTreasureMarker");
             }
         }
         else
@@ -825,7 +801,7 @@ public class MainWindow : Window, IDisposable
             // If no selected components, show only treasure marker message
             if (componentsToPreview.Count == 0)
             {
-                return Strings.GetString("OnlyTreasureMarker");
+                return LocalizationManager.GetString("OnlyTreasureMarker");
             }
         }
         

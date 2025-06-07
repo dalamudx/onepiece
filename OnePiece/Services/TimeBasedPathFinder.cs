@@ -127,10 +127,9 @@ namespace OnePiece.Services
                     Plugin.Log.Debug($"Teleport to {aetheryte.Name}: teleport time {teleportTime:F2}s + travel time {fromAetheryteTime:F2}s = {totalTime:F2}s (vs direct {directTime:F2}s)");
                 }
                 
-                // 从用户配置读取传送偏好因子
-                // 值越大，越倾向于使用传送点；值越小，越倾向于直接移动
-                // 默认值0.8意味着传送需要比直接移动快20%才会被选择
-                float teleportPreferenceFactor = plugin.Configuration.TeleportPreferenceFactor;
+                // Use balanced teleport preference factor
+                // 0.8 means teleport must be 20% faster than direct travel to be chosen
+                const float teleportPreferenceFactor = 0.8f;
                 
                 // 记录详细的时间比较日志
                 if (plugin.Configuration.VerboseLogging)
@@ -160,267 +159,507 @@ namespace OnePiece.Services
         /// <param name="startLocation">Starting location</param>
         /// <param name="coordinates">Treasure map coordinates to collect</param>
         /// <param name="mapAetherytes">List of all aetherytes in the map</param>
+        /// <param name="forceTeleport">If true, forces teleport to the startLocation (used when RouteOptimizationService has already decided to teleport)</param>
+        /// <param name="teleportAetheryte">The aetheryte to teleport to (when forceTeleport is true)</param>
         /// <returns>Optimized path</returns>
         public List<TreasureCoordinate> OptimizeRouteByTime(
-            TreasureCoordinate startLocation, 
-            List<TreasureCoordinate> coordinates, 
-            List<AetheryteInfo> mapAetherytes)
+            TreasureCoordinate startLocation,
+            List<TreasureCoordinate> coordinates,
+            List<AetheryteInfo> mapAetherytes,
+            bool forceTeleport = false,
+            AetheryteInfo teleportAetheryte = null)
         {
             if (coordinates.Count <= 1)
                 return new List<TreasureCoordinate>(coordinates);
-            
-            // Create aetheryte coordinates
-            var aetheryteCoords = new List<TreasureCoordinate>();
-            foreach (var aetheryte in mapAetherytes)
+
+            // Only log in verbose mode
+            if (plugin.Configuration.VerboseLogging)
             {
-                var aetheryteCoord = new TreasureCoordinate(
-                    aetheryte.Position.X, 
-                    aetheryte.Position.Y, 
-                    aetheryte.MapArea,
-                    CoordinateSystemType.Map,
-                    aetheryte.Name);
-                aetheryteCoords.Add(aetheryteCoord);
-            }
-            
-            if (aetheryteCoords.Count == 0)
-            {
-                Plugin.Log.Warning("No aetherytes found for the map. Path optimization may be suboptimal.");
-                // If no aetherytes available, just return the coordinates as is
-                return new List<TreasureCoordinate>(coordinates);
+                Plugin.Log.Debug($"Starting path optimization, start point: ({startLocation.X:F1}, {startLocation.Y:F1}), {coordinates.Count} treasure points, {mapAetherytes.Count} aetherytes available");
             }
 
-            // Use the first aetheryte for logging purposes
-            var primaryAetheryte = mapAetherytes[0];
-                
-            // Log recording
-            // Only log in verbose mode
-            if (plugin.Configuration.VerboseLogging)
+            // Check if teleport is forced by RouteOptimizationService
+            if (forceTeleport && teleportAetheryte != null)
             {
-                Plugin.Log.Debug($"Starting path optimization, start point: ({startLocation.X:F1}, {startLocation.Y:F1}), {coordinates.Count} treasure points, {aetheryteCoords.Count} aetherytes available");
+                Plugin.Log.Information($"Forced teleport to {teleportAetheryte.Name} by RouteOptimizationService");
+
+                // Use the provided teleport aetheryte directly
+                var forcedTeleportRoute = OptimizeGroundRoute(startLocation, coordinates, teleportAetheryte);
+                return forcedTeleportRoute;
             }
-            
-            // For 7 or fewer points, use permutation to find the optimal solution
-            // This threshold is chosen based on the current maximum limit of 8 coordinates
-            if (coordinates.Count <= 7)
-            {
-                // Only log in verbose mode
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug($"Using permutation method to optimize path for {coordinates.Count} points");
-                }
-                var route = FindOptimalRouteByPermutation(startLocation, coordinates, aetheryteCoords);
-                
-                // Apply 2-opt local optimization
-                return ApplyTwoOpt(route, aetheryteCoords);
-            }
-            
-            // For 8 points (at the maximum limit), use a hybrid approach
-            if (coordinates.Count == 8)
-            {
-                // Only log in verbose mode
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug("Using hybrid approach for 8 points - comparing permutation and nearest neighbor");
-                }
-                
-                // Try both methods and choose the better result
-                // First, use the nearest neighbor algorithm with 2-opt
-                var nnRoute = FindOptimalRouteByNearestNeighbor(startLocation, coordinates, aetheryteCoords);
-                var optimizedNnRoute = ApplyTwoOpt(nnRoute, aetheryteCoords);
-                float nnTime = CalculateRouteTotalTime(optimizedNnRoute);
-                
-                // Then, use permutation (which is computationally feasible for 8 points)
-                var permRoute = FindOptimalRouteByPermutation(startLocation, coordinates, aetheryteCoords);
-                var optimizedPermRoute = ApplyTwoOpt(permRoute, aetheryteCoords);
-                float permTime = CalculateRouteTotalTime(optimizedPermRoute);
-                
-                // Choose the better result
-                if (permTime < nnTime)
-                {
-                    Plugin.Log.Debug($"Permutation result is better: {permTime:F2}s vs {nnTime:F2}s");
-                    return optimizedPermRoute;
-                }
-                else
-                {
-                    // Only log in verbose mode
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug($"Nearest neighbor result is better or equal: {nnTime:F2}s vs {permTime:F2}s");
-                }
-                    return optimizedNnRoute;
-                }
-            }
-            
-            // For more than 8 points (future-proofing for possible limit increases)
-            // Only log in verbose mode
-            if (plugin.Configuration.VerboseLogging)
-            {
-                Plugin.Log.Debug($"Using approximation algorithm to optimize path for {coordinates.Count} points");
-            }
-            var initialRoute = FindOptimalRouteByNearestNeighbor(startLocation, coordinates, aetheryteCoords);
-            var optimizedRoute = ApplyTwoOpt(initialRoute, aetheryteCoords);
-            
-            // For a very large number of points (15+), further use simulated annealing
-            if (coordinates.Count >= 15)
-            {
-                // Only log in verbose mode
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug("Using simulated annealing algorithm to further optimize the path");
-                }
-                return OptimizeBySimulatedAnnealing(optimizedRoute, aetheryteCoords);
-            }
-            
+
+            // Step 1: Determine the optimal starting point (current location vs teleport to aetheryte)
+            var optimalStart = DetermineOptimalStartingPoint(startLocation, coordinates, mapAetherytes);
+
+            // Debug the returned values
+            Plugin.Log.Information($"DetermineOptimalStartingPoint returned: startPoint=({optimalStart.startPoint.X:F1}, {optimalStart.startPoint.Y:F1}), usedAetheryte={optimalStart.usedAetheryte?.Name ?? "null"}, AetheryteId={optimalStart.usedAetheryte?.AetheryteId ?? 0}");
+
+            // Step 2: Optimize the route from the optimal starting point using ground travel only
+            var optimizedRoute = OptimizeGroundRoute(optimalStart.startPoint, coordinates, optimalStart.usedAetheryte);
+
             return optimizedRoute;
         }
 
         /// <summary>
-        /// Use permutation method to find the optimal path (suitable for a small number of points)
+        /// Determines the optimal starting point for the route (current location vs teleport to aetheryte)
         /// </summary>
-        /// <remarks>
-        /// Optimized to reduce redundant path calculations by caching calculated time costs
-        /// </remarks>
-        private List<TreasureCoordinate> FindOptimalRouteByPermutation(
-            TreasureCoordinate startLocation, 
-            List<TreasureCoordinate> coordinates, 
-            List<TreasureCoordinate> aetheryteCoords)
+        /// <param name="startLocation">Current player location</param>
+        /// <param name="coordinates">Treasure coordinates to visit</param>
+        /// <param name="mapAetherytes">Available aetherytes in the map</param>
+        /// <returns>Tuple containing the optimal start point and the aetheryte used (if any)</returns>
+        private (TreasureCoordinate startPoint, AetheryteInfo? usedAetheryte) DetermineOptimalStartingPoint(
+            TreasureCoordinate startLocation,
+            List<TreasureCoordinate> coordinates,
+            List<AetheryteInfo> mapAetherytes)
+        {
+            // If no aetherytes available, use current location
+            if (mapAetherytes == null || mapAetherytes.Count == 0)
+            {
+                Plugin.Log.Debug("No aetherytes available, using current location as start point");
+                return (startLocation, null);
+            }
+
+            // Check if player is in a different map area than the coordinates
+            string coordinateMapArea = coordinates.Count > 0 ? coordinates[0].MapArea : "";
+
+            // If player location MapArea is empty or null, assume they need to teleport
+            bool playerLocationEmpty = string.IsNullOrEmpty(startLocation.MapArea);
+            bool isDifferentMapArea = !string.IsNullOrEmpty(coordinateMapArea) &&
+                                     (playerLocationEmpty || startLocation.MapArea != coordinateMapArea);
+
+            Plugin.Log.Information($"Player location: '{startLocation.MapArea}' (empty: {playerLocationEmpty}), Coordinate map area: '{coordinateMapArea}', Different map area: {isDifferentMapArea}");
+
+            // If player is in a different map area, teleportation is mandatory
+            if (isDifferentMapArea)
+            {
+                Plugin.Log.Information($"Player is in different map area ({startLocation.MapArea} vs {coordinateMapArea}), teleportation is mandatory");
+
+                // Find the best aetheryte to teleport to
+                AetheryteInfo bestAetheryte = null;
+                float bestTeleportTime = float.MaxValue;
+
+                foreach (var aetheryte in mapAetherytes)
+                {
+                    var aetheryteCoord = new TreasureCoordinate(
+                        aetheryte.Position.X,
+                        aetheryte.Position.Y,
+                        aetheryte.MapArea,
+                        CoordinateSystemType.Map,
+                        aetheryte.Name);
+
+                    // Calculate time: teleport cost + route time from aetheryte
+                    float teleportCost = TELEPORT_CAST_TIME + TELEPORT_LOADING_TIME;
+                    float routeTimeFromAetheryte = CalculateRouteTimeFromStart(aetheryteCoord, coordinates);
+                    float totalTeleportTime = teleportCost + routeTimeFromAetheryte;
+
+                    Plugin.Log.Debug($"Aetheryte {aetheryte.Name}: teleport cost {teleportCost:F2}s + route time {routeTimeFromAetheryte:F2}s = {totalTeleportTime:F2}s");
+
+                    if (totalTeleportTime < bestTeleportTime)
+                    {
+                        bestTeleportTime = totalTeleportTime;
+                        bestAetheryte = aetheryte;
+                    }
+                }
+
+                if (bestAetheryte != null)
+                {
+                    var aetheryteStartPoint = new TreasureCoordinate(
+                        bestAetheryte.Position.X,
+                        bestAetheryte.Position.Y,
+                        bestAetheryte.MapArea,
+                        CoordinateSystemType.Map,
+                        bestAetheryte.Name);
+
+                    Plugin.Log.Information($"Mandatory teleport to {bestAetheryte.Name} (total time: {bestTeleportTime:F2}s)");
+                    Plugin.Log.Information($"About to return: startPoint=({aetheryteStartPoint.X:F1}, {aetheryteStartPoint.Y:F1}), usedAetheryte={bestAetheryte.Name}, AetheryteId={bestAetheryte.AetheryteId}");
+
+                    // Create explicit variables to avoid tuple issues
+                    var resultStartPoint = aetheryteStartPoint;
+                    var resultUsedAetheryte = bestAetheryte;
+                    Plugin.Log.Information($"Created result variables: startPoint=({resultStartPoint.X:F1}, {resultStartPoint.Y:F1}), usedAetheryte={resultUsedAetheryte.Name}, AetheryteId={resultUsedAetheryte.AetheryteId}");
+
+                    return (resultStartPoint, resultUsedAetheryte);
+                }
+                else
+                {
+                    Plugin.Log.Warning("No suitable aetheryte found for mandatory teleport, using current location");
+                    return (startLocation, null);
+                }
+            }
+
+            // If in the same map area, compare direct travel vs teleport
+            float directTotalTime = CalculateRouteTimeFromStart(startLocation, coordinates);
+
+            // Find the best aetheryte to teleport to
+            AetheryteInfo bestAetheryteForComparison = null;
+            float bestTeleportTimeForComparison = float.MaxValue;
+
+            foreach (var aetheryte in mapAetherytes)
+            {
+                var aetheryteCoord = new TreasureCoordinate(
+                    aetheryte.Position.X,
+                    aetheryte.Position.Y,
+                    aetheryte.MapArea,
+                    CoordinateSystemType.Map,
+                    aetheryte.Name);
+
+                // Calculate time: teleport cost + route time from aetheryte
+                float teleportCost = TELEPORT_CAST_TIME + TELEPORT_LOADING_TIME;
+                float routeTimeFromAetheryte = CalculateRouteTimeFromStart(aetheryteCoord, coordinates);
+                float totalTeleportTime = teleportCost + routeTimeFromAetheryte;
+
+                if (totalTeleportTime < bestTeleportTimeForComparison)
+                {
+                    bestTeleportTimeForComparison = totalTeleportTime;
+                    bestAetheryteForComparison = aetheryte;
+                }
+            }
+
+            // Apply balanced teleport preference factor
+            const float teleportPreferenceFactor = 0.8f;
+
+            Plugin.Log.Debug($"Same map area comparison - Direct route time: {directTotalTime:F2}s, Best teleport route time: {bestTeleportTimeForComparison:F2}s, preference factor: {teleportPreferenceFactor:F2}");
+
+            // Choose the better option based on preference factor
+            if (bestTeleportTimeForComparison < directTotalTime * teleportPreferenceFactor && bestAetheryteForComparison != null)
+            {
+                var aetheryteStartPoint = new TreasureCoordinate(
+                    bestAetheryteForComparison.Position.X,
+                    bestAetheryteForComparison.Position.Y,
+                    bestAetheryteForComparison.MapArea,
+                    CoordinateSystemType.Map,
+                    bestAetheryteForComparison.Name);
+
+                Plugin.Log.Information($"Teleport to {bestAetheryteForComparison.Name} is optimal (saves {directTotalTime - bestTeleportTimeForComparison:F2}s)");
+                return (aetheryteStartPoint, bestAetheryteForComparison);
+            }
+            else
+            {
+                Plugin.Log.Information("Direct travel from current location is optimal");
+                return (startLocation, null);
+            }
+        }
+
+        /// <summary>
+        /// Calculates the total time for a route starting from a given point using ground travel only
+        /// </summary>
+        /// <param name="startPoint">Starting point</param>
+        /// <param name="coordinates">Coordinates to visit</param>
+        /// <returns>Total time for the optimal ground route</returns>
+        private float CalculateRouteTimeFromStart(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
+        {
+            if (coordinates.Count == 0)
+                return 0;
+
+            if (coordinates.Count == 1)
+            {
+                return CalculateTimeCost(startPoint, coordinates[0], false, false);
+            }
+
+            // For multiple coordinates, find the optimal TSP route
+            var optimalRoute = SolveTSP(startPoint, coordinates);
+            return CalculateRouteTimeFromStartToCoordinates(startPoint, optimalRoute);
+        }
+
+        /// <summary>
+        /// Optimizes the route from the starting point, considering teleportation between coordinates
+        /// </summary>
+        /// <param name="startPoint">Starting point (current location or aetheryte)</param>
+        /// <param name="coordinates">Treasure coordinates to visit</param>
+        /// <param name="usedAetheryte">The aetheryte used to reach start point (if any)</param>
+        /// <returns>Optimized route with proper AetheryteId assignments</returns>
+        private List<TreasureCoordinate> OptimizeGroundRoute(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates, AetheryteInfo? usedAetheryte)
+        {
+            if (coordinates.Count == 0)
+                return new List<TreasureCoordinate>();
+
+            // Solve TSP to get optimal visiting order
+            var optimalRoute = SolveTSP(startPoint, coordinates);
+
+            // Create the final route with proper AetheryteId assignments
+            var finalRoute = new List<TreasureCoordinate>();
+
+            // Always log for debugging
+            Plugin.Log.Debug($"OptimizeGroundRoute: Processing {optimalRoute.Count} coordinates, usedAetheryte: {usedAetheryte?.Name ?? "None"}");
+
+            for (int i = 0; i < optimalRoute.Count; i++)
+            {
+                var coord = optimalRoute[i];
+
+                // Create a copy of the coordinate to preserve original data
+                var coordCopy = TreasureCoordinateBuilder.FromExisting(coord).Build();
+
+                // Debug the condition check
+                Plugin.Log.Debug($"Processing coordinate {i}: finalRoute.Count={finalRoute.Count}, usedAetheryte={usedAetheryte?.Name ?? "null"}, usedAetheryte.AetheryteId={usedAetheryte?.AetheryteId ?? 0}");
+
+                // Only assign AetheryteId to the first treasure coordinate if we used teleport
+                if (finalRoute.Count == 0 && usedAetheryte != null)
+                {
+                    coordCopy.AetheryteId = usedAetheryte.AetheryteId;
+                    coordCopy.Type = CoordinateType.TeleportPoint; // Mark as teleport point for UI display
+                    coordCopy.NavigationInstruction = $"Teleport to {usedAetheryte.Name}, then travel to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
+
+                    Plugin.Log.Information($"SUCCESS: Assigned AetheryteId {usedAetheryte.AetheryteId} and TeleportPoint type to first coordinate ({coordCopy.X:F1}, {coordCopy.Y:F1})");
+                }
+                else
+                {
+                    // All other coordinates use ground travel and remain as treasure points
+                    coordCopy.Type = CoordinateType.TreasurePoint;
+                    var prevCoord = finalRoute.Count > 0 ? finalRoute[finalRoute.Count - 1] : startPoint;
+                    coordCopy.NavigationInstruction = $"Ground travel from ({prevCoord.X:F1}, {prevCoord.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
+
+                    Plugin.Log.Debug($"Set coordinate ({coordCopy.X:F1}, {coordCopy.Y:F1}) as TreasurePoint with AetheryteId: {coordCopy.AetheryteId}");
+                }
+
+                finalRoute.Add(coordCopy);
+            }
+
+            Plugin.Log.Debug($"OptimizeGroundRoute: Returning {finalRoute.Count} coordinates");
+
+            // Now optimize each segment of the route to consider teleportation
+            var optimizedRouteWithTeleports = OptimizeRouteSegments(finalRoute);
+
+            return optimizedRouteWithTeleports;
+        }
+
+        /// <summary>
+        /// Optimizes each segment of the route to consider teleportation between coordinates
+        /// </summary>
+        /// <param name="route">The basic route from TSP optimization</param>
+        /// <returns>Route with teleportation optimizations applied</returns>
+        private List<TreasureCoordinate> OptimizeRouteSegments(List<TreasureCoordinate> route)
+        {
+            if (route.Count <= 1)
+                return route;
+
+            // Get all available aetherytes for the map areas in the route
+            var mapAreas = route.Select(c => c.MapArea).Distinct().ToList();
+            var allAetherytes = new List<TreasureCoordinate>();
+
+            foreach (var mapArea in mapAreas)
+            {
+                var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(mapArea);
+                if (aetherytesInMap != null)
+                {
+                    foreach (var aetheryte in aetherytesInMap)
+                    {
+                        allAetherytes.Add(new TreasureCoordinate(
+                            aetheryte.Position.X,
+                            aetheryte.Position.Y,
+                            aetheryte.MapArea,
+                            CoordinateSystemType.Map,
+                            aetheryte.Name));
+                    }
+                }
+            }
+
+            Plugin.Log.Information($"OptimizeRouteSegments: Processing {route.Count} coordinates with {allAetherytes.Count} available aetherytes");
+
+            var optimizedRoute = new List<TreasureCoordinate>();
+
+            for (int i = 0; i < route.Count; i++)
+            {
+                var currentCoord = route[i];
+
+                // For the first coordinate, keep its existing teleport settings
+                if (i == 0)
+                {
+                    optimizedRoute.Add(currentCoord);
+                    continue;
+                }
+
+                var prevCoord = route[i - 1];
+
+                // Check if teleporting to a nearby aetheryte would be faster
+                TreasureCoordinate bestAetheryte;
+                float bestTime = CalculateBestTimeCost(prevCoord, currentCoord, false, allAetherytes, out bestAetheryte);
+                float directTime = CalculateTimeCost(prevCoord, currentCoord, false, false);
+
+                // Create a copy of the coordinate
+                var coordCopy = TreasureCoordinateBuilder.FromExisting(currentCoord).Build();
+
+                if (bestAetheryte != null && bestTime < directTime)
+                {
+                    // Find the corresponding AetheryteInfo
+                    var aetheryteInfo = plugin.AetheryteService.GetAetherytesInMapArea(bestAetheryte.MapArea)
+                        ?.FirstOrDefault(a => a.Name == bestAetheryte.Name);
+
+                    if (aetheryteInfo != null)
+                    {
+                        coordCopy.AetheryteId = aetheryteInfo.AetheryteId;
+                        coordCopy.Type = CoordinateType.TeleportPoint;
+                        coordCopy.NavigationInstruction = $"Teleport to {bestAetheryte.Name}, then travel to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
+
+                        Plugin.Log.Information($"Optimized segment {i}: Teleport to {bestAetheryte.Name} saves {directTime - bestTime:F2}s for coordinate ({coordCopy.X:F1}, {coordCopy.Y:F1})");
+                    }
+                    else
+                    {
+                        // Fallback to direct travel
+                        coordCopy.Type = CoordinateType.TreasurePoint;
+                        coordCopy.NavigationInstruction = $"Ground travel from ({prevCoord.X:F1}, {prevCoord.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
+                    }
+                }
+                else
+                {
+                    // Direct travel is optimal
+                    coordCopy.Type = CoordinateType.TreasurePoint;
+                    coordCopy.NavigationInstruction = $"Ground travel from ({prevCoord.X:F1}, {prevCoord.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
+                }
+
+                optimizedRoute.Add(coordCopy);
+            }
+
+            Plugin.Log.Information($"OptimizeRouteSegments: Completed optimization, {optimizedRoute.Count(c => c.Type == CoordinateType.TeleportPoint)} teleport points identified");
+
+            return optimizedRoute;
+        }
+
+        /// <summary>
+        /// Solves the Traveling Salesman Problem to find the optimal route
+        /// </summary>
+        /// <param name="startPoint">Starting point</param>
+        /// <param name="coordinates">Coordinates to visit</param>
+        /// <returns>Optimal route (coordinates only, without start point)</returns>
+        private List<TreasureCoordinate> SolveTSP(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
+        {
+            if (coordinates.Count <= 1)
+            {
+                return new List<TreasureCoordinate>(coordinates);
+            }
+
+            // For small number of coordinates, use permutation for exact solution
+            if (coordinates.Count <= 7)
+            {
+                return SolveTSPByPermutation(startPoint, coordinates);
+            }
+            // For 8 coordinates, use hybrid approach
+            else if (coordinates.Count == 8)
+            {
+                var permResult = SolveTSPByPermutation(startPoint, coordinates);
+                var nnResult = SolveTSPByNearestNeighbor(startPoint, coordinates);
+
+                // Calculate time for both routes
+                float permTime = CalculateRouteTimeFromStartToCoordinates(startPoint, permResult);
+                float nnTime = CalculateRouteTimeFromStartToCoordinates(startPoint, nnResult);
+
+                if (plugin.Configuration.VerboseLogging)
+                {
+                    Plugin.Log.Debug($"TSP comparison - Permutation: {permTime:F2}s, Nearest Neighbor: {nnTime:F2}s");
+                }
+
+                return permTime <= nnTime ? permResult : nnResult;
+            }
+            // For larger numbers, use approximation algorithms
+            else
+            {
+                return SolveTSPByNearestNeighbor(startPoint, coordinates);
+            }
+        }
+
+        /// <summary>
+        /// Calculates total time for a ground route
+        /// </summary>
+        /// <param name="route">Route coordinates</param>
+        /// <returns>Total time in seconds</returns>
+        private float CalculateGroundRouteTime(List<TreasureCoordinate> route)
+        {
+            if (route.Count <= 1)
+                return 0;
+
+            float totalTime = 0;
+            for (int i = 0; i < route.Count - 1; i++)
+            {
+                totalTime += CalculateTimeCost(route[i], route[i + 1], false, false);
+            }
+            return totalTime;
+        }
+
+        /// <summary>
+        /// Calculates total time for a route starting from a specific point
+        /// </summary>
+        /// <param name="startPoint">Starting point</param>
+        /// <param name="coordinates">Coordinates to visit in order</param>
+        /// <returns>Total time in seconds</returns>
+        private float CalculateRouteTimeFromStartToCoordinates(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
+        {
+            if (coordinates.Count == 0)
+                return 0;
+
+            float totalTime = 0;
+            var currentPos = startPoint;
+
+            foreach (var coord in coordinates)
+            {
+                totalTime += CalculateTimeCost(currentPos, coord, false, false);
+                currentPos = coord;
+            }
+
+            return totalTime;
+        }
+
+        /// <summary>
+        /// Solves TSP using permutation method for exact solution
+        /// </summary>
+        /// <param name="startPoint">Starting point</param>
+        /// <param name="coordinates">Coordinates to visit</param>
+        /// <returns>Optimal route (coordinates only, without start point)</returns>
+        private List<TreasureCoordinate> SolveTSPByPermutation(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
         {
             var allPermutations = GetAllPermutations(coordinates);
             var bestRoute = new List<TreasureCoordinate>();
             float bestTime = float.MaxValue;
-            
-            // Cache time costs to avoid redundant calculations
-            var timeCostCache = new Dictionary<(string, string, bool), (float, TreasureCoordinate)>();
-            
+
             foreach (var perm in allPermutations)
             {
+                // Calculate route time starting from startPoint through all coordinates
                 float totalTime = 0;
-                var route = new List<TreasureCoordinate>();
-                var currentPos = startLocation;
-                bool isCurrentAetheryte = IsLocationAtAetheryte(currentPos, aetheryteCoords);
-                
-                // Flag to track if this is the first point in the route
-                bool isFirstPoint = true;
-                
-                // For each point in this permutation
+                var currentPos = startPoint;
+
                 foreach (var coord in perm)
                 {
-                    // Calculate the best path to this coordinate, considering all aetherytes
-                    TreasureCoordinate bestAetheryte = null;
-                    float bestTimeCost;
-                    
-                    // Check if we've already calculated this path
-                    var cacheKey = (currentPos.ToString(), coord.ToString(), isCurrentAetheryte);
-                    if (timeCostCache.TryGetValue(cacheKey, out var cachedResult))
-                    {
-                        bestTimeCost = cachedResult.Item1;
-                        bestAetheryte = cachedResult.Item2;
-                    }
-                    else
-                    {
-                        // Calculate and cache the result
-                        bestTimeCost = CalculateBestTimeCost(currentPos, coord, isCurrentAetheryte, aetheryteCoords, out bestAetheryte);
-                        timeCostCache[cacheKey] = (bestTimeCost, bestAetheryte);
-                    }
-                    
-                    totalTime += bestTimeCost;
-                    
-                    // Special case for first point: Add extra preference for direct travel
-                    // if player is already on the same map and relatively close
-                    if (isFirstPoint && currentPos.MapArea == coord.MapArea && bestAetheryte != null)
-                    {
-                        float directDistance = currentPos.DistanceTo(coord);
-                        // If player is reasonably close to first point (within 40 units), prefer direct travel
-                        if (directDistance < 40.0f)
-                        {
-                            // Override the aetheryte decision and choose direct travel instead
-                            if (plugin.Configuration.VerboseLogging)
-                            {
-                                Plugin.Log.Debug($"First point special case: Override teleport decision, preferring direct travel to first point ({directDistance:F2} units away)");
-                            }
-                            bestAetheryte = null;
-                        }
-                    }
-                    
-                    // If using an aetheryte is better, create a copy with teleport info to preserve original data
-                    if (bestAetheryte != null)
-                    {
-                        // Create a copy of the coordinate to preserve original player name and other data
-                        var coordWithTeleport = TreasureCoordinateBuilder.FromExisting(coord)
-                            .WithAetheryteId(bestAetheryte.AetheryteId)
-                            .Build();
-
-                        // Set comprehensive navigation instructions for the treasure point
-                        coordWithTeleport.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1})";
-
-                        // Add debug log to verify AetheryteId is set
-                        if (plugin.Configuration.VerboseLogging)
-                        {
-                            Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1}) with preserved PlayerName: {coordWithTeleport.PlayerName}");
-                        }
-
-                        // Add the modified coordinate to route
-                        route.Add(coordWithTeleport);
-
-                        // Update current position and flag
-                        currentPos = coordWithTeleport;
-                        isCurrentAetheryte = false;
-                    }
-                    else
-                    {
-                        // No teleport needed, create a copy to preserve original data
-                        var coordCopy = TreasureCoordinateBuilder.FromExisting(coord).Build();
-
-                        // Add direct travel navigation instruction
-                        coordCopy.NavigationInstruction = $"Direct travel from ({currentPos.X:F1}, {currentPos.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
-
-                        // Add the coordinate to the route
-                        route.Add(coordCopy);
-
-                        // Update current position and flag
-                        currentPos = coordCopy;
-                        isCurrentAetheryte = false;
-                    }
-                    
-                    // No longer the first point
-                    isFirstPoint = false;
+                    totalTime += CalculateTimeCost(currentPos, coord, false, false);
+                    currentPos = coord;
                 }
-                
-                // Update best route if this permutation is better
+
                 if (totalTime < bestTime)
                 {
                     bestTime = totalTime;
-                    bestRoute = new List<TreasureCoordinate>(route);
-                    // Only log in verbose mode
-                    if (plugin.Configuration.VerboseLogging)
-                    {
-                        Plugin.Log.Debug($"Found better path, total time: {bestTime:F2} seconds");
-                    }
+                    bestRoute = new List<TreasureCoordinate>(perm);
                 }
             }
-            
+
+            if (plugin.Configuration.VerboseLogging)
+            {
+                Plugin.Log.Debug($"TSP permutation found optimal route with time: {bestTime:F2}s");
+            }
+
             return bestRoute;
         }
-        
+
         /// <summary>
-        /// Checks if a location is at or very near to any aetheryte
+        /// Solves TSP using nearest neighbor heuristic
         /// </summary>
-        /// <param name="location">The location to check</param>
-        /// <param name="aetherytes">List of all aetherytes</param>
-        /// <returns>True if the location is at any aetheryte</returns>
-        private bool IsLocationAtAetheryte(TreasureCoordinate location, List<TreasureCoordinate> aetherytes)
+        /// <param name="startPoint">Starting point</param>
+        /// <param name="coordinates">Coordinates to visit</param>
+        /// <returns>Approximate optimal route (coordinates only, without start point)</returns>
+        private List<TreasureCoordinate> SolveTSPByNearestNeighbor(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
         {
-            if (aetherytes == null || aetherytes.Count == 0)
-                return false;
-                
-            foreach (var aetheryte in aetherytes)
+            var remaining = new List<TreasureCoordinate>(coordinates);
+            var route = new List<TreasureCoordinate>();
+            var currentPos = startPoint;
+
+            while (remaining.Count > 0)
             {
-                if (location.DistanceTo(aetheryte) < 1.0f)
-                    return true;
+                var nearest = remaining.OrderBy(c => CalculateTimeCost(currentPos, c, false, false)).First();
+                route.Add(nearest);
+                remaining.Remove(nearest);
+                currentPos = nearest;
             }
-            
-            return false;
+
+            return route;
         }
+
+
 
         /// <summary>
         /// Generate all possible permutations
@@ -431,7 +670,7 @@ namespace OnePiece.Services
             PermuteHelper(coordinates, 0, result);
             return result;
         }
-        
+
         private void PermuteHelper(List<TreasureCoordinate> coordinates, int start, List<List<TreasureCoordinate>> result)
         {
             if (start >= coordinates.Count)
@@ -439,17 +678,17 @@ namespace OnePiece.Services
                 result.Add(new List<TreasureCoordinate>(coordinates));
                 return;
             }
-            
+
             for (int i = start; i < coordinates.Count; i++)
             {
                 // Swap
                 var temp = coordinates[start];
                 coordinates[start] = coordinates[i];
                 coordinates[i] = temp;
-                
+
                 // Recurse
                 PermuteHelper(coordinates, start + 1, result);
-                
+
                 // Backtrack
                 temp = coordinates[start];
                 coordinates[start] = coordinates[i];
@@ -457,302 +696,9 @@ namespace OnePiece.Services
             }
         }
 
-        /// <summary>
-        /// Use improved nearest neighbor algorithm to find approximate optimal path (suitable for a larger number of points)
-        /// </summary>
-        /// <summary>
-        /// Use nearest neighbor to find an approximation of the optimal path
-        /// </summary>
-        /// <remarks>
-        /// Optimized to reduce redundant path calculations by caching calculated time costs
-        /// </remarks>
-        private List<TreasureCoordinate> FindOptimalRouteByNearestNeighbor(
-            TreasureCoordinate startLocation, 
-            List<TreasureCoordinate> coordinates,
-            List<TreasureCoordinate> aetheryteCoords)
-        {
-            var remainingCoords = new List<TreasureCoordinate>(coordinates);
-            var route = new List<TreasureCoordinate>();
-            var currentPos = startLocation;
-            bool isCurrentAetheryte = currentPos.MapArea != coordinates[0].MapArea || 
-                                     IsLocationAtAetheryte(currentPos, aetheryteCoords);
-            
-            // Flag to track if this is the first point in the route
-            bool isFirstPoint = true;
-            
-            // While there are still unvisited treasure points
-            while (remainingCoords.Count > 0)
-            {
-                // Calculate the shortest time to each remaining treasure point
-                var bestNextCoord = remainingCoords[0];
-                float bestTime = float.MaxValue;
-                TreasureCoordinate bestAetheryte = null;
-                
-                foreach (var coord in remainingCoords)
-                {
-                    // Calculate best time cost considering all aetherytes
-                    TreasureCoordinate currentBestAetheryte = null;
-                    float timeCost = CalculateBestTimeCost(currentPos, coord, isCurrentAetheryte, aetheryteCoords, out currentBestAetheryte);
-                    
-                    // If this is better than the current best time, update
-                    if (timeCost < bestTime)
-                    {
-                        bestTime = timeCost;
-                        bestNextCoord = coord;
-                        bestAetheryte = currentBestAetheryte;
-                    }
-                }
-                
-                // Special case for first point: Add extra preference for direct travel
-                // when player is already on the same map and relatively close
-                if (isFirstPoint && currentPos.MapArea == bestNextCoord.MapArea && bestAetheryte != null)
-                {
-                    float directDistance = currentPos.DistanceTo(bestNextCoord);
-                    // If player is reasonably close to first point (within 40 units), prefer direct travel
-                    if (directDistance < 40.0f)
-                    {
-                        // Override the aetheryte decision and choose direct travel instead
-                        if (plugin.Configuration.VerboseLogging)
-                        {
-                            Plugin.Log.Debug($"First point special case (nearest neighbor): Override teleport decision, preferring direct travel to first point ({directDistance:F2} units away)");
-                        }
-                        bestAetheryte = null;
-                    }
-                }
-                
-                // Add to path with teleport info if needed
-                if (bestAetheryte != null)
-                {
-                    // Create a copy of the coordinate to preserve original player name and other data
-                    var coordWithTeleport = TreasureCoordinateBuilder.FromExisting(bestNextCoord)
-                        .WithAetheryteId(bestAetheryte.AetheryteId)
-                        .Build();
 
-                    // Set comprehensive navigation instruction including teleport and travel
-                    coordWithTeleport.NavigationInstruction = $"Teleport to {bestAetheryte.Name} ({bestAetheryte.X:F1}, {bestAetheryte.Y:F1}), then travel to ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1})";
 
-                    // Add debug log to verify AetheryteId is set and PlayerName is preserved
-                    if (plugin.Configuration.VerboseLogging)
-                    {
-                        Plugin.Log.Debug($"Set AetheryteId {bestAetheryte.AetheryteId} on coordinate ({coordWithTeleport.X:F1}, {coordWithTeleport.Y:F1}) with preserved PlayerName: {coordWithTeleport.PlayerName}");
-                    }
 
-                    // Add the modified coordinate to route
-                    route.Add(coordWithTeleport);
-
-                    // Update current position
-                    currentPos = coordWithTeleport;
-                }
-                else
-                {
-                    // No teleport needed, create a copy to preserve original data
-                    var coordCopy = TreasureCoordinateBuilder.FromExisting(bestNextCoord).Build();
-
-                    // Add navigation instruction for direct travel
-                    coordCopy.NavigationInstruction = $"Direct travel from ({currentPos.X:F1}, {currentPos.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
-
-                    // Add the coordinate to route
-                    route.Add(coordCopy);
-                    currentPos = coordCopy;
-                }
-
-                // Update flags
-                isCurrentAetheryte = false;
-                isFirstPoint = false; // No longer the first point after adding it to the route
-                
-                // Remove visited treasure point from remaining list
-                remainingCoords.Remove(bestNextCoord);
-            }
-            
-            return route;
-        }
-
-        /// <summary>
-        /// Use 2-opt algorithm to optimize the path
-        /// </summary>
-        private List<TreasureCoordinate> ApplyTwoOpt(List<TreasureCoordinate> route, List<TreasureCoordinate> aetheryteCoords)
-        {
-            if (route.Count <= 3)
-                return route;
-                
-            bool improved = true;
-            int iteration = 0;
-            int maxIterations = 100; // Avoid infinite loop
-            
-            while (improved && iteration < maxIterations)
-            {
-                improved = false;
-                float bestGain = 0;
-                int bestI = -1;
-                int bestJ = -1;
-                
-                // Try to swap all possible edges
-                for (int i = 0; i < route.Count - 2; i++)
-                {
-                    for (int j = i + 2; j < route.Count - 1; j++)
-                    {
-                        // Skip edges containing aetherytes (using AetheryteId property)
-                        if (route[i].AetheryteId > 0 || route[i+1].AetheryteId > 0 ||
-                            route[j].AetheryteId > 0 || route[j+1].AetheryteId > 0)
-                            continue;
-                        
-                        // Calculate time before swap using best aetheryte options
-                        TreasureCoordinate unused1, unused2;
-                        float timeBefore = CalculateBestTimeCost(route[i], route[i+1], false, aetheryteCoords, out unused1) + 
-                                         CalculateBestTimeCost(route[j], route[j+1], false, aetheryteCoords, out unused2);
-                        
-                        // Calculate time after swap using best aetheryte options
-                        TreasureCoordinate unused3, unused4;
-                        float timeAfter = CalculateBestTimeCost(route[i], route[j], false, aetheryteCoords, out unused3) + 
-                                        CalculateBestTimeCost(route[i+1], route[j+1], false, aetheryteCoords, out unused4);
-                        
-                        // If time is shorter after swap
-                        float gain = timeBefore - timeAfter;
-                        if (gain > bestGain)
-                        {
-                            bestGain = gain;
-                            bestI = i;
-                            bestJ = j;
-                            improved = true;
-                        }
-                    }
-                }
-                
-                // If a better path is found, swap the edges
-                if (improved)
-                {
-                    // Reverse the segment from i+1 to j
-                    int left = bestI + 1;
-                    int right = bestJ;
-                    while (left < right)
-                    {
-                        var temp = route[left];
-                        route[left] = route[right];
-                        route[right] = temp;
-                        left++;
-                        right--;
-                    }
-                    
-                    // Only log in verbose mode
-                    if (plugin.Configuration.VerboseLogging)
-                    {
-                        Plugin.Log.Debug($"Applied 2-opt optimization, improvement time: {bestGain:F2} seconds");
-                    }
-                }
-                
-                iteration++;
-            }
-            
-            return route;
-        }
-
-        /// <summary>
-        /// Use simulated annealing algorithm to optimize the path
-        /// </summary>
-        private List<TreasureCoordinate> OptimizeBySimulatedAnnealing(
-            List<TreasureCoordinate> initialRoute, 
-            List<TreasureCoordinate> aetheryteCoords)
-        {
-            if (initialRoute.Count <= 3)
-                return initialRoute;
-                
-            Random random = new Random();
-            var currentRoute = new List<TreasureCoordinate>(initialRoute);
-            var bestRoute = new List<TreasureCoordinate>(initialRoute);
-            
-            float currentEnergy = CalculateRouteTotalTime(currentRoute);
-            float bestEnergy = currentEnergy;
-            
-            double temperature = 100.0;
-            double coolingRate = 0.995;
-            int iterations = 1000;
-            
-            for (int i = 0; i < iterations; i++)
-            {
-                // Create a new candidate solution
-                var newRoute = new List<TreasureCoordinate>(currentRoute);
-                
-                // Randomly select two non-aetheryte positions and swap them
-                int pos1, pos2;
-                bool validSwap = false;
-                int attempts = 0;
-                
-                // Try to find two swappable non-aetheryte positions
-                do
-                {
-                    pos1 = random.Next(0, newRoute.Count);
-                    pos2 = random.Next(0, newRoute.Count);
-                    
-                    // Check if coordinates don't have teleport capability using AetheryteId
-                    validSwap = pos1 != pos2 && 
-                               newRoute[pos1].AetheryteId == 0 && 
-                               newRoute[pos2].AetheryteId == 0;
-                               
-                    attempts++;
-                    if (attempts > 100) break; // Avoid infinite loop
-                }
-                while (!validSwap);
-                
-                if (validSwap)
-                {
-                    // Swap two positions
-                    var temp = newRoute[pos1];
-                    newRoute[pos1] = newRoute[pos2];
-                    newRoute[pos2] = temp;
-                    
-                    // Calculate the energy (time) of the new path
-                    float newEnergy = CalculateRouteTotalTime(newRoute);
-                    
-                    // Decide whether to accept the new solution
-                    if (AcceptNewSolution(currentEnergy, newEnergy, temperature, random))
-                    {
-                        currentRoute = newRoute;
-                        currentEnergy = newEnergy;
-                        
-                        // Update the best solution
-                        if (newEnergy < bestEnergy)
-                        {
-                            bestRoute = new List<TreasureCoordinate>(newRoute);
-                            bestEnergy = newEnergy;
-                            Plugin.Log.Debug($"Simulated annealing found better path, total time: {bestEnergy:F2} seconds");
-                        }
-                    }
-                }
-                
-                // Cooling down
-                temperature *= coolingRate;
-            }
-            
-            return bestRoute;
-        }
-
-        private bool AcceptNewSolution(float currentEnergy, float newEnergy, double temperature, Random random)
-        {
-            // If the new solution is better, always accept it
-            if (newEnergy < currentEnergy)
-                return true;
-            
-            // If the new solution is worse, accept it with a certain probability
-            double acceptanceProbability = Math.Exp((currentEnergy - newEnergy) / temperature);
-            return random.NextDouble() < acceptanceProbability;
-        }
-
-        private float CalculateRouteTotalTime(List<TreasureCoordinate> route)
-        {
-            if (route.Count <= 1)
-                return 0;
-                
-            // Calculate the total time of the path
-            float totalTime = 0;
-            for (int i = 0; i < route.Count - 1; i++)
-            {
-                // Check teleport capability using AetheryteId
-                bool isStartAetheryte = route[i].AetheryteId > 0;
-                bool isEndAetheryte = route[i+1].AetheryteId > 0;
-                totalTime += CalculateTimeCost(route[i], route[i+1], isStartAetheryte, isEndAetheryte);
-            }
-            return totalTime;
-        }
 
         /// <summary>
         /// Estimate the total time needed to complete the entire path
@@ -763,21 +709,26 @@ namespace OnePiece.Services
         {
             if (route.Count <= 1)
                 return 0;
-                
+
             float totalTime = 0;
+
+            // Add teleport time for the first coordinate if it has AetheryteId
+            if (route.Count > 0 && route[0].AetheryteId > 0)
+            {
+                totalTime += TELEPORT_CAST_TIME + TELEPORT_LOADING_TIME;
+            }
+
+            // Calculate travel time between consecutive coordinates
             for (int i = 0; i < route.Count - 1; i++)
             {
-                // Check teleport capability using AetheryteId
-                bool isStartAetheryte = route[i].AetheryteId > 0;
-                bool isEndAetheryte = route[i+1].AetheryteId > 0;
-                totalTime += CalculateTimeCost(route[i], route[i+1], isStartAetheryte, isEndAetheryte);
+                // All travel between coordinates is ground travel (no teleporting between them)
+                totalTime += CalculateTimeCost(route[i], route[i+1], false, false);
             }
-            
+
             // Consider collection time for each treasure point (assumed to be 10 seconds)
-            // Using AetheryteId instead of Type property to identify teleport points
-            int treasurePoints = route.Count(c => c.AetheryteId == 0);
-            totalTime += treasurePoints * 10;
-            
+            // Count all coordinates as treasure points since they all need to be collected
+            totalTime += route.Count * 10;
+
             return totalTime;
         }
     }

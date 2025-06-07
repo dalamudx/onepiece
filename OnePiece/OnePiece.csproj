@@ -33,6 +33,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Localization\Languages\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="aetheryte.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ECommons\ECommons\ECommons.csproj" />
   </ItemGroup>
 </Project>

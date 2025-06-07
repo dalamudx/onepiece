@@ -174,29 +174,29 @@ public class ChatMonitorService : IDisposable
     {
         return channelType switch
         {
-            ChatChannelType.Say => Strings.GetString("Say"),
-            ChatChannelType.Yell => Strings.GetString("Yell"),
-            ChatChannelType.Shout => Strings.GetString("Shout"),
-            ChatChannelType.Party => Strings.GetString("Party"),
-            ChatChannelType.Alliance => Strings.GetString("Alliance"),
-            ChatChannelType.FreeCompany => Strings.GetString("FreeCompany"),
-            ChatChannelType.LinkShell1 => Strings.GetString("LinkShell1"),
-            ChatChannelType.LinkShell2 => Strings.GetString("LinkShell2"),
-            ChatChannelType.LinkShell3 => Strings.GetString("LinkShell3"),
-            ChatChannelType.LinkShell4 => Strings.GetString("LinkShell4"),
-            ChatChannelType.LinkShell5 => Strings.GetString("LinkShell5"),
-            ChatChannelType.LinkShell6 => Strings.GetString("LinkShell6"),
-            ChatChannelType.LinkShell7 => Strings.GetString("LinkShell7"),
-            ChatChannelType.LinkShell8 => Strings.GetString("LinkShell8"),
-            ChatChannelType.CrossWorldLinkShell1 => Strings.GetString("CrossWorldLinkShell1"),
-            ChatChannelType.CrossWorldLinkShell2 => Strings.GetString("CrossWorldLinkShell2"),
-            ChatChannelType.CrossWorldLinkShell3 => Strings.GetString("CrossWorldLinkShell3"),
-            ChatChannelType.CrossWorldLinkShell4 => Strings.GetString("CrossWorldLinkShell4"),
-            ChatChannelType.CrossWorldLinkShell5 => Strings.GetString("CrossWorldLinkShell5"),
-            ChatChannelType.CrossWorldLinkShell6 => Strings.GetString("CrossWorldLinkShell6"),
-            ChatChannelType.CrossWorldLinkShell7 => Strings.GetString("CrossWorldLinkShell7"),
-            ChatChannelType.CrossWorldLinkShell8 => Strings.GetString("CrossWorldLinkShell8"),
-            _ => Strings.GetString("Party")
+            ChatChannelType.Say => LocalizationManager.GetString("Say"),
+            ChatChannelType.Yell => LocalizationManager.GetString("Yell"),
+            ChatChannelType.Shout => LocalizationManager.GetString("Shout"),
+            ChatChannelType.Party => LocalizationManager.GetString("Party"),
+            ChatChannelType.Alliance => LocalizationManager.GetString("Alliance"),
+            ChatChannelType.FreeCompany => LocalizationManager.GetString("FreeCompany"),
+            ChatChannelType.LinkShell1 => LocalizationManager.GetString("LinkShell1"),
+            ChatChannelType.LinkShell2 => LocalizationManager.GetString("LinkShell2"),
+            ChatChannelType.LinkShell3 => LocalizationManager.GetString("LinkShell3"),
+            ChatChannelType.LinkShell4 => LocalizationManager.GetString("LinkShell4"),
+            ChatChannelType.LinkShell5 => LocalizationManager.GetString("LinkShell5"),
+            ChatChannelType.LinkShell6 => LocalizationManager.GetString("LinkShell6"),
+            ChatChannelType.LinkShell7 => LocalizationManager.GetString("LinkShell7"),
+            ChatChannelType.LinkShell8 => LocalizationManager.GetString("LinkShell8"),
+            ChatChannelType.CrossWorldLinkShell1 => LocalizationManager.GetString("CrossWorldLinkShell1"),
+            ChatChannelType.CrossWorldLinkShell2 => LocalizationManager.GetString("CrossWorldLinkShell2"),
+            ChatChannelType.CrossWorldLinkShell3 => LocalizationManager.GetString("CrossWorldLinkShell3"),
+            ChatChannelType.CrossWorldLinkShell4 => LocalizationManager.GetString("CrossWorldLinkShell4"),
+            ChatChannelType.CrossWorldLinkShell5 => LocalizationManager.GetString("CrossWorldLinkShell5"),
+            ChatChannelType.CrossWorldLinkShell6 => LocalizationManager.GetString("CrossWorldLinkShell6"),
+            ChatChannelType.CrossWorldLinkShell7 => LocalizationManager.GetString("CrossWorldLinkShell7"),
+            ChatChannelType.CrossWorldLinkShell8 => LocalizationManager.GetString("CrossWorldLinkShell8"),
+            _ => LocalizationManager.GetString("Party")
         };
     }
 
@@ -340,7 +340,7 @@ private void ExtractCoordinates(string messageText, string playerName)
             // Notify the user based on log level
             if (plugin.Configuration.LogLevel >= LogLevel.Normal)
             {
-                log.Information(string.Format(Strings.GetString("CoordinateDetected"),
+                log.Information(string.Format(LocalizationManager.GetString("CoordinateDetected"),
                     playerName, coordinate));
             }
 
@@ -400,7 +400,7 @@ public bool ProcessChatMessage(string playerName, string message)
                     // Notify the user based on log level
                     if (plugin.Configuration.LogLevel >= LogLevel.Normal)
                     {
-                        log.Information(string.Format(Strings.GetString("CoordinateDetected"),
+                        log.Information(string.Format(LocalizationManager.GetString("CoordinateDetected"),
                             effectivePlayerName, coordinate));
                     }
 

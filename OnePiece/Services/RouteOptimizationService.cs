@@ -62,6 +62,14 @@ public class RouteOptimizationService
             OriginalOrder = new List<TreasureCoordinate>(coordinates);
             Plugin.Log.Debug($"Saved original order with {OriginalOrder.Count} coordinates.");
         }
+
+        // Clear any existing teleport settings from previous optimizations
+        foreach (var coord in coordinates)
+        {
+            coord.AetheryteId = 0;
+            coord.Type = CoordinateType.TreasurePoint;
+            coord.NavigationInstruction = string.Empty;
+        }
         
         if (coordinates.Count <= 1)
         {
@@ -256,24 +264,10 @@ public class RouteOptimizationService
                 }
             }
             
-            // If teleport is needed, start from the aetheryte
-            if (needsTeleport && mapAetheryte != null)
-            {
-                // Create a coordinate for the aetheryte position
-                var aetheryteCoord = new TreasureCoordinate(
-                    mapAetheryte.Position.X,
-                    mapAetheryte.Position.Y,
-                    mapAetheryte.MapArea,
-                    CoordinateSystemType.Map);
-                
-                // Start from the aetheryte after teleporting
-                currentLocation = aetheryteCoord;
-            }
-
             // Get all aetherytes in the current map area for better path optimization
             var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(nextMapArea);
             List<AetheryteInfo> allMapAetherytes;
-            
+
             if (aetherytesInMap == null || !aetherytesInMap.Any())
             {
                 // If no aetherytes found in the map area, use the provided one
@@ -284,9 +278,33 @@ public class RouteOptimizationService
                 // Convert IReadOnlyList to List for compatibility
                 allMapAetherytes = aetherytesInMap.ToList();
             }
-            
+
             // Use time-based path optimization algorithm to optimize the route with all available aetherytes
-            var mapRoute = pathFinder.OptimizeRouteByTime(currentLocation, mapCoordinates, allMapAetherytes);
+            Plugin.Log.Information($"Calling OptimizeRouteByTime for map '{nextMapArea}' with currentLocation: {currentLocation.MapArea} ({currentLocation.X:F1}, {currentLocation.Y:F1}), needsTeleport: {needsTeleport}");
+
+            List<TreasureCoordinate> mapRoute;
+            if (needsTeleport && mapAetheryte != null)
+            {
+                // Create a coordinate for the aetheryte position
+                var aetheryteCoord = new TreasureCoordinate(
+                    mapAetheryte.Position.X,
+                    mapAetheryte.Position.Y,
+                    mapAetheryte.MapArea,
+                    CoordinateSystemType.Map);
+
+                // Call OptimizeRouteByTime with forced teleport
+                mapRoute = pathFinder.OptimizeRouteByTime(aetheryteCoord, mapCoordinates, allMapAetherytes, true, mapAetheryte);
+
+                // Update current location to the aetheryte after teleporting
+                currentLocation = aetheryteCoord;
+            }
+            else
+            {
+                // No teleport needed, use current location
+                mapRoute = pathFinder.OptimizeRouteByTime(currentLocation, mapCoordinates, allMapAetherytes);
+            }
+
+            Plugin.Log.Information($"OptimizeRouteByTime returned {mapRoute.Count} coordinates for map '{nextMapArea}'");
             
             // Estimate the time needed to complete this part of the route
             float estimatedTime = pathFinder.EstimateCompletionTime(mapRoute);
@@ -365,26 +383,30 @@ public class RouteOptimizationService
     {
         if (OriginalOrder.Count > 0)
         {
-            // Reset collection state for all coordinates
+            // Reset collection state and teleport settings for all coordinates
             foreach (var coordinate in OriginalOrder)
             {
                 coordinate.IsCollected = false;
+                // Clear teleport-related settings that were assigned during optimization
+                coordinate.AetheryteId = 0;
+                coordinate.Type = CoordinateType.TreasurePoint;
+                coordinate.NavigationInstruction = string.Empty;
             }
 
             // Clear the optimized route to indicate we're no longer in optimized mode
             OptimizedRoute.Clear();
 
             // Log the reset
-            Plugin.Log.Information($"Route optimization reset. Restored {OriginalOrder.Count} coordinates to original order and reset collection states.");
+            Plugin.Log.Information($"Route optimization reset. Restored {OriginalOrder.Count} coordinates to original order and reset collection states and teleport settings.");
 
             // Raise the event
             OnRouteOptimizationReset?.Invoke(this, EventArgs.Empty);
-            
+
             var result = new List<TreasureCoordinate>(OriginalOrder);
-            
+
             // Clear the original order list to avoid duplicate entries if optimized again
             OriginalOrder.Clear();
-            
+
             return result;
         }
         else

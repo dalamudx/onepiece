@@ -33,7 +33,7 @@ public class CustomMessageWindow : Window, IDisposable
     private int selectedCustomMessageIndex = -1;
     
     public CustomMessageWindow(Plugin plugin)
-        : base(Strings.GetString("CustomMessageSettings") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base(LocalizationManager.GetString("CustomMessageSettings") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         // Store plugin reference
         this.plugin = plugin;
@@ -59,7 +59,7 @@ public class CustomMessageWindow : Window, IDisposable
     public override void Draw()
     {
         // Update window title to reflect current language
-        WindowName = Strings.GetString("CustomMessageSettings") + "##OnePiece";
+        WindowName = LocalizationManager.GetString("CustomMessageSettings") + "##OnePiece";
         
         // Get window width for centering
         float windowWidth = ImGui.GetWindowWidth();
@@ -90,14 +90,14 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.BeginChild("LeftPanel", new Vector2(panelWidth, -1), false);
         
         // Template management section
-        if (ImGui.CollapsingHeader(Strings.GetString("MessageTemplateManagement"), ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader(LocalizationManager.GetString("MessageTemplateManagement"), ImGuiTreeNodeFlags.DefaultOpen))
         {
             // List of templates
-            ImGui.Text(Strings.GetString("SavedTemplates"));
+            ImGui.Text(LocalizationManager.GetString("SavedTemplates"));
             
             if (plugin.Configuration.MessageTemplates.Count == 0)
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.GetString("NoSavedTemplates"));
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), LocalizationManager.GetString("NoSavedTemplates"));
             }
             else
             {
@@ -137,7 +137,7 @@ public class CustomMessageWindow : Window, IDisposable
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.3f, 0.3f, 1.0f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
                     
-                    if (ImGui.Button(Strings.GetString("ClearActiveTemplate")))
+                    if (ImGui.Button(LocalizationManager.GetString("ClearActiveTemplate")))
                     {
                         // Clear the active template
                         plugin.Configuration.ActiveTemplateIndex = -1;
@@ -154,7 +154,7 @@ public class CustomMessageWindow : Window, IDisposable
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.8f, 0.3f, 1.0f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.2f, 0.9f, 0.2f, 1.0f));
                     
-                    if (ImGui.Button(Strings.GetString("SetAsActiveTemplate")))
+                    if (ImGui.Button(LocalizationManager.GetString("SetAsActiveTemplate")))
                     {
                         plugin.Configuration.ActiveTemplateIndex = selectedTemplateIndex;
                         plugin.Configuration.SelectedMessageComponents = new List<MessageComponent>();
@@ -174,7 +174,7 @@ public class CustomMessageWindow : Window, IDisposable
                 
                 ImGui.SameLine();
                 
-                if (ImGui.Button(Strings.GetString("DeleteTemplate")))
+                if (ImGui.Button(LocalizationManager.GetString("DeleteTemplate")))
                 {
                     // Adjust active template index if needed
                     if (plugin.Configuration.ActiveTemplateIndex == selectedTemplateIndex)
@@ -195,13 +195,13 @@ public class CustomMessageWindow : Window, IDisposable
             }
             
             // New template creation
-            ImGui.Text(Strings.GetString("TemplateName"));
+            ImGui.Text(LocalizationManager.GetString("TemplateName"));
             ImGui.SameLine();
             ImGui.SetNextItemWidth(panelWidth * 0.45f);
             ImGui.InputText("##TemplateName", ref newTemplateName, 50);
             
             ImGui.SameLine();
-            if (ImGui.Button(Strings.GetString("Create")) && !string.IsNullOrWhiteSpace(newTemplateName))
+            if (ImGui.Button(LocalizationManager.GetString("Create")) && !string.IsNullOrWhiteSpace(newTemplateName))
             {
                 // Create new template from current selection
                 var newTemplate = new MessageTemplate(newTemplateName);
@@ -238,7 +238,7 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.Separator();
         
         // Custom messages section
-        if (ImGui.CollapsingHeader(Strings.GetString("CustomMessages"), ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader(LocalizationManager.GetString("CustomMessages"), ImGuiTreeNodeFlags.DefaultOpen))
         {
             // Display existing custom messages with edit and delete buttons
             for (int i = 0; i < plugin.Configuration.CustomMessages.Count; i++)
@@ -251,7 +251,7 @@ public class CustomMessageWindow : Window, IDisposable
                 
                 // Edit button
                 ImGui.SameLine();
-                if (ImGui.SmallButton(Strings.GetString("Edit") + "##" + i))
+                if (ImGui.SmallButton(LocalizationManager.GetString("Edit") + "##" + i))
                 {
                     editingCustomMessageIndex = i;
                     editingCustomMessage = message;
@@ -259,7 +259,7 @@ public class CustomMessageWindow : Window, IDisposable
                 
                 // Delete button
                 ImGui.SameLine();
-                if (ImGui.SmallButton(Strings.GetString("Delete") + "##" + i))
+                if (ImGui.SmallButton(LocalizationManager.GetString("Delete") + "##" + i))
                 {
                     plugin.Configuration.CustomMessages.RemoveAt(i);
                     
@@ -275,12 +275,12 @@ public class CustomMessageWindow : Window, IDisposable
             
             // Add new custom message
             ImGui.Separator();
-            ImGui.Text(Strings.GetString("AddNewMessage"));
+            ImGui.Text(LocalizationManager.GetString("AddNewMessage"));
             ImGui.SetNextItemWidth(panelWidth * 0.7f);
             ImGui.InputText("##NewCustomMessage", ref newCustomMessage, 100);
             
             ImGui.SameLine();
-            if (ImGui.Button(Strings.GetString("Add")) && !string.IsNullOrWhiteSpace(newCustomMessage))
+            if (ImGui.Button(LocalizationManager.GetString("Add")) && !string.IsNullOrWhiteSpace(newCustomMessage))
             {
                 plugin.Configuration.CustomMessages.Add(newCustomMessage);
                 plugin.Configuration.Save();
@@ -291,12 +291,12 @@ public class CustomMessageWindow : Window, IDisposable
             if (editingCustomMessageIndex >= 0)
             {
                 ImGui.Separator();
-                ImGui.Text(Strings.GetString("EditMessage"));
+                ImGui.Text(LocalizationManager.GetString("EditMessage"));
                 ImGui.SetNextItemWidth(panelWidth * 0.7f);
                 ImGui.InputText("##EditCustomMessage", ref editingCustomMessage, 100);
                 
                 ImGui.SameLine();
-                if (ImGui.Button(Strings.GetString("Save")) && !string.IsNullOrWhiteSpace(editingCustomMessage))
+                if (ImGui.Button(LocalizationManager.GetString("Save")) && !string.IsNullOrWhiteSpace(editingCustomMessage))
                 {
                     plugin.Configuration.CustomMessages[editingCustomMessageIndex] = editingCustomMessage;
                     plugin.Configuration.Save();
@@ -305,7 +305,7 @@ public class CustomMessageWindow : Window, IDisposable
                 }
                 
                 ImGui.SameLine();
-                if (ImGui.Button(Strings.GetString("Cancel")))
+                if (ImGui.Button(LocalizationManager.GetString("Cancel")))
                 {
                     editingCustomMessageIndex = -1;
                     editingCustomMessage = string.Empty;
@@ -325,27 +325,27 @@ public class CustomMessageWindow : Window, IDisposable
         // Header with template name or indication that no template is selected
         if (currentTemplate != null)
         {
-            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), string.Format(Strings.GetString("EditingTemplate"), currentTemplate.Name));
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.8f, 1.0f), string.Format(LocalizationManager.GetString("EditingTemplate"), currentTemplate.Name));
         }
         else if (plugin.Configuration.ActiveTemplateIndex >= 0)
         {
             ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), 
-                string.Format(Strings.GetString("CurrentActiveTemplate"), plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name));
+                string.Format(LocalizationManager.GetString("CurrentActiveTemplate"), plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name));
         }
         else
         {
-            ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.0f, 1.0f), Strings.GetString("EditCurrentMessageComponents"));
+            ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.0f, 1.0f), LocalizationManager.GetString("EditCurrentMessageComponents"));
         }
         
         // Note: All separators in this section have been removed as requested
-        ImGui.Text(Strings.GetString("CurrentMessageComponentList"));
+        ImGui.Text(LocalizationManager.GetString("CurrentMessageComponentList"));
         
         List<MessageComponent> componentsToEdit = currentTemplate != null ?
             currentTemplate.Components : plugin.Configuration.SelectedMessageComponents;
         
         if (componentsToEdit.Count == 0)
         {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.GetString("NoComponents"));
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), LocalizationManager.GetString("NoComponents"));
         }
         else
         {
@@ -362,7 +362,7 @@ public class CustomMessageWindow : Window, IDisposable
                 
                 // Up/Down buttons for reordering with fixed width and tooltips
                 ImGui.SameLine();
-                string moveUpText = Strings.GetString("MoveUp");
+                string moveUpText = LocalizationManager.GetString("MoveUp");
                 // Check if window width is too small for full text
                 if (ImGui.GetWindowWidth() < 550)
                 {
@@ -381,11 +381,11 @@ public class CustomMessageWindow : Window, IDisposable
                 // Add tooltip for the move up button
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(Strings.GetString("MoveUp"));
+                    ImGui.SetTooltip(LocalizationManager.GetString("MoveUp"));
                 }
                 
                 ImGui.SameLine();
-                string moveDownText = Strings.GetString("MoveDown");
+                string moveDownText = LocalizationManager.GetString("MoveDown");
                 // Check if window width is too small for full text
                 if (ImGui.GetWindowWidth() < 550)
                 {
@@ -404,12 +404,12 @@ public class CustomMessageWindow : Window, IDisposable
                 // Add tooltip for the move down button
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(Strings.GetString("MoveDown"));
+                    ImGui.SetTooltip(LocalizationManager.GetString("MoveDown"));
                 }
                 
                 // Remove button with adaptive text based on window width
                 ImGui.SameLine();
-                string deleteText = Strings.GetString("Delete");
+                string deleteText = LocalizationManager.GetString("Delete");
                 // Check if window width is too small for full text
                 if (ImGui.GetWindowWidth() < 550)
                 {
@@ -426,7 +426,7 @@ public class CustomMessageWindow : Window, IDisposable
                 // Add tooltip for the delete button
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(Strings.GetString("Delete"));
+                    ImGui.SetTooltip(LocalizationManager.GetString("Delete"));
                 }
                 
                 ImGui.PopID();
@@ -436,10 +436,10 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.Separator();
         
         // Add components section
-        ImGui.Text(Strings.GetString("AddComponents"));
+        ImGui.Text(LocalizationManager.GetString("AddComponents"));
         
         // Player name checkbox
-        if (ImGui.Button(Strings.GetString("AddPlayerName")))
+        if (ImGui.Button(LocalizationManager.GetString("AddPlayerName")))
         {
             componentsToEdit.Add(new MessageComponent(MessageComponentType.PlayerName));
             SaveComponentChanges();
@@ -448,7 +448,7 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.SameLine();
         
         // Coordinates checkbox
-        if (ImGui.Button(Strings.GetString("AddCoordinates")))
+        if (ImGui.Button(LocalizationManager.GetString("AddCoordinates")))
         {
             componentsToEdit.Add(new MessageComponent(MessageComponentType.Coordinates));
             SaveComponentChanges();
@@ -457,7 +457,7 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.SameLine();
         
         // Number button
-        if (ImGui.Button(Strings.GetString("AddNumber")))
+        if (ImGui.Button(LocalizationManager.GetString("AddNumber")))
         {
             componentsToEdit.Add(new MessageComponent(MessageComponentType.Number));
             SaveComponentChanges();
@@ -466,7 +466,7 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.SameLine();
         
         // BoxedNumber button
-        if (ImGui.Button(Strings.GetString("AddBoxedNumber")))
+        if (ImGui.Button(LocalizationManager.GetString("AddBoxedNumber")))
         {
             componentsToEdit.Add(new MessageComponent(MessageComponentType.BoxedNumber));
             SaveComponentChanges();
@@ -475,7 +475,7 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.SameLine();
         
         // BoxedOutlinedNumber button
-        if (ImGui.Button(Strings.GetString("AddBoxedOutlinedNumber")))
+        if (ImGui.Button(LocalizationManager.GetString("AddBoxedOutlinedNumber")))
         {
             componentsToEdit.Add(new MessageComponent(MessageComponentType.BoxedOutlinedNumber));
             SaveComponentChanges();
@@ -485,7 +485,7 @@ public class CustomMessageWindow : Window, IDisposable
         if (plugin.Configuration.CustomMessages.Count > 0)
         {
             ImGui.Separator();
-            ImGui.Text(Strings.GetString("AddCustomMessage"));
+            ImGui.Text(LocalizationManager.GetString("AddCustomMessage"));
             
             // Display each custom message with its own add button
             for (int i = 0; i < plugin.Configuration.CustomMessages.Count; i++)
@@ -513,7 +513,7 @@ public class CustomMessageWindow : Window, IDisposable
         ImGui.Separator();
         
         // Preview section
-        ImGui.Text(Strings.GetString("MessagePreview"));
+        ImGui.Text(LocalizationManager.GetString("MessagePreview"));
         string previewMessage = GeneratePreviewMessage(componentsToEdit);
         ImGui.TextWrapped(previewMessage);
         
@@ -521,13 +521,13 @@ public class CustomMessageWindow : Window, IDisposable
         if (currentTemplate != null)
         {
             ImGui.Separator();
-            if (ImGui.Button(Strings.GetString("SaveTemplateChanges")))
+            if (ImGui.Button(LocalizationManager.GetString("SaveTemplateChanges")))
             {
                 SaveTemplateChanges();
             }
             
             ImGui.SameLine();
-            if (ImGui.Button(Strings.GetString("Cancel")))
+            if (ImGui.Button(LocalizationManager.GetString("Cancel")))
             {
                 // Reset to original template
                 selectedTemplateIndex = -1;
@@ -592,7 +592,7 @@ public class CustomMessageWindow : Window, IDisposable
     {
         if (components.Count == 0)
         {
-            return Strings.GetString("WillOnlySendFlag");
+            return LocalizationManager.GetString("WillOnlySendFlag");
         }
         
         var previewParts = new List<string>();
@@ -643,23 +643,23 @@ public class CustomMessageWindow : Window, IDisposable
         switch (component.Type)
         {
             case MessageComponentType.PlayerName:
-                return Strings.GetString("PlayerName");
+                return LocalizationManager.GetString("PlayerName");
             case MessageComponentType.Coordinates:
-                return Strings.GetString("TreasureMapCoordinates");
+                return LocalizationManager.GetString("TreasureMapCoordinates");
             case MessageComponentType.Number:
-                return Strings.GetString("Number");
+                return LocalizationManager.GetString("Number");
             case MessageComponentType.BoxedNumber:
-                return Strings.GetString("BoxedNumber");
+                return LocalizationManager.GetString("BoxedNumber");
             case MessageComponentType.BoxedOutlinedNumber:
-                return Strings.GetString("BoxedOutlinedNumber");
+                return LocalizationManager.GetString("BoxedOutlinedNumber");
             case MessageComponentType.CustomMessage:
                 if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
                 {
-                    return string.Format(Strings.GetString("CustomMessagePrefix"), plugin.Configuration.CustomMessages[component.CustomMessageIndex]);
+                    return string.Format(LocalizationManager.GetString("CustomMessagePrefix"), plugin.Configuration.CustomMessages[component.CustomMessageIndex]);
                 }
-                return Strings.GetString("InvalidCustomMessage");
+                return LocalizationManager.GetString("InvalidCustomMessage");
             default:
-                return Strings.GetString("UnknownComponent");
+                return LocalizationManager.GetString("UnknownComponent");
         }
     }
     

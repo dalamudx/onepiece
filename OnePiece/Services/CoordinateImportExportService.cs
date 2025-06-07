@@ -60,7 +60,10 @@ public class CoordinateImportExportService
                         {
                             coordinate.PlayerName = textParsingService.RemoveSpecialCharactersFromName(coordinate.PlayerName);
                         }
-                        
+
+                        // Assign the nearest aetheryte to the coordinate for teleport functionality
+                        AssignAetheryteToCoordinate(coordinate);
+
                         addCoordinateAction(coordinate);
                         importedCount++;
                     }
@@ -143,6 +146,10 @@ public class CoordinateImportExportService
 
                     // Create coordinate with player name if available
                     var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", playerName);
+
+                    // Assign the nearest aetheryte to the coordinate for teleport functionality
+                    AssignAetheryteToCoordinate(coordinate);
+
                     addCoordinateAction(coordinate);
                     importedCount++;
                 }
@@ -181,5 +188,17 @@ public class CoordinateImportExportService
             Plugin.Log.Error($"Error exporting coordinates: {ex.Message}");
             return string.Empty;
         }
+    }
+
+    /// <summary>
+    /// Assigns the nearest aetheryte to a coordinate for teleport functionality.
+    /// This method is now disabled - AetheryteId should only be assigned during route optimization.
+    /// </summary>
+    /// <param name="coordinate">The coordinate to assign an aetheryte to.</param>
+    private void AssignAetheryteToCoordinate(TreasureCoordinate coordinate)
+    {
+        // This method is now disabled to prevent automatic assignment of AetheryteId during import
+        // AetheryteId should only be assigned during route optimization when teleportation is actually needed
+        Plugin.Log.Debug($"Skipping automatic aetheryte assignment for coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) in {coordinate.MapArea} - will be assigned during route optimization if needed");
     }
 }

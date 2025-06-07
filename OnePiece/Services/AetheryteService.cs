@@ -434,7 +434,7 @@ public class AetheryteService
             string teleportCommand = $"/tport {aetheryte.AetheryteId}";
 
             // Send the command through the chat system
-            chatGui.Print(string.Format(Strings.GetString("TeleportingTo"), aetheryte.Name, aetheryte.AetheryteId));
+            chatGui.Print(string.Format(LocalizationManager.GetString("TeleportingTo"), aetheryte.Name, aetheryte.AetheryteId));
             commandManager.ProcessCommand(teleportCommand);
 
             // Fallback: If /tport command doesn't work, also try the Telepo API directly

@@ -7,6 +7,7 @@ using Dalamud.Plugin.Services;
 using OnePiece.Windows;
 using OnePiece.Services;
 using OnePiece.Localization;
+using OnePiece.Helpers;
 using ECommons;
 
 namespace OnePiece;
@@ -41,6 +42,8 @@ public sealed class Plugin : IDalamudPlugin
     public TerritoryManager TerritoryManager { get; init; }
     public PlayerLocationService PlayerLocationService { get; init; }
     public AetheryteService AetheryteService { get; init; }
+    public ConfigurationValidationService ConfigurationValidationService { get; init; }
+    public OptimizedLoggingService OptimizedLoggingService { get; init; }
 
     public readonly WindowSystem WindowSystem = new("OnePiece");
     private MainWindow MainWindow { get; init; }
@@ -71,6 +74,9 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize ECommons with only the modules we need
         ECommonsMain.Init(PluginInterface, this);
 
+        // Initialize thread safety helper
+        ThreadSafetyHelper.InitializeMainThreadId();
+
         // Initialize localization
         LocalizationManager.Initialize();
 
@@ -79,6 +85,37 @@ public sealed class Plugin : IDalamudPlugin
 
         // Load configuration before initializing other services
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+
+        // Initialize configuration validation service
+        try
+        {
+            ConfigurationValidationService = new ConfigurationValidationService(this);
+
+            // Initialize optimized logging service
+            OptimizedLoggingService = new OptimizedLoggingService(Log, Configuration);
+
+            // Validate and fix configuration issues using safe method
+            var validationResult = ConfigurationValidationService.SafeValidateAndFixConfiguration();
+            if (validationResult.HasIssues)
+            {
+                OptimizedLoggingService.LogWarning($"Configuration validation: {validationResult.GetSummary()}", "Configuration");
+                foreach (var error in validationResult.Errors)
+                {
+                    OptimizedLoggingService.LogError($"Configuration error: {error}", "Configuration");
+                }
+                foreach (var warning in validationResult.Warnings)
+                {
+                    OptimizedLoggingService.LogWarning($"Configuration warning: {warning}", "Configuration");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Failed to initialize configuration validation: {ex}");
+            // Continue with plugin initialization even if validation fails
+            ConfigurationValidationService = null!;
+            OptimizedLoggingService = new OptimizedLoggingService(Log, Configuration);
+        }
 
         // Initialize player location service
         PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager, GameGui, DataManager);
@@ -126,13 +163,49 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        // Dispose services
-        ChatMonitorService.Dispose();
+        // Unsubscribe from UI events first
+        PluginInterface.UiBuilder.Draw -= DrawUi;
+        PluginInterface.UiBuilder.OpenConfigUi -= ToggleMainUi;
+        PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
+
+        // Dispose services in reverse order of initialization
+        ChatMonitorService?.Dispose();
+
+        // Dispose other services if they implement IDisposable
+        if (TreasureHuntService is IDisposable treasureHuntDisposable)
+            treasureHuntDisposable.Dispose();
+
+        if (AetheryteService is IDisposable aetheryteDisposable)
+            aetheryteDisposable.Dispose();
+
+        if (PlayerLocationService is IDisposable playerLocationDisposable)
+            playerLocationDisposable.Dispose();
+
+        if (TerritoryManager is IDisposable territoryDisposable)
+            territoryDisposable.Dispose();
+
+        try
+        {
+            ConfigurationValidationService?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error disposing ConfigurationValidationService: {ex}");
+        }
+
+        try
+        {
+            OptimizedLoggingService?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error disposing OptimizedLoggingService: {ex}");
+        }
 
         // Dispose UI
         WindowSystem.RemoveAllWindows();
-        MainWindow.Dispose();
-        CustomMessageWindow.Dispose();
+        MainWindow?.Dispose();
+        CustomMessageWindow?.Dispose();
 
         // Remove command handler
         CommandManager.RemoveHandler(CommandName);

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using OnePiece.Models;
 
 namespace OnePiece.Services;
@@ -9,7 +11,7 @@ namespace OnePiece.Services;
 /// Service for handling treasure hunt coordinates and route optimization.
 /// Acts as a coordinator between various specialized services.
 /// </summary>
-public class TreasureHuntService
+public class TreasureHuntService : IDisposable
 {
     private readonly Plugin plugin;
 
@@ -253,11 +255,64 @@ public class TreasureHuntService
     }
 
     /// <summary>
+    /// Asynchronously optimizes the route through the coordinates considering player location, teleport costs, and travel distances.
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the optimization process.</param>
+    /// <returns>A task that represents the asynchronous optimization operation.</returns>
+    public async Task<List<TreasureCoordinate>> OptimizeRouteAsync(CancellationToken cancellationToken = default)
+    {
+        // Get player location on main thread before async operation
+        var playerLocation = plugin.PlayerLocationService.GetCurrentLocation();
+        return await routeOptimizer.OptimizeRouteAsync(Coordinates.ToList(), cancellationToken, playerLocation);
+    }
+
+    /// <summary>
+    /// Cancels any ongoing route optimization.
+    /// </summary>
+    public void CancelOptimization()
+    {
+        routeOptimizer.CancelOptimization();
+    }
+
+    /// <summary>
+    /// Gets whether a route optimization is currently in progress.
+    /// </summary>
+    public bool IsOptimizationInProgress => routeOptimizer.IsOptimizationInProgress;
+
+    /// <summary>
     /// Resets the route optimization, restoring the original order and resetting all collection states.
     /// </summary>
     /// <returns>The original order of coordinates.</returns>
     public List<TreasureCoordinate> ResetRouteOptimization()
     {
         return routeOptimizer.ResetRouteOptimization();
+    }
+
+    /// <summary>
+    /// Disposes the service and cleans up resources.
+    /// </summary>
+    public void Dispose()
+    {
+        // Dispose sub-services if they implement IDisposable
+        if (coordinateManager is IDisposable coordinateDisposable)
+            coordinateDisposable.Dispose();
+
+        if (importExportService is IDisposable importExportDisposable)
+            importExportDisposable.Dispose();
+
+        if (routeOptimizer is IDisposable routeOptimizerDisposable)
+            routeOptimizerDisposable.Dispose();
+
+        if (textParser is IDisposable textParserDisposable)
+            textParserDisposable.Dispose();
+
+        // Clear event handlers to prevent memory leaks
+        OnCoordinatesImported = null;
+        OnCoordinatesExported = null;
+        OnCoordinateDeleted = null;
+        OnCoordinateRestored = null;
+        OnCoordinatesCleared = null;
+        OnRouteOptimized = null;
+        OnRouteOptimizationReset = null;
     }
 }

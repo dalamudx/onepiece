@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using OnePiece.Models;
+using OnePiece.Helpers;
 
 namespace OnePiece.Services;
 
@@ -13,6 +16,7 @@ public class RouteOptimizationService
 {
     private readonly Plugin plugin;
     private readonly TimeBasedPathFinder pathFinder;
+    private CancellationTokenSource? currentOptimizationCancellation;
 
     /// <summary>
     /// Gets the optimized route through the coordinates.
@@ -23,6 +27,11 @@ public class RouteOptimizationService
     /// Gets whether the route is currently optimized.
     /// </summary>
     public bool IsRouteOptimized => OptimizedRoute.Count > 0;
+
+    /// <summary>
+    /// Gets whether a route optimization is currently in progress.
+    /// </summary>
+    public bool IsOptimizationInProgress => currentOptimizationCancellation != null && !currentOptimizationCancellation.Token.IsCancellationRequested;
 
     /// <summary>
     /// Gets the original order of coordinates before optimization.
@@ -51,17 +60,47 @@ public class RouteOptimizationService
 
     /// <summary>
     /// Optimizes the route through the coordinates considering player location, teleport costs, and travel distances.
+    /// This is the synchronous version for backward compatibility.
     /// </summary>
     /// <param name="coordinates">The coordinates to optimize.</param>
     public List<TreasureCoordinate> OptimizeRoute(List<TreasureCoordinate> coordinates)
     {
-        // Always save the original order before optimization to enable reset functionality
-        // This fixes the edge case where reset wasn't possible with 0-1 coordinates
-        if (OriginalOrder.Count == 0)
+        // Get player location on main thread before async operation
+        TreasureCoordinate? playerLocation = null;
+        if (ThreadSafetyHelper.IsMainThread())
         {
-            OriginalOrder = new List<TreasureCoordinate>(coordinates);
-            Plugin.Log.Debug($"Saved original order with {OriginalOrder.Count} coordinates.");
+            playerLocation = plugin.PlayerLocationService.GetCurrentLocation();
         }
+
+        // Use the async version and wait for completion
+        return OptimizeRouteAsync(coordinates, CancellationToken.None, playerLocation).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Asynchronously optimizes the route through the coordinates considering player location, teleport costs, and travel distances.
+    /// </summary>
+    /// <param name="coordinates">The coordinates to optimize.</param>
+    /// <param name="cancellationToken">Token to cancel the optimization process.</param>
+    /// <param name="playerLocation">Optional pre-fetched player location (must be obtained from main thread).</param>
+    /// <returns>A task that represents the asynchronous optimization operation.</returns>
+    public async Task<List<TreasureCoordinate>> OptimizeRouteAsync(List<TreasureCoordinate> coordinates, CancellationToken cancellationToken = default, TreasureCoordinate? playerLocation = null)
+    {
+        // Cancel any existing optimization
+        currentOptimizationCancellation?.Cancel();
+        currentOptimizationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        try
+        {
+            // Always save the original order before optimization to enable reset functionality
+            // This fixes the edge case where reset wasn't possible with 0-1 coordinates
+            if (OriginalOrder.Count == 0)
+            {
+                OriginalOrder = new List<TreasureCoordinate>(coordinates);
+                Plugin.Log.Debug($"Saved original order with {OriginalOrder.Count} coordinates.");
+            }
+
+            // Check for cancellation early
+            cancellationToken.ThrowIfCancellationRequested();
 
         // Clear any existing teleport settings from previous optimizations
         foreach (var coord in coordinates)
@@ -78,12 +117,27 @@ public class RouteOptimizationService
             return OptimizedRoute;
         }
 
-        // Get player's current location
-        var playerLocation = plugin.PlayerLocationService.GetCurrentLocation() ??
-            // If player location is not available, create a default location
-            new TreasureCoordinate(0, 0, string.Empty);
+        // Get player's current location (use provided location or fetch from main thread)
+        TreasureCoordinate currentPlayerLocation;
+        if (playerLocation != null)
+        {
+            // Use pre-fetched player location
+            currentPlayerLocation = playerLocation;
+        }
+        else if (ThreadSafetyHelper.IsMainThread())
+        {
+            // Fetch from main thread
+            currentPlayerLocation = plugin.PlayerLocationService.GetCurrentLocation() ??
+                new TreasureCoordinate(0, 0, string.Empty);
+        }
+        else
+        {
+            // If called from non-main thread without pre-fetched location, use default
+            Plugin.Log.Warning($"Route optimization called from non-main thread ({ThreadSafetyHelper.GetThreadInfo()}) without player location, using default");
+            currentPlayerLocation = new TreasureCoordinate(0, 0, string.Empty);
+        }
 
-        Plugin.Log.Information($"Starting route optimization from player location: {playerLocation.MapArea} ({playerLocation.X:F1}, {playerLocation.Y:F1})");
+        Plugin.Log.Information($"Starting route optimization from player location: {currentPlayerLocation.MapArea} ({currentPlayerLocation.X:F1}, {currentPlayerLocation.Y:F1})");
 
         // Group coordinates by map area, excluding collected ones
         var coordinatesByMap = coordinates
@@ -103,8 +157,8 @@ public class RouteOptimizationService
         var route = new List<TreasureCoordinate>();
 
         // Keep track of the current location (starting with player's location)
-        var currentLocation = playerLocation;
-        var currentMapArea = playerLocation.MapArea;
+        var currentLocation = currentPlayerLocation;
+        var currentMapArea = currentPlayerLocation.MapArea;
 
 #if DEBUG
         // Log initial state
@@ -115,8 +169,8 @@ public class RouteOptimizationService
         }
 #endif
 
-        // Get all teleport costs upfront for better decision making
-        var mapAreaTeleportCosts = GetAllMapAreaTeleportCosts(currentMapArea, coordinatesByMap.Keys.ToList());
+        // Get all teleport costs upfront for better decision making (async)
+        var mapAreaTeleportCosts = await GetAllMapAreaTeleportCostsAsync(currentMapArea, coordinatesByMap.Keys.ToList(), cancellationToken);
         
 #if DEBUG
         Plugin.Log.Debug($"Calculated teleport costs for {mapAreaTeleportCosts.Count} map areas");
@@ -131,6 +185,9 @@ public class RouteOptimizationService
         // Process all map areas until all coordinates are visited
         while (coordinatesByMap.Count > 0)
         {
+            // Check for cancellation before processing each map area
+            cancellationToken.ThrowIfCancellationRequested();
+
             string nextMapArea;
 
             // If player is already in a map area with coordinates, prioritize that
@@ -292,16 +349,24 @@ public class RouteOptimizationService
                     mapAetheryte.MapArea,
                     CoordinateSystemType.Map);
 
-                // Call OptimizeRouteByTime with forced teleport
-                mapRoute = pathFinder.OptimizeRouteByTime(aetheryteCoord, mapCoordinates, allMapAetherytes, true, mapAetheryte);
+                // Call OptimizeRouteByTime with forced teleport (run in background thread for heavy computation)
+                mapRoute = await Task.Run(() =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return pathFinder.OptimizeRouteByTime(aetheryteCoord, mapCoordinates, allMapAetherytes, true, mapAetheryte);
+                }, cancellationToken);
 
                 // Update current location to the aetheryte after teleporting
                 currentLocation = aetheryteCoord;
             }
             else
             {
-                // No teleport needed, use current location
-                mapRoute = pathFinder.OptimizeRouteByTime(currentLocation, mapCoordinates, allMapAetherytes);
+                // No teleport needed, use current location (run in background thread for heavy computation)
+                mapRoute = await Task.Run(() =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return pathFinder.OptimizeRouteByTime(currentLocation, mapCoordinates, allMapAetherytes);
+                }, cancellationToken);
             }
 
             Plugin.Log.Information($"OptimizeRouteByTime returned {mapRoute.Count} coordinates for map '{nextMapArea}'");
@@ -371,8 +436,34 @@ public class RouteOptimizationService
         
         // Raise the event
         OnRouteOptimized?.Invoke(this, OptimizedRoute.Count);
-        
+
         return OptimizedRoute;
+        }
+        catch (OperationCanceledException)
+        {
+            Plugin.Log.Information("Route optimization was cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error($"Error during route optimization: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            // Clean up cancellation token
+            currentOptimizationCancellation?.Dispose();
+            currentOptimizationCancellation = null;
+        }
+    }
+
+    /// <summary>
+    /// Cancels any ongoing route optimization.
+    /// </summary>
+    public void CancelOptimization()
+    {
+        currentOptimizationCancellation?.Cancel();
+        Plugin.Log.Information("Route optimization cancellation requested");
     }
 
     /// <summary>
@@ -536,6 +627,18 @@ public class RouteOptimizationService
             .FirstOrDefault();
             
         return closestAetheryte;
+    }
+
+    /// <summary>
+    /// Gets teleport costs to all map areas asynchronously.
+    /// </summary>
+    /// <param name="currentMapArea">The current map area.</param>
+    /// <param name="targetMapAreas">The list of target map areas.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>A dictionary mapping map areas to their teleport costs.</returns>
+    private async Task<Dictionary<string, uint>> GetAllMapAreaTeleportCostsAsync(string currentMapArea, List<string> targetMapAreas, CancellationToken cancellationToken)
+    {
+        return await Task.Run(() => GetAllMapAreaTeleportCosts(currentMapArea, targetMapAreas), cancellationToken);
     }
 
     /// <summary>

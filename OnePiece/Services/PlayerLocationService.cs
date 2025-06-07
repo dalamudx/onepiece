@@ -3,13 +3,14 @@ using System.Numerics;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using OnePiece.Models;
+using OnePiece.Helpers;
 
 namespace OnePiece.Services;
 
 /// <summary>
 /// Service for getting player location information.
 /// </summary>
-public class PlayerLocationService
+public class PlayerLocationService : IDisposable
 {
     private readonly IClientState clientState;
     private readonly IPluginLog log;
@@ -34,20 +35,55 @@ public class PlayerLocationService
 
     /// <summary>
     /// Gets the current player location as a TreasureCoordinate.
+    /// This method must be called from the main thread.
     /// </summary>
     /// <returns>The player's current location, or null if not available.</returns>
     public TreasureCoordinate? GetCurrentLocation()
     {
         try
         {
-            if (clientState.LocalPlayer == null)
+            // Check if we're on the main thread
+            if (!ThreadSafetyHelper.IsMainThread())
+            {
+                log.Warning($"GetCurrentLocation called from non-main thread ({ThreadSafetyHelper.GetThreadInfo()}), returning null");
+                return null;
+            }
+
+            // Check if client state is valid
+            if (clientState == null)
+            {
+                log.Error("Cannot get player location: ClientState is null");
+                return null;
+            }
+
+            // Check if player is logged in
+            if (!clientState.IsLoggedIn)
+            {
+                log.Warning("Cannot get player location: Player is not logged in");
+                return null;
+            }
+
+            var localPlayer = clientState.LocalPlayer;
+            if (localPlayer == null)
             {
                 log.Warning("Cannot get player location: LocalPlayer is null");
                 return null;
             }
 
-            var position = clientState.LocalPlayer.Position;
+            var position = localPlayer.Position;
+            // Vector3 is a value type and cannot be null, but we can check for invalid coordinates
+            if (float.IsNaN(position.X) || float.IsNaN(position.Y) || float.IsNaN(position.Z))
+            {
+                log.Warning("Cannot get player location: Player position contains invalid coordinates");
+                return null;
+            }
+
             var territoryId = clientState.TerritoryType;
+            if (territoryId == 0)
+            {
+                log.Warning("Cannot get player location: Territory ID is 0");
+                return null;
+            }
 
             // Convert world position to map coordinates
             var territory = territoryManager.GetByTerritoryType(territoryId);
@@ -91,6 +127,15 @@ public class PlayerLocationService
         
         try
         {
+            // Check if we're on the main thread before accessing AgentMap
+            if (!ThreadSafetyHelper.IsMainThread())
+            {
+                log.Debug($"GetMapOffsets called from non-main thread ({ThreadSafetyHelper.GetThreadInfo()}), using zero offsets");
+                offsetX = 0;
+                offsetY = 0;
+                return (offsetX, offsetY, scale);
+            }
+
             // Attempt to get current map information using FFXIVClientStructs
             unsafe
             {
@@ -102,7 +147,7 @@ public class PlayerLocationService
                     offsetX = -agentMap->CurrentOffsetX;
                     offsetY = -agentMap->CurrentOffsetY;
                     scale = (uint)agentMap->CurrentMapSizeFactor;
-                    
+
 #if DEBUG
                     log.Debug($"Got dynamic map offsets from AgentMap: X={offsetX}, Y={offsetY}, Scale={scale} (territory.Scale={territory.Scale})");
 #endif
@@ -119,7 +164,7 @@ public class PlayerLocationService
         catch (Exception ex)
         {
             log.Error($"Error getting map offsets: {ex.Message}. Using fallback values.");
-            
+
             // No fallback, just use zeros
             offsetX = 0;
             offsetY = 0;
@@ -168,5 +213,14 @@ public class PlayerLocationService
         }
         
         return result;
+    }
+
+    /// <summary>
+    /// Disposes the service and cleans up resources.
+    /// </summary>
+    public void Dispose()
+    {
+        // No specific resources to dispose currently
+        // This method is here for future extensibility and consistency
     }
 }

@@ -10,7 +10,7 @@ namespace OnePiece.Services;
 /// <summary>
 /// Manager for territory and map information.
 /// </summary>
-public class TerritoryManager
+public class TerritoryManager : IDisposable
 {
     private readonly IDataManager data;
     private readonly IPluginLog log;
@@ -145,5 +145,14 @@ public class TerritoryManager
             log.Error($"Error loading territory details: {ex.Message}");
             return Enumerable.Empty<TerritoryDetail>();
         }
+    }
+
+    /// <summary>
+    /// Disposes the service and cleans up resources.
+    /// </summary>
+    public void Dispose()
+    {
+        // No specific resources to dispose currently
+        // This method is here for future extensibility and consistency
     }
 }

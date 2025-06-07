@@ -10,13 +10,14 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
 using OnePiece.Models;
 using OnePiece.Localization;
+using OnePiece.Helpers;
 
 namespace OnePiece.Services;
 
 /// <summary>
 /// Service for managing aetheryte (teleport crystal) information.
 /// </summary>
-public class AetheryteService
+public class AetheryteService : IDisposable
 {
     private readonly IDataManager data;
     private readonly IClientState clientState;
@@ -142,13 +143,18 @@ public class AetheryteService
                 return;
             }
 
-            // Get current player territory ID
+            // Get current player territory ID (must be called from main thread)
             uint playerTerritory = 0;
             try
             {
-                if (clientState.LocalPlayer != null)
+                // Check if we're on the main thread before accessing game state
+                if (ThreadSafetyHelper.IsMainThread() && clientState.LocalPlayer != null)
                 {
                     playerTerritory = clientState.TerritoryType;
+                }
+                else
+                {
+                    log.Debug($"Skipping territory check - not on main thread ({ThreadSafetyHelper.GetThreadInfo()}) or player not available");
                 }
             }
             catch (Exception ex)
@@ -463,6 +469,18 @@ public class AetheryteService
             log.Error($"Error teleporting to aetheryte {aetheryte.Name} (ID: {aetheryte.AetheryteId}): {ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Disposes the service and cleans up resources.
+    /// </summary>
+    public void Dispose()
+    {
+        // Clear aetheryte list to free memory
+        aetherytes.Clear();
+
+        // No other resources to dispose currently
+        // This method is here for future extensibility
     }
 }
 

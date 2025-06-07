@@ -19,7 +19,14 @@ public class MainWindow : Window, IDisposable
     private int selectedLanguageIndex;
     private int selectedChatChannelIndex;
     private int selectedLogLevelIndex;
-    
+
+    // UI performance optimization - cached values
+    private string? cachedNotLoggedInMessage;
+    private float cachedNotLoggedInWidth;
+    private string? cachedSubtitle;
+    private float cachedSubtitleWidth;
+    private bool needsUIRecalculation = true;
+
     // We don't need a local reference to CustomMessageWindow anymore
     // since we'll use the one from Plugin instance
 
@@ -121,21 +128,31 @@ public class MainWindow : Window, IDisposable
         // If not logged in, display warning at the top of the window
         if (!isLoggedIn)
         {
+            // Cache the warning message and width calculation
+            if (needsUIRecalculation || cachedNotLoggedInMessage == null)
+            {
+                cachedNotLoggedInMessage = LocalizationManager.GetString("NotLoggedIn");
+                cachedNotLoggedInWidth = ImGui.CalcTextSize(cachedNotLoggedInMessage).X;
+            }
+
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f)); // Yellow warning text
-            string message = LocalizationManager.GetString("NotLoggedIn");
-            float warningWidth = ImGui.CalcTextSize(message).X;
-            ImGui.SetCursorPosX((windowWidth - warningWidth) * 0.5f);
-            ImGui.TextUnformatted(message);
+            ImGui.SetCursorPosX((windowWidth - cachedNotLoggedInWidth) * 0.5f);
+            ImGui.TextUnformatted(cachedNotLoggedInMessage);
             ImGui.PopStyleColor();
 
             ImGui.Separator();
         }
 
-        // Display subtitle (centered)
-        string subtitle = LocalizationManager.GetString("MainWindowSubtitle");
-        float textWidth = ImGui.CalcTextSize(subtitle).X;
-        ImGui.SetCursorPosX((windowWidth - textWidth) * 0.5f);
-        ImGui.TextUnformatted(subtitle);
+        // Display subtitle (centered) - cache the calculation
+        if (needsUIRecalculation || cachedSubtitle == null)
+        {
+            cachedSubtitle = LocalizationManager.GetString("MainWindowSubtitle");
+            cachedSubtitleWidth = ImGui.CalcTextSize(cachedSubtitle).X;
+            needsUIRecalculation = false; // Reset the flag after recalculation
+        }
+
+        ImGui.SetCursorPosX((windowWidth - cachedSubtitleWidth) * 0.5f);
+        ImGui.TextUnformatted(cachedSubtitle);
 
         ImGui.Separator();
         
@@ -187,6 +204,9 @@ public class MainWindow : Window, IDisposable
                 // Refresh localized LocalizationManager
                 InitializeChatChannelNames();
                 InitializeLogLevels();
+
+                // Trigger UI recalculation for cached values
+                needsUIRecalculation = true;
             }
 
             // Log level

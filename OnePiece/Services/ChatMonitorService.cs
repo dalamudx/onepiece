@@ -73,8 +73,6 @@ public class ChatMonitorService : IDisposable
     private void OnRouteOptimized(object? sender, int count)
     {
         // Continue importing coordinates even after route optimization
-        // We've removed the line that sets isImportingCoordinates = false
-        log.Information("Route optimized. Coordinate import remains active.");
     }
 
     /// <summary>
@@ -84,9 +82,7 @@ public class ChatMonitorService : IDisposable
     /// <param name="e">The event arguments.</param>
     private void OnRouteOptimizationReset(object? sender, EventArgs e)
     {
-        // Resume importing coordinates after route optimization reset
         isImportingCoordinates = true;
-        log.Information("Route optimization reset. Coordinate import resumed.");
     }
 
     /// <summary>
@@ -97,16 +93,8 @@ public class ChatMonitorService : IDisposable
         if (isMonitoring)
             return;
 
-        // Subscribe to chat messages
         Plugin.ChatGui.ChatMessage += OnChatMessage;
         isMonitoring = true;
-        log.Information($"Started monitoring chat channel: {plugin.Configuration.MonitoredChatChannel}");
-
-        // Only show notification if log level is Normal or higher
-        if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-        {
-            log.Information($"Started monitoring {GetChatChannelName(plugin.Configuration.MonitoredChatChannel)} for coordinates.");
-        }
     }
 
     /// <summary>
@@ -117,16 +105,8 @@ public class ChatMonitorService : IDisposable
         if (!isMonitoring)
             return;
 
-        // Unsubscribe from chat messages
         Plugin.ChatGui.ChatMessage -= OnChatMessage;
         isMonitoring = false;
-        log.Information("Stopped monitoring chat");
-
-        // Only show notification if log level is Normal or higher
-        if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-        {
-            log.Information("Stopped monitoring chat for coordinates.");
-        }
     }
 
     /// <summary>

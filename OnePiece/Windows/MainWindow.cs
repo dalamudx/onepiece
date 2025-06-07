@@ -299,9 +299,7 @@ public class MainWindow : Window, IDisposable
             
             if (ImGui.Button(LocalizationManager.GetString("OpenSettingsWindow"), new Vector2(buttonWidth, 0)))
             {
-                // Force show the window through the plugin instance which owns it
                 plugin.ShowCustomMessageWindow();
-                Plugin.Log.Information("Opening Custom Message Window");
             }
             
             ImGui.Spacing();
@@ -512,11 +510,7 @@ public class MainWindow : Window, IDisposable
                                 // Check if this coordinate has AetheryteId for teleportation
                                 bool hasTeleportId = coord.AetheryteId > 0;
 
-                                // Debug output to verify AetheryteId
-                                if (plugin.Configuration.VerboseLogging)
-                                {
-                                    Plugin.Log.Debug($"Coordinate ({coord.X:F1}, {coord.Y:F1}) - AetheryteId: {coord.AetheryteId}");
-                                }
+
 
                                 // Get current button texts from localization
                                 string teleportText = LocalizationManager.GetString("TeleportButton");
@@ -783,15 +777,8 @@ public class MainWindow : Window, IDisposable
     // Handles the MessageTemplateUpdated event from CustomMessageWindow
     private void OnMessageTemplateUpdated(object? sender, EventArgs e)
     {
-        // Log the event at debug level
-        if (plugin.Configuration.LogLevel >= LogLevel.Verbose)
-        {
-            Plugin.Log.Debug("MainWindow received MessageTemplateUpdated event, refreshing preview");
-        }
-        
-        // Note: No specific action needed here as the Draw method will call GeneratePreviewMessage
+        // No specific action needed here as the Draw method will call GeneratePreviewMessage
         // which reads directly from the configuration. The UI will be refreshed on the next frame.
-        // If needed, we could force a redraw here, but the ImGui system will handle it automatically.
     }
     
     // Generates a preview of the message that will be sent

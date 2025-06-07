@@ -49,8 +49,6 @@ public class ConfigurationValidationService : IDisposable
 
             // Validate selected message components
             ValidateSelectedMessageComponents(config, result);
-
-            Plugin.Log.Information($"Configuration validation completed. Found {result.Errors.Count} errors and {result.Warnings.Count} warnings.");
         }
         catch (Exception ex)
         {
@@ -79,11 +77,9 @@ public class ConfigurationValidationService : IDisposable
         {
             Plugin.Log.Error($"Critical error during safe configuration validation: {ex}");
 
-            // Try to reset configuration to defaults
             try
             {
                 ResetConfigurationToDefaults();
-                Plugin.Log.Information("Configuration reset to defaults due to critical errors");
             }
             catch (Exception resetEx)
             {

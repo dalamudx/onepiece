@@ -46,13 +46,7 @@ namespace OnePiece.Services
             float longDistancePenalty = 0;
             if (!isStartAetheryte && !isEndAetheryte && distance > LONG_DISTANCE_THRESHOLD)
             {
-                // Apply penalty proportional to how much the distance exceeds the threshold
                 longDistancePenalty = LONG_DISTANCE_PENALTY * (distance / LONG_DISTANCE_THRESHOLD - 1);
-                // Only log in verbose mode
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug($"Applied long distance penalty of {longDistancePenalty:F2}s for distance {distance:F2}");
-                }
             }
             
             if (isStartAetheryte)
@@ -102,11 +96,6 @@ namespace OnePiece.Services
             // 记录当前计算的路径信息，用于调试日志
             float startToEndDistance = start.DistanceTo(end);
             bool sameMapArea = start.MapArea == end.MapArea;
-            
-            if (plugin.Configuration.VerboseLogging)
-            {
-                Plugin.Log.Debug($"Calculating best path from {start.MapArea}({start.X:F1},{start.Y:F1}) to {end.MapArea}({end.X:F1},{end.Y:F1}), direct distance: {startToEndDistance:F2}");
-            }
                 
             // Calculate time via each aetheryte
             float bestTime = directTime;
@@ -121,32 +110,18 @@ namespace OnePiece.Services
                 // Travel from aetheryte to destination
                 float fromAetheryteTime = CalculateTimeCost(aetheryte, end, true, false);
                 float totalTime = teleportTime + fromAetheryteTime;
-                // Only log in verbose mode
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug($"Teleport to {aetheryte.Name}: teleport time {teleportTime:F2}s + travel time {fromAetheryteTime:F2}s = {totalTime:F2}s (vs direct {directTime:F2}s)");
-                }
+
                 
                 // Use balanced teleport preference factor
                 // 0.8 means teleport must be 20% faster than direct travel to be chosen
                 const float teleportPreferenceFactor = 0.8f;
                 
-                // 记录详细的时间比较日志
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug($"Comparing path via {aetheryte.Name}: teleport route ({totalTime:F2}s) vs direct ({directTime:F2}s), preference factor: {teleportPreferenceFactor:F2}");
-                }
+
                 
-                // 根据传送偏好因子进行比较
                 if (totalTime < bestTime * teleportPreferenceFactor)
                 {
                     bestTime = totalTime;
                     bestAetheryte = aetheryte;
-                    // Only log in verbose mode
-                    if (plugin.Configuration.VerboseLogging)
-                    {
-                        Plugin.Log.Debug($"Found better path via {aetheryte.Name} ({totalTime:F2}s vs {directTime:F2}s)");
-                    }
                 }
             }
             
@@ -172,18 +147,11 @@ namespace OnePiece.Services
             if (coordinates.Count <= 1)
                 return new List<TreasureCoordinate>(coordinates);
 
-            // Only log in verbose mode
-            if (plugin.Configuration.VerboseLogging)
-            {
-                Plugin.Log.Debug($"Starting path optimization, start point: ({startLocation.X:F1}, {startLocation.Y:F1}), {coordinates.Count} treasure points, {mapAetherytes.Count} aetherytes available");
-            }
+
 
             // Check if teleport is forced by RouteOptimizationService
             if (forceTeleport && teleportAetheryte != null)
             {
-                Plugin.Log.Information($"Forced teleport to {teleportAetheryte.Name} by RouteOptimizationService");
-
-                // Use the provided teleport aetheryte directly
                 var forcedTeleportRoute = OptimizeGroundRoute(startLocation, coordinates, teleportAetheryte);
                 return forcedTeleportRoute;
             }
@@ -191,8 +159,7 @@ namespace OnePiece.Services
             // Step 1: Determine the optimal starting point (current location vs teleport to aetheryte)
             var optimalStart = DetermineOptimalStartingPoint(startLocation, coordinates, mapAetherytes);
 
-            // Debug the returned values
-            Plugin.Log.Information($"DetermineOptimalStartingPoint returned: startPoint=({optimalStart.startPoint.X:F1}, {optimalStart.startPoint.Y:F1}), usedAetheryte={optimalStart.usedAetheryte?.Name ?? "null"}, AetheryteId={optimalStart.usedAetheryte?.AetheryteId ?? 0}");
+
 
             // Step 2: Optimize the route from the optimal starting point using ground travel only
             var optimizedRoute = OptimizeGroundRoute(optimalStart.startPoint, coordinates, optimalStart.usedAetheryte);
@@ -542,10 +509,7 @@ namespace OnePiece.Services
                 float permTime = CalculateRouteTimeFromStartToCoordinates(startPoint, permResult);
                 float nnTime = CalculateRouteTimeFromStartToCoordinates(startPoint, nnResult);
 
-                if (plugin.Configuration.VerboseLogging)
-                {
-                    Plugin.Log.Debug($"TSP comparison - Permutation: {permTime:F2}s, Nearest Neighbor: {nnTime:F2}s");
-                }
+
 
                 return permTime <= nnTime ? permResult : nnResult;
             }
@@ -628,10 +592,7 @@ namespace OnePiece.Services
                 }
             }
 
-            if (plugin.Configuration.VerboseLogging)
-            {
-                Plugin.Log.Debug($"TSP permutation found optimal route with time: {bestTime:F2}s");
-            }
+
 
             return bestRoute;
         }

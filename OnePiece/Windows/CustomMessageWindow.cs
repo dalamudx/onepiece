@@ -35,13 +35,7 @@ public class CustomMessageWindow : Window, IDisposable
     public CustomMessageWindow(Plugin plugin)
         : base(LocalizationManager.GetString("CustomMessageSettings") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
-        // Store plugin reference
         this.plugin = plugin;
-        
-        // Log window creation
-        Plugin.Log.Information("CustomMessageWindow created");
-        
-        // Make sure the window is closed by default
         this.IsOpen = false;
         
         SizeConstraints = new WindowSizeConstraints

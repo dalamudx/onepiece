@@ -11,10 +11,7 @@ public class Configuration : IPluginConfiguration
 
     public string Language { get; set; } = "en";
     public LogLevel LogLevel { get; set; } = LogLevel.Normal;
-    public bool VerboseLogging { get; set; } = false; // Enable detailed debug logging
 
-    // Treasure hunt settings
-    
     // Chat monitoring settings
     public bool EnableChatMonitoring { get; set; } = false;
     public ChatChannelType MonitoredChatChannel { get; set; } = ChatChannelType.Party;
@@ -22,14 +19,10 @@ public class Configuration : IPluginConfiguration
     // Custom message settings
     public List<string> CustomMessages { get; set; } = new List<string>();
     public List<MessageComponent> SelectedMessageComponents { get; set; } = new List<MessageComponent>();
-    
 
-    
     // Message template settings
     public List<MessageTemplate> MessageTemplates { get; set; } = new List<MessageTemplate>();
-    public int ActiveTemplateIndex { get; set; } = -1; // -1 means no template is active
-    
-    // the below exist just to make saving less cumbersome
+    public int ActiveTemplateIndex { get; set; } = -1;
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);

@@ -35,10 +35,10 @@ public class AetheryteData
 public class AetheryteDataEntry
 {
     /// <summary>
-    /// Gets or sets the aetheryte row ID
+    /// Gets or sets the aetheryte ID
     /// </summary>
-    [JsonPropertyName("AetheryteRowId")]
-    public uint AetheryteRowId { get; set; }
+    [JsonPropertyName("AetheryteRowId")] // Keep JSON compatibility
+    public uint AetheryteId { get; set; }
 
     /// <summary>
     /// Gets or sets the name of the aetheryte
@@ -78,7 +78,7 @@ public class AetheryteDataEntry
     {
         return new AetheryteInfo
         {
-            AetheryteRowId = this.AetheryteRowId,
+            AetheryteId = this.AetheryteId,
             Name = this.Name,
             MapArea = this.MapArea,
             BaseTeleportFee = this.BaseTeleportFee,

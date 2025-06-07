@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.Sheets;
@@ -97,16 +98,16 @@ public class AetheryteService
     }
     
     /// <summary>
-    /// Gets an aetheryte by its row ID.
+    /// Gets an aetheryte by its ID.
     /// </summary>
-    /// <param name="id">The row ID of the aetheryte.</param>
+    /// <param name="id">The ID of the aetheryte.</param>
     /// <returns>The aetheryte info, or null if not found.</returns>
     public AetheryteInfo? GetAetheryteById(uint id)
     {
         if (id == 0)
             return null;
-            
-        return aetherytes.FirstOrDefault(a => a.AetheryteRowId == id);
+
+        return aetherytes.FirstOrDefault(a => a.AetheryteId == id);
     }
 
     /// <summary>
@@ -179,7 +180,7 @@ public class AetheryteService
                     for (int i = 0; i < count; i++)
                     {
                         var info = telepo->TeleportList[i];
-                        if (info.AetheryteId == aetheryte.AetheryteRowId)
+                        if (info.AetheryteId == aetheryte.AetheryteId)
                         {
                             aetheryte.ActualTeleportFee = (int)info.GilCost;
                             foundCost = true;
@@ -242,7 +243,7 @@ public class AetheryteService
                     var aetheryteInfo = new AetheryteInfo
                     {
                         Id = aetheryte.RowId,
-                        AetheryteRowId = aetheryte.RowId, // Store the row ID for later use with Telepo API
+                        AetheryteId = aetheryte.RowId, // Store the ID for later use with Telepo API
                         Name = aetheryte.PlaceName.ValueNullable?.Name.ToString() ?? string.Empty,
                         TerritoryId = territory.TerritoryId,
                         MapId = territory.MapId,
@@ -342,7 +343,7 @@ public class AetheryteService
             int updatedCount = 0;
             foreach (var jsonAetheryte in aetheryteData.Aetherytes)
             {
-                var existingAetheryte = aetherytes.FirstOrDefault(a => a.AetheryteRowId == jsonAetheryte.AetheryteRowId);
+                var existingAetheryte = aetherytes.FirstOrDefault(a => a.AetheryteId == jsonAetheryte.AetheryteRowId);
                 if (existingAetheryte != null)
                 {
                     existingAetheryte.Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y);
@@ -357,7 +358,7 @@ public class AetheryteService
                     var newAetheryte = new AetheryteInfo
                     {
                         Id = jsonAetheryte.AetheryteRowId,
-                        AetheryteRowId = jsonAetheryte.AetheryteRowId,
+                        AetheryteId = jsonAetheryte.AetheryteRowId,
                         Name = jsonAetheryte.Name,
                         MapArea = jsonAetheryte.MapArea,
                         Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y),
@@ -366,7 +367,7 @@ public class AetheryteService
                         TerritoryId = 0, // This information is not in the JSON
                         MapId = 0 // This information is not in the JSON
                     };
-                    
+
                     aetherytes.Add(newAetheryte);
                     updatedCount++;
                     log.Debug($"Added new aetheryte: {newAetheryte.Name} in {newAetheryte.MapArea} at position ({newAetheryte.Position.X}, {newAetheryte.Position.Y})");
@@ -423,19 +424,19 @@ public class AetheryteService
     /// <returns>True if the teleport command was sent successfully, false otherwise.</returns>
     public bool TeleportToAetheryte(AetheryteInfo aetheryte)
     {
-        if (aetheryte == null || aetheryte.AetheryteRowId == 0)
+        if (aetheryte == null || aetheryte.AetheryteId == 0)
             return false;
-            
+
         try
         {
-            // Format the command for teleporting using AetheryteRowId
-            // We use /tport which accepts row IDs rather than names
-            string teleportCommand = $"/tport {aetheryte.AetheryteRowId}";
-            
+            // Format the command for teleporting using AetheryteId
+            // We use /tport which accepts IDs rather than names
+            string teleportCommand = $"/tport {aetheryte.AetheryteId}";
+
             // Send the command through the chat system
-            chatGui.Print(string.Format(Strings.GetString("TeleportingTo"), aetheryte.Name, aetheryte.AetheryteRowId));
+            chatGui.Print(string.Format(Strings.GetString("TeleportingTo"), aetheryte.Name, aetheryte.AetheryteId));
             commandManager.ProcessCommand(teleportCommand);
-            
+
             // Fallback: If /tport command doesn't work, also try the Telepo API directly
             unsafe
             {
@@ -444,8 +445,8 @@ public class AetheryteService
                     var telepo = FFXIVClientStructs.FFXIV.Client.Game.UI.Telepo.Instance();
                     if (telepo != null)
                     {
-                        telepo->Teleport(aetheryte.AetheryteRowId, 0);
-                        log.Debug($"Used Telepo API to teleport to {aetheryte.Name} (ID: {aetheryte.AetheryteRowId})");
+                        telepo->Teleport(aetheryte.AetheryteId, 0);
+                        log.Debug($"Used Telepo API to teleport to {aetheryte.Name} (ID: {aetheryte.AetheryteId})");
                     }
                 }
                 catch (Exception innerEx)
@@ -454,12 +455,12 @@ public class AetheryteService
                     // Continue with command-based approach
                 }
             }
-            
+
             return true;
         }
         catch (Exception ex)
         {
-            log.Error($"Error teleporting to aetheryte {aetheryte.Name} (ID: {aetheryte.AetheryteRowId}): {ex.Message}");
+            log.Error($"Error teleporting to aetheryte {aetheryte.Name} (ID: {aetheryte.AetheryteId}): {ex.Message}");
             return false;
         }
     }
@@ -492,8 +493,9 @@ public class AetheryteJsonData
 public class AetheryteJsonEntry
 {
     /// <summary>
-    /// Gets or sets the aetheryte row ID.
+    /// Gets or sets the aetheryte ID.
     /// </summary>
+    [JsonPropertyName("AetheryteRowId")] // Keep JSON compatibility
     public uint AetheryteRowId { get; set; }
     
     /// <summary>

@@ -59,9 +59,9 @@ public class AetheryteInfo
     public bool IsFreeDestination { get; set; }
 
     /// <summary>
-    /// Gets or sets the aetheryte row ID in the game data.
+    /// Gets or sets the aetheryte ID in the game data.
     /// </summary>
-    public uint AetheryteRowId { get; set; }
+    public uint AetheryteId { get; set; }
 
     /// <summary>
     /// Calculates the teleport fee to this aetheryte.

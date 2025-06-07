@@ -314,8 +314,8 @@ public class RouteOptimizationService
                         if (aetheryteInfo != null)
                         {
                             // Set AetheryteId so teleport button will display
-                            coord.AetheryteId = aetheryteInfo.AetheryteRowId;
-                            Plugin.Log.Debug($"Fixed missing AetheryteId for teleport point {aetheryteName}, set to {aetheryteInfo.AetheryteRowId}");
+                            coord.AetheryteId = aetheryteInfo.AetheryteId;
+                            Plugin.Log.Debug($"Fixed missing AetheryteId for teleport point {aetheryteName}, set to {aetheryteInfo.AetheryteId}");
                         }
                     }
                 }
@@ -561,7 +561,7 @@ public class RouteOptimizationService
                 // Try to get teleport cost from Telepo API first, then fallback to estimated cost
                 uint teleportCost = uint.MaxValue;
                 
-                if (telepoAvailable && cheapestAetheryte.AetheryteRowId > 0)
+                if (telepoAvailable && cheapestAetheryte.AetheryteId > 0)
                 {
                     try
                     {

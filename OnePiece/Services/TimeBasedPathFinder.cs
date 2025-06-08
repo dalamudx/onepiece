@@ -90,10 +90,10 @@ namespace OnePiece.Services
             if (isStartAetheryte)
                 return directTime;
             
-            // 完全基于时间的计算，不再使用固定距离阈值
-            // 通过将所有路径的时间成本相互比较，找出最优解
-            
-            // 记录当前计算的路径信息，用于调试日志
+            // Completely time-based calculation, no longer using fixed distance thresholds
+            // Find the optimal solution by comparing time costs of all paths
+
+            // Record current path calculation information for debug logging
             float startToEndDistance = start.DistanceTo(end);
             bool sameMapArea = start.MapArea == end.MapArea;
                 
@@ -111,14 +111,8 @@ namespace OnePiece.Services
                 float fromAetheryteTime = CalculateTimeCost(aetheryte, end, true, false);
                 float totalTime = teleportTime + fromAetheryteTime;
 
-                
-                // Use balanced teleport preference factor
-                // 0.8 means teleport must be 20% faster than direct travel to be chosen
-                const float teleportPreferenceFactor = 0.8f;
-                
-
-                
-                if (totalTime < bestTime * teleportPreferenceFactor)
+                // Teleport must be 20% faster than direct travel to be chosen
+                if (totalTime < bestTime * 0.8f)
                 {
                     bestTime = totalTime;
                     bestAetheryte = aetheryte;
@@ -282,13 +276,10 @@ namespace OnePiece.Services
                 }
             }
 
-            // Apply balanced teleport preference factor
-            const float teleportPreferenceFactor = 0.8f;
+            Plugin.Log.Debug($"Same map area comparison - Direct route time: {directTotalTime:F2}s, Best teleport route time: {bestTeleportTimeForComparison:F2}s");
 
-            Plugin.Log.Debug($"Same map area comparison - Direct route time: {directTotalTime:F2}s, Best teleport route time: {bestTeleportTimeForComparison:F2}s, preference factor: {teleportPreferenceFactor:F2}");
-
-            // Choose the better option based on preference factor
-            if (bestTeleportTimeForComparison < directTotalTime * teleportPreferenceFactor && bestAetheryteForComparison != null)
+            // Choose teleport if it's 20% faster than direct travel
+            if (bestTeleportTimeForComparison < directTotalTime * 0.8f && bestAetheryteForComparison != null)
             {
                 var aetheryteStartPoint = new TreasureCoordinate(
                     bestAetheryteForComparison.Position.X,

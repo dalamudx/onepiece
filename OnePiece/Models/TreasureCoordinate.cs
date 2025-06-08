@@ -264,7 +264,7 @@ public class TreasureCoordinate
         {
             MapArea = this.MapArea,
             Name = this.Name,
-            PlayerName = this.PlayerName, // 确保玩家名被保留
+            PlayerName = this.PlayerName, // Ensure player name is preserved
             IsCollected = this.IsCollected,
             Tag = this.Tag,
             NavigationInstruction = this.NavigationInstruction,

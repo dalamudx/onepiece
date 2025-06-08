@@ -605,8 +605,9 @@ public class RouteOptimizationService
             }
             else
             {
-                // If no aetheryte found, use a default high cost
-                result[mapArea] = 999;
+                // If no aetheryte found, don't add teleport cost for this area
+                // This will effectively disable teleport optimization for areas without aetherytes
+                result[mapArea] = 0;
             }
         }
         

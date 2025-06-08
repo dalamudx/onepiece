@@ -160,6 +160,9 @@ public class MainWindow : Window, IDisposable
         
         float controlWidth = 250; // Keep the same control width
 
+        // Get monitoring status once for use in multiple sections
+        bool isMonitoring = plugin.ChatMonitorService.IsMonitoring;
+
         // General Settings section with collapsing header
         if (ImGui.CollapsingHeader(LocalizationManager.GetString("GeneralSettings")))
         {
@@ -181,59 +184,34 @@ public class MainWindow : Window, IDisposable
                 needsUIRecalculation = true;
             }
 
+            ImGui.Spacing();
 
-        }
-
-        ImGui.Separator();
-
-        // Channel settings section with collapsing header
-        if (ImGui.CollapsingHeader(LocalizationManager.GetString("ChannelSettings")))
-        {
-            // Chat channel selection - moved to be inline with the label
+            // Chat channel selection - moved from ChannelSettings
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(LocalizationManager.GetString("SelectChatChannel"));
             ImGui.SameLine(labelWidth);
             ImGui.SetNextItemWidth(controlWidth);
-            
-            // Get monitoring status
-            bool isMonitoring = plugin.ChatMonitorService.IsMonitoring;
-            
+
             // Disable the combo box if monitoring is active
             if (isMonitoring)
             {
                 ImGui.BeginDisabled();
             }
-            
+
             if (ImGui.Combo("##ChatChannelSelector", ref selectedChatChannelIndex, chatChannelNames, chatChannelNames.Length))
             {
                 plugin.Configuration.MonitoredChatChannel = (ChatChannelType)selectedChatChannelIndex;
                 plugin.Configuration.Save();
             }
-            
+
             // End the disabled state if monitoring is active
             if (isMonitoring)
             {
                 ImGui.EndDisabled();
             }
-
-            // Monitoring control buttons (without status display)
-            if (isMonitoring)
-            {
-                if (ImGui.Button(LocalizationManager.GetString("StopMonitoring"), new Vector2(150, 0)))
-                {
-                    plugin.ChatMonitorService.StopMonitoring();
-                }
-            }
-            else
-            {
-                if (ImGui.Button(LocalizationManager.GetString("StartMonitoring"), new Vector2(150, 0)))
-                {
-                    plugin.ChatMonitorService.StartMonitoring();
-                }
-            }
-
-            // End of ChannelSettings section
         }
+
+
         
         ImGui.Separator();
 
@@ -281,6 +259,24 @@ public class MainWindow : Window, IDisposable
         ImGui.Separator();
 
         // Action buttons
+        // Monitoring control button - moved to front of action buttons
+        if (isMonitoring)
+        {
+            if (ImGui.Button(LocalizationManager.GetString("StopMonitoring")))
+            {
+                plugin.ChatMonitorService.StopMonitoring();
+            }
+        }
+        else
+        {
+            if (ImGui.Button(LocalizationManager.GetString("StartMonitoring")))
+            {
+                plugin.ChatMonitorService.StartMonitoring();
+            }
+        }
+
+        ImGui.SameLine();
+
         if (ImGui.Button(LocalizationManager.GetString("ClearAll")))
         {
             plugin.TreasureHuntService.ClearCoordinates();
@@ -297,24 +293,24 @@ public class MainWindow : Window, IDisposable
         }
         else
         {
-            // 检查坐标列表是否为空，如果为空则禁用优化路径按钮
+            // Check if coordinate list is empty, disable optimize route button if empty
             bool hasCoordinates = plugin.TreasureHuntService.Coordinates.Count > 0;
-            
+
             if (!hasCoordinates)
             {
                 ImGui.BeginDisabled();
             }
-            
+
             if (ImGui.Button(LocalizationManager.GetString("OptimizeRoute")))
             {
                 plugin.TreasureHuntService.OptimizeRoute();
             }
-            
+
             if (!hasCoordinates)
             {
                 ImGui.EndDisabled();
-                
-                // 显示悬停提示，说明为什么按钮被禁用
+
+                // Show hover tooltip explaining why the button is disabled
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.SetTooltip(LocalizationManager.GetString("NoCoordinatesToOptimize"));

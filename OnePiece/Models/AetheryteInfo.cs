@@ -66,21 +66,11 @@ public class AetheryteInfo
     /// <summary>
     /// Calculates the teleport fee to this aetheryte.
     /// </summary>
-    /// <returns>The teleport fee in gil.</returns>
+    /// <returns>The teleport fee in gil, or 0 if no actual fee data is available.</returns>
     public int CalculateTeleportFee()
     {
-        // If we have an actual teleport fee from the game, use that
-        if (ActualTeleportFee > 0)
-            return ActualTeleportFee;
-
-        // Otherwise fall back to the simplified calculation
-        if (IsFreeDestination)
-            return 0;
-
-        if (IsFavorite)
-            return BaseTeleportFee / 2;
-
-        return BaseTeleportFee;
+        // Only use actual teleport fee from game API
+        return ActualTeleportFee;
     }
 
     /// <summary>

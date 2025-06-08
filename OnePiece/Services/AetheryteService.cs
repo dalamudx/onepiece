@@ -195,13 +195,10 @@ public class AetheryteService : IDisposable
                         }
                     }
 
-                    // If we couldn't find the cost, use a reasonable fallback
+                    // If we couldn't find the cost, leave ActualTeleportFee as 0
                     if (!foundCost)
                     {
-                        // Different territory teleport - use a reasonable default
-                        // In real game, this can vary from ~100-600 gil depending on distance
-                        aetheryte.ActualTeleportFee = 300;
-                        log.Debug($"Using default teleport fee for {aetheryte.Name}: 300 gil");
+                        log.Debug($"Could not find teleport fee for {aetheryte.Name} in Telepo API");
                     }
                 }
                 catch (Exception ex)
@@ -256,7 +253,7 @@ public class AetheryteService : IDisposable
                         MapArea = territory.Name,
                         // Create a default position since we can't access X and Z directly in the current API
                         Position = new Vector2(0, 0),
-                        BaseTeleportFee = CalculateBaseTeleportFee(),
+                        BaseTeleportFee = 0, // Will be set from JSON data
                         ActualTeleportFee = 0, // Will be updated when needed
                         IsFavorite = false, // This would need to be determined from character data
                         IsFreeDestination = false // This would need to be determined from character data
@@ -390,37 +387,19 @@ public class AetheryteService : IDisposable
     }
 
 
-    /// <summary>
-    /// Calculates the base teleport fee for an aetheryte.
-    /// </summary>
-    /// <returns>The base teleport fee in gil.</returns>
-    private int CalculateBaseTeleportFee()
-    {
-        // Use a standard base teleport fee
-        return 100;
-    }
-    
+
     /// <summary>
     /// Calculates the teleport price for a given aetheryte.
     /// </summary>
     /// <param name="aetheryte">The aetheryte to calculate the teleport price for.</param>
-    /// <returns>The teleport price in gil.</returns>
+    /// <returns>The teleport price in gil, or 0 if no price data is available.</returns>
     public int CalculateTeleportPrice(AetheryteInfo aetheryte)
     {
         if (aetheryte == null)
-            return 999; // Default price for unknown aetherytes
-            
-        // Check if we already have an actual teleport fee
-        if (aetheryte.ActualTeleportFee > 0)
-            return aetheryte.ActualTeleportFee;
-            
-        // Calculate teleport fee based on base fee and distance factors
-        // This is a simplified calculation and may not match the actual game logic
-        int basePrice = aetheryte.BaseTeleportFee > 0 ? aetheryte.BaseTeleportFee : 100;
-        
-        // Determine if it's a preferred aetheryte (free or reduced)
-        // For now we'll assume standard pricing, but this could be expanded
-        return basePrice;
+            return 0;
+
+        // Only use actual teleport fee from game API
+        return aetheryte.ActualTeleportFee;
     }
     
     /// <summary>
@@ -440,7 +419,6 @@ public class AetheryteService : IDisposable
             string teleportCommand = $"/tport {aetheryte.AetheryteId}";
 
             // Send the command through the chat system
-            chatGui.Print(string.Format(LocalizationManager.GetString("TeleportingTo"), aetheryte.Name, aetheryte.AetheryteId));
             commandManager.ProcessCommand(teleportCommand);
 
             // Fallback: If /tport command doesn't work, also try the Telepo API directly

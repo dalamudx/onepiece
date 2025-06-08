@@ -279,7 +279,6 @@ public class AetheryteService : IDisposable
                         MapArea = territory.Name,
                         // Create a default position since we can't access X and Z directly in the current API
                         Position = new Vector2(0, 0),
-
                         ActualTeleportFee = 0, // Will be updated when needed
                         IsFavorite = false, // This would need to be determined from character data
                         IsFreeDestination = false // This would need to be determined from character data
@@ -410,8 +409,6 @@ public class AetheryteService : IDisposable
         }
     }
 
-
-
     /// <summary>
     /// Calculates the teleport price for a given aetheryte.
     /// </summary>
@@ -527,9 +524,7 @@ public class AetheryteJsonEntry
     /// Gets or sets the map area name.
     /// </summary>
     public string MapArea { get; set; } = string.Empty;
-    
 
-    
     /// <summary>
     /// Gets or sets the X coordinate.
     /// </summary>

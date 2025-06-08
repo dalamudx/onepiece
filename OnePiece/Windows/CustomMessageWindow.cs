@@ -767,11 +767,11 @@ public class CustomMessageWindow : Window, IDisposable
         // Define button data with their corresponding actions
         var buttonData = new[]
         {
-            new { Text = LocalizationManager.GetString("AddPlayerName"), Type = MessageComponentType.PlayerName },
-            new { Text = LocalizationManager.GetString("AddCoordinates"), Type = MessageComponentType.Coordinates },
-            new { Text = LocalizationManager.GetString("AddNumber"), Type = MessageComponentType.Number },
-            new { Text = LocalizationManager.GetString("AddBoxedNumber"), Type = MessageComponentType.BoxedNumber },
-            new { Text = LocalizationManager.GetString("AddBoxedOutlinedNumber"), Type = MessageComponentType.BoxedOutlinedNumber }
+            new { Text = LocalizationManager.GetString("PlayerName"), Type = MessageComponentType.PlayerName },
+            new { Text = LocalizationManager.GetString("Coordinates"), Type = MessageComponentType.Coordinates },
+            new { Text = LocalizationManager.GetString("Number"), Type = MessageComponentType.Number },
+            new { Text = LocalizationManager.GetString("BoxedNumber"), Type = MessageComponentType.BoxedNumber },
+            new { Text = LocalizationManager.GetString("BoxedOutlinedNumber"), Type = MessageComponentType.BoxedOutlinedNumber }
         };
 
         // Get available content width

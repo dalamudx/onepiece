@@ -52,8 +52,6 @@ public class AetheryteDataEntry
     [JsonPropertyName("MapArea")]
     public string MapArea { get; set; } = string.Empty;
 
-
-
     /// <summary>
     /// Gets or sets the X coordinate of the aetheryte on the map
     /// </summary>

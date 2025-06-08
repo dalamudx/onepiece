@@ -10,6 +10,9 @@
   "OptimizedRouteWithCount": "Route optimisée ({0}):",
   "Collected": "Collecté",
   "MarkAsNotCollected": "Non collecté",
+  "Edit": "Modifier",
+  "Save": "Sauvegarder",
+  "Cancel": "Annuler",
   "Delete": "Supprimer",
   "Restore": "Restaurer",
   "SendToChat": "Envoyer au chat",
@@ -104,5 +107,6 @@
   "MoveDown": "Descendre",
   "PlayerNameExample": "Tataru Taru",
   "LocationExample": "Limsa Lominsa Ponts inférieurs ( 9.5 , 11.2 )",
-  "DeleteShort": "X"
+  "DeleteShort": "X",
+  "ViewingActiveTemplateReadOnly": "Affichage des composants du modèle actif (lecture seule). Sélectionnez le modèle pour le modifier."
 }

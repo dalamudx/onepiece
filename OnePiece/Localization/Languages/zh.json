@@ -10,6 +10,9 @@
   "OptimizedRouteWithCount": "优化路线 ({0}):",
   "Collected": "已收集",
   "MarkAsNotCollected": "未收集",
+  "Edit": "编辑",
+  "Save": "保存",
+  "Cancel": "取消",
   "Delete": "删除",
   "Restore": "恢复",
   "SendToChat": "发送到聊天",
@@ -104,5 +107,6 @@
   "MoveDown": "下移",
   "PlayerNameExample": "塔塔露·塔露",
   "LocationExample": "利姆萨·罗敏萨下层甲板 ( 9.5 , 11.2 )",
-  "DeleteShort": "X"
+  "DeleteShort": "X",
+  "ViewingActiveTemplateReadOnly": "正在查看活动模板组件（只读）。选择模板以编辑它。"
 }

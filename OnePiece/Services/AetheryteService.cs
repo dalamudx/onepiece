@@ -198,9 +198,9 @@ public class AetheryteService : IDisposable
                     // Check if player is in the same territory as the aetheryte
                     if (playerTerritory != 0 && playerTerritory == aetheryte.TerritoryId)
                     {
-                        // If in the same map, teleport cost is fixed at 70 gil
-                        aetheryte.ActualTeleportFee = 70;
-                        log.Debug($"Same territory teleport fee for {aetheryte.Name}: 70 gil");
+                        // If in the same map, teleport cost is fixed at 100 gil
+                        aetheryte.ActualTeleportFee = 100;
+                        log.Debug($"Same territory teleport fee for {aetheryte.Name}: 100 gil");
                         continue;
                     }
 
@@ -279,7 +279,7 @@ public class AetheryteService : IDisposable
                         MapArea = territory.Name,
                         // Create a default position since we can't access X and Z directly in the current API
                         Position = new Vector2(0, 0),
-                        BaseTeleportFee = 0, // Will be set from JSON data
+
                         ActualTeleportFee = 0, // Will be updated when needed
                         IsFavorite = false, // This would need to be determined from character data
                         IsFreeDestination = false // This would need to be determined from character data
@@ -377,7 +377,6 @@ public class AetheryteService : IDisposable
                 {
                     existingAetheryte.Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y);
                     existingAetheryte.MapArea = jsonAetheryte.MapArea;
-                    existingAetheryte.BaseTeleportFee = jsonAetheryte.BaseTeleportFee;
                     updatedCount++;
                     log.Debug($"Updated existing aetheryte: {existingAetheryte.Name} in {existingAetheryte.MapArea} at position ({existingAetheryte.Position.X}, {existingAetheryte.Position.Y})");
                 }
@@ -391,7 +390,6 @@ public class AetheryteService : IDisposable
                         Name = jsonAetheryte.Name,
                         MapArea = jsonAetheryte.MapArea,
                         Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y),
-                        BaseTeleportFee = jsonAetheryte.BaseTeleportFee,
                         ActualTeleportFee = 0, // Update when needed
                         TerritoryId = 0, // This information is not in the JSON
                         MapId = 0 // This information is not in the JSON
@@ -530,10 +528,7 @@ public class AetheryteJsonEntry
     /// </summary>
     public string MapArea { get; set; } = string.Empty;
     
-    /// <summary>
-    /// Gets or sets the base teleport fee.
-    /// </summary>
-    public int BaseTeleportFee { get; set; }
+
     
     /// <summary>
     /// Gets or sets the X coordinate.

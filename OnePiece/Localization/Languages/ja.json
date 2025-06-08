@@ -9,6 +9,9 @@
   "OptimizedRouteWithCount": "最適化されたルート ({0}):",
   "Collected": "収集済み",
   "MarkAsNotCollected": "未収集",
+  "Edit": "編集",
+  "Save": "保存",
+  "Cancel": "キャンセル",
   "Delete": "削除",
   "Restore": "復元",
   "SendToChat": "チャットに送信",
@@ -103,5 +106,6 @@
   "MoveDown": "下に移動",
   "PlayerNameExample": "タタル・タル",
   "LocationExample": "リムサ・ロミンサ：下甲板層 ( 9.5 , 11.2 )",
-  "DeleteShort": "X"
+  "DeleteShort": "X",
+  "ViewingActiveTemplateReadOnly": "アクティブテンプレートのコンポーネントを表示中（読み取り専用）。編集するにはテンプレートを選択してください。"
 }

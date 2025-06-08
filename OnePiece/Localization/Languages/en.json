@@ -10,6 +10,9 @@
   "OptimizedRouteWithCount": "Optimized Route ({0}):",
   "Collected": "Collected",
   "MarkAsNotCollected": "Not Collected",
+  "Edit": "Edit",
+  "Save": "Save",
+  "Cancel": "Cancel",
   "Delete": "Delete",
   "Restore": "Restore",
   "SendToChat": "Send to Chat",
@@ -104,5 +107,6 @@
   "MoveDown": "Move Down",
   "PlayerNameExample": "Tataru Taru",
   "LocationExample": "Limsa Lominsa Lower Decks ( 9.5 , 11.2 )",
-  "DeleteShort": "X"
+  "DeleteShort": "X",
+  "ViewingActiveTemplateReadOnly": "Viewing active template components (read-only). Select the template to edit it."
 }

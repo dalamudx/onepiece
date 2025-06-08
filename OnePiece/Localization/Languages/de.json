@@ -10,6 +10,9 @@
   "OptimizedRouteWithCount": "Optimierte Route ({0}):",
   "Collected": "Gesammelt",
   "MarkAsNotCollected": "Nicht gesammelt",
+  "Edit": "Bearbeiten",
+  "Save": "Speichern",
+  "Cancel": "Abbrechen",
   "Delete": "Löschen",
   "Restore": "Wiederherstellen",
   "SendToChat": "An Chat senden",
@@ -104,5 +107,6 @@
   "MoveDown": "Nach unten",
   "PlayerNameExample": "Tataru Taru",
   "LocationExample": "Limsa Lominsa Untere Decks ( 9.5 , 11.2 )",
-  "DeleteShort": "X"
+  "DeleteShort": "X",
+  "ViewingActiveTemplateReadOnly": "Aktive Vorlagen-Komponenten anzeigen (schreibgeschützt). Wählen Sie die Vorlage aus, um sie zu bearbeiten."
 }

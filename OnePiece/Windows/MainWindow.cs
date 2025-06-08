@@ -23,6 +23,12 @@ public class MainWindow : Window, IDisposable
     private float cachedNotLoggedInWidth;
     private bool needsUIRecalculation = true;
 
+    // Edit state tracking for coordinates
+    private readonly Dictionary<int, bool> editingStates = new();
+    private readonly Dictionary<int, string> editingPlayerNames = new();
+    private readonly Dictionary<int, string> editingXCoords = new();
+    private readonly Dictionary<int, string> editingYCoords = new();
+
     // We don't need a local reference to CustomMessageWindow anymore
     // since we'll use the one from Plugin instance
 
@@ -280,6 +286,7 @@ public class MainWindow : Window, IDisposable
         if (ImGui.Button(LocalizationManager.GetString("ClearAll")))
         {
             plugin.TreasureHuntService.ClearCoordinates();
+            ClearEditingStates(); // Clear editing states when coordinates are cleared
         }
 
         ImGui.SameLine();
@@ -289,6 +296,7 @@ public class MainWindow : Window, IDisposable
             if (ImGui.Button(LocalizationManager.GetString("ResetOptimization")))
             {
                 plugin.TreasureHuntService.ResetRouteOptimization();
+                ClearEditingStates(); // Clear editing states when optimization is reset
             }
         }
         else
@@ -449,6 +457,9 @@ public class MainWindow : Window, IDisposable
                                     displayText += $" - {coord.Name}";
                                 }
 
+                                // Use inline layout with consistent spacing like top buttons
+                                ImGui.TextUnformatted(displayText);
+
                                 // Check if this coordinate has AetheryteId for teleportation
                                 bool hasTeleportId = coord.AetheryteId > 0;
 
@@ -469,9 +480,6 @@ public class MainWindow : Window, IDisposable
                                 float teleportButtonWidth = Math.Max(teleportTextWidth + buttonPadding, 80f); // Minimum 80px
                                 float chatButtonWidth = Math.Max(chatTextWidth + buttonPadding, 100f); // Minimum 100px
                                 float collectedButtonWidth = Math.Max(collectedTextWidth + buttonPadding, 80f); // Minimum 80px
-
-                                // Use inline layout with consistent spacing like top buttons
-                                ImGui.TextUnformatted(displayText);
 
                                 // Add consistent spacing before buttons (same as top buttons)
                                 ImGui.SameLine();
@@ -581,37 +589,154 @@ public class MainWindow : Window, IDisposable
                         for (var i = 0; i < coordinates.Count; i++)
                         {
                             var coord = coordinates[i];
+                            int coordIndex = i + 1; // Use 1-based index for consistency
 
-                            // Display coordinate with map area if available
-                            string displayText = $"{i + 1}. ";
-                            
-                            // Display player name if available
-                            if (!string.IsNullOrEmpty(coord.PlayerName))
-                            {
-                                displayText += $"{coord.PlayerName}: ";
-                            }
+                            // Check if this coordinate is being edited
+                            bool isEditing = editingStates.GetValueOrDefault(coordIndex, false);
 
-                            // Add map area with colored text if available
-                            if (!string.IsNullOrEmpty(coord.MapArea))
+                            if (isEditing)
                             {
-                                ImGui.TextUnformatted(displayText);
-                                ImGui.SameLine(0, 0);
-                                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), coord.MapArea);
-                                ImGui.SameLine(0, 5);
-                                ImGui.TextUnformatted($"({coord.X:F1}, {coord.Y:F1})");
+                                // Display editable fields
+                                ImGui.TextUnformatted($"{coordIndex}. ");
+                                ImGui.SameLine();
+
+                                // Player name input
+                                string playerName = editingPlayerNames.GetValueOrDefault(coordIndex, coord.PlayerName ?? "");
+                                ImGui.SetNextItemWidth(120);
+                                if (ImGui.InputText($"##PlayerNameRaw{coordIndex}", ref playerName, 100))
+                                {
+                                    editingPlayerNames[coordIndex] = playerName;
+                                }
+                                ImGui.SameLine();
+                                ImGui.TextUnformatted(": ");
+                                ImGui.SameLine();
+
+                                // Map area display (not editable)
+                                if (!string.IsNullOrEmpty(coord.MapArea))
+                                {
+                                    ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), coord.MapArea);
+                                    ImGui.SameLine();
+                                }
+
+                                ImGui.TextUnformatted("(");
+                                ImGui.SameLine();
+
+                                // X coordinate input
+                                string xCoord = editingXCoords.GetValueOrDefault(coordIndex, coord.X.ToString("F1"));
+                                ImGui.SetNextItemWidth(60);
+                                if (ImGui.InputText($"##XCoordRaw{coordIndex}", ref xCoord, 10))
+                                {
+                                    editingXCoords[coordIndex] = xCoord;
+                                }
+                                ImGui.SameLine();
+                                ImGui.TextUnformatted(", ");
+                                ImGui.SameLine();
+
+                                // Y coordinate input
+                                string yCoord = editingYCoords.GetValueOrDefault(coordIndex, coord.Y.ToString("F1"));
+                                ImGui.SetNextItemWidth(60);
+                                if (ImGui.InputText($"##YCoordRaw{coordIndex}", ref yCoord, 10))
+                                {
+                                    editingYCoords[coordIndex] = yCoord;
+                                }
+                                ImGui.SameLine();
+                                ImGui.TextUnformatted(")");
                             }
                             else
                             {
-                                ImGui.TextUnformatted($"{displayText}({coord.X:F1}, {coord.Y:F1})");
-                            }
+                                // Display normal text
+                                string displayText = $"{coordIndex}. ";
 
-                            // No Collected button for raw coordinates
+                                // Display player name if available
+                                if (!string.IsNullOrEmpty(coord.PlayerName))
+                                {
+                                    displayText += $"{coord.PlayerName}: ";
+                                }
+
+                                // Add map area with colored text if available
+                                if (!string.IsNullOrEmpty(coord.MapArea))
+                                {
+                                    ImGui.TextUnformatted(displayText);
+                                    ImGui.SameLine(0, 0);
+                                    ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), coord.MapArea);
+                                    ImGui.SameLine(0, 5);
+                                    ImGui.TextUnformatted($"({coord.X:F1}, {coord.Y:F1})");
+                                }
+                                else
+                                {
+                                    ImGui.TextUnformatted($"{displayText}({coord.X:F1}, {coord.Y:F1})");
+                                }
+                            }
 
                             ImGui.SameLine();
 
-                            if (ImGui.SmallButton(LocalizationManager.GetString("Delete") + $"##raw{i}"))
+                            // Edit/Save/Cancel buttons
+                            if (isEditing)
+                            {
+                                // Save button
+                                if (ImGui.SmallButton($"{LocalizationManager.GetString("Save")}##raw{coordIndex}"))
+                                {
+                                    // Validate and save changes
+                                    if (float.TryParse(editingXCoords.GetValueOrDefault(coordIndex, "0"), out float newX) &&
+                                        float.TryParse(editingYCoords.GetValueOrDefault(coordIndex, "0"), out float newY))
+                                    {
+                                        coord.X = newX;
+                                        coord.Y = newY;
+                                        coord.PlayerName = editingPlayerNames.GetValueOrDefault(coordIndex, "");
+
+                                        // Clear editing state
+                                        editingStates.Remove(coordIndex);
+                                        editingPlayerNames.Remove(coordIndex);
+                                        editingXCoords.Remove(coordIndex);
+                                        editingYCoords.Remove(coordIndex);
+
+                                        // Re-assign aetheryte since coordinates changed
+                                        var nearestAetheryte = plugin.AetheryteService.GetNearestAetheryteToCoordinate(coord);
+                                        if (nearestAetheryte != null)
+                                        {
+                                            coord.AetheryteId = nearestAetheryte.AetheryteId;
+                                        }
+                                    }
+                                }
+
+                                ImGui.SameLine();
+
+                                // Cancel button
+                                if (ImGui.SmallButton($"{LocalizationManager.GetString("Cancel")}##raw{coordIndex}"))
+                                {
+                                    // Clear editing state without saving
+                                    editingStates.Remove(coordIndex);
+                                    editingPlayerNames.Remove(coordIndex);
+                                    editingXCoords.Remove(coordIndex);
+                                    editingYCoords.Remove(coordIndex);
+                                }
+
+                                ImGui.SameLine();
+                            }
+                            else
+                            {
+                                // Edit button
+                                if (ImGui.SmallButton($"{LocalizationManager.GetString("Edit")}##raw{coordIndex}"))
+                                {
+                                    // Enter editing mode
+                                    editingStates[coordIndex] = true;
+                                    editingPlayerNames[coordIndex] = coord.PlayerName ?? "";
+                                    editingXCoords[coordIndex] = coord.X.ToString("F1");
+                                    editingYCoords[coordIndex] = coord.Y.ToString("F1");
+                                }
+
+                                ImGui.SameLine();
+                            }
+
+                            if (ImGui.SmallButton(LocalizationManager.GetString("Delete") + $"##raw{coordIndex}"))
                             {
                                 plugin.TreasureHuntService.DeleteCoordinate(i);
+
+                                // Clear editing state if this coordinate was being edited
+                                editingStates.Remove(coordIndex);
+                                editingPlayerNames.Remove(coordIndex);
+                                editingXCoords.Remove(coordIndex);
+                                editingYCoords.Remove(coordIndex);
                             }
                         }
                     }
@@ -714,11 +839,25 @@ public class MainWindow : Window, IDisposable
     private void OnCoordinatesImported(object? sender, int count)
     {
         Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("CoordinatesImported"), count));
+        ClearEditingStates(); // Clear editing states when coordinates are imported
     }
 
     private void OnRouteOptimized(object? sender, int count)
     {
         Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("RouteOptimized"), count));
+        ClearEditingStates(); // Clear editing states when route is optimized
+    }
+
+    /// <summary>
+    /// Clears all editing states when coordinate list changes.
+    /// Only affects raw coordinate editing since optimized route doesn't support editing.
+    /// </summary>
+    private void ClearEditingStates()
+    {
+        editingStates.Clear();
+        editingPlayerNames.Clear();
+        editingXCoords.Clear();
+        editingYCoords.Clear();
     }
     
     // Handles the MessageTemplateUpdated event from CustomMessageWindow

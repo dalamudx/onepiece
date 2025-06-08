@@ -6,7 +6,6 @@
       "AetheryteRowId": 2,
       "Name": "New Gridania",
       "MapArea": "New Gridania",
-      "BaseTeleportFee": 100,
       "X": 11.9,
       "Y": 11.8
     },
@@ -14,7 +13,6 @@
       "AetheryteRowId": 3,
       "Name": "Bentbranch Meadows",
       "MapArea": "Central Shroud",
-      "BaseTeleportFee": 100,
       "X": 21.7,
       "Y": 22.2
     },
@@ -22,7 +20,6 @@
       "AetheryteRowId": 4,
       "Name": "The Hawthorne Hut",
       "MapArea": "East Shroud",
-      "BaseTeleportFee": 100,
       "X": 17.7,
       "Y": 27.6
     },
@@ -30,7 +27,6 @@
       "AetheryteRowId": 5,
       "Name": "Quarrymill",
       "MapArea": "South Shroud",
-      "BaseTeleportFee": 100,
       "X": 25.0,
       "Y": 20.1
     },
@@ -38,7 +34,6 @@
       "AetheryteRowId": 6,
       "Name": "Camp Tranquil",
       "MapArea": "South Shroud",
-      "BaseTeleportFee": 100,
       "X": 16.8,
       "Y": 28.6
     },
@@ -46,7 +41,6 @@
       "AetheryteRowId": 7,
       "Name": "Fallgourd Float",
       "MapArea": "North Shroud",
-      "BaseTeleportFee": 100,
       "X": 20.8,
       "Y": 25.7
     },
@@ -54,7 +48,6 @@
       "AetheryteRowId": 8,
       "Name": "Limsa Lominsa Lower Decks",
       "MapArea": "Limsa Lominsa Lower Decks",
-      "BaseTeleportFee": 100,
       "X": 9.4,
       "Y": 11.2
     },
@@ -62,7 +55,6 @@
       "AetheryteRowId": 9,
       "Name": "Ul'dah - Steps of Nald",
       "MapArea": "Ul'dah - Steps of Nald",
-      "BaseTeleportFee": 100,
       "X": 8.2,
       "Y": 7.8
     },
@@ -70,7 +62,6 @@
       "AetheryteRowId": 10,
       "Name": "Moraby Drydocks",
       "MapArea": "Lower La Noscea",
-      "BaseTeleportFee": 100,
       "X": 24.0,
       "Y": 34.0
     },
@@ -78,7 +69,6 @@
       "AetheryteRowId": 11,
       "Name": "Costa del Sol",
       "MapArea": "Eastern La Noscea",
-      "BaseTeleportFee": 100,
       "X": 31.0,
       "Y": 30.0
     },
@@ -86,7 +76,6 @@
       "AetheryteRowId": 12,
       "Name": "Wineport",
       "MapArea": "Eastern La Noscea",
-      "BaseTeleportFee": 100,
       "X": 21.0,
       "Y": 21.0
     },
@@ -94,7 +83,6 @@
       "AetheryteRowId": 13,
       "Name": "Swiftperch",
       "MapArea": "Western La Noscea",
-      "BaseTeleportFee": 100,
       "X": 34.0,
       "Y": 31.0
     },
@@ -102,7 +90,6 @@
       "AetheryteRowId": 14,
       "Name": "Aleport",
       "MapArea": "Western La Noscea",
-      "BaseTeleportFee": 100,
       "X": 26.0,
       "Y": 25.0
     },
@@ -110,7 +97,6 @@
       "AetheryteRowId": 15,
       "Name": "Camp Bronze Lake",
       "MapArea": "Upper La Noscea",
-      "BaseTeleportFee": 100,
       "X": 30.1,
       "Y": 23.5
     },
@@ -118,7 +104,6 @@
       "AetheryteRowId": 16,
       "Name": "Camp Overlook",
       "MapArea": "Outer La Noscea",
-      "BaseTeleportFee": 100,
       "X": 19.2,
       "Y": 17.2
     },
@@ -126,7 +111,6 @@
       "AetheryteRowId": 17,
       "Name": "Horizon",
       "MapArea": "Western Thanalan",
-      "BaseTeleportFee": 100,
       "X": 22.8,
       "Y": 17.1
     },
@@ -134,7 +118,6 @@
       "AetheryteRowId": 18,
       "Name": "Camp Drybone",
       "MapArea": "Eastern Thanalan",
-      "BaseTeleportFee": 100,
       "X": 13.8,
       "Y": 24.3
     },
@@ -142,7 +125,6 @@
       "AetheryteRowId": 19,
       "Name": "Little Ala Mhigo",
       "MapArea": "Southern Thanalan",
-      "BaseTeleportFee": 100,
       "X": 18.6,
       "Y": 13.0
     },
@@ -150,7 +132,6 @@
       "AetheryteRowId": 20,
       "Name": "Forgotten Springs",
       "MapArea": "Southern Thanalan",
-      "BaseTeleportFee": 100,
       "X": 14.6,
       "Y": 29.8
     },
@@ -158,7 +139,6 @@
       "AetheryteRowId": 21,
       "Name": "Camp Bluefog",
       "MapArea": "Northern Thanalan",
-      "BaseTeleportFee": 100,
       "X": 22.0,
       "Y": 30.5
     },
@@ -166,7 +146,6 @@
       "AetheryteRowId": 22,
       "Name": "Ceruleum Processing Plant",
       "MapArea": "Northern Thanalan",
-      "BaseTeleportFee": 100,
       "X": 21.1,
       "Y": 20.9
     },
@@ -174,7 +153,6 @@
       "AetheryteRowId": 23,
       "Name": "Camp Dragonhead",
       "MapArea": "Coerthas Central Highlands",
-      "BaseTeleportFee": 100,
       "X": 0,
       "Y": 0
     },
@@ -182,7 +160,6 @@
       "AetheryteRowId": 24,
       "Name": "Revenant's Toll",
       "MapArea": "Mor Dhona",
-      "BaseTeleportFee": 100,
       "X": 22.2,
       "Y": 7.9
     },
@@ -190,7 +167,6 @@
       "AetheryteRowId": 52,
       "Name": "Summerford Farms",
       "MapArea": "Middle La Noscea",
-      "BaseTeleportFee": 100,
       "X": 26.0,
       "Y": 16.5
     },
@@ -198,7 +174,6 @@
       "AetheryteRowId": 53,
       "Name": "Black Brush Station",
       "MapArea": "Central Thanalan",
-      "BaseTeleportFee": 100,
       "X": 20.9,
       "Y": 17.8
     },
@@ -206,7 +181,6 @@
       "AetheryteRowId": 70,
       "Name": "Foundation",
       "MapArea": "Foundation",
-      "BaseTeleportFee": 100,
       "X": 10.0,
       "Y": 12.1
     },
@@ -214,7 +188,6 @@
       "AetheryteRowId": 71,
       "Name": "Falcon's Nest",
       "MapArea": "Coerthas Western Highlands",
-      "BaseTeleportFee": 100,
       "X": 32.0,
       "Y": 36.8
     },
@@ -222,7 +195,6 @@
       "AetheryteRowId": 72,
       "Name": "Camp Cloudtop",
       "MapArea": "The Sea of Clouds",
-      "BaseTeleportFee": 100,
       "X": 10.5,
       "Y": 33.4
     },
@@ -230,7 +202,6 @@
       "AetheryteRowId": 73,
       "Name": "Ok' Zundu",
       "MapArea": "The Sea of Clouds",
-      "BaseTeleportFee": 100,
       "X": 10.5,
       "Y": 14.3
     },
@@ -238,7 +209,6 @@
       "AetheryteRowId": 74,
       "Name": "Helix",
       "MapArea": "Azys Lla",
-      "BaseTeleportFee": 100,
       "X": 8.0,
       "Y": 10.0
     },
@@ -246,7 +216,6 @@
       "AetheryteRowId": 75,
       "Name": "Idyllshire",
       "MapArea": "Idyllshire",
-      "BaseTeleportFee": 100,
       "X": 7.5,
       "Y": 5.6
     },
@@ -254,7 +223,6 @@
       "AetheryteRowId": 76,
       "Name": "Tailfeather",
       "MapArea": "The Dravanian Forelands",
-      "BaseTeleportFee": 100,
       "X": 33.2,
       "Y": 22.9
     },
@@ -262,7 +230,6 @@
       "AetheryteRowId": 77,
       "Name": "Anyx Trine",
       "MapArea": "The Dravanian Forelands",
-      "BaseTeleportFee": 100,
       "X": 16.8,
       "Y": 22.8
     },
@@ -270,7 +237,6 @@
       "AetheryteRowId": 78,
       "Name": "Moghome",
       "MapArea": "The Churning Mists",
-      "BaseTeleportFee": 100,
       "X": 27.9,
       "Y": 34.5
     },
@@ -278,7 +244,6 @@
       "AetheryteRowId": 79,
       "Name": "Zenith",
       "MapArea": "The Churning Mists",
-      "BaseTeleportFee": 100,
       "X": 11.4,
       "Y": 29.0
     },
@@ -286,7 +251,6 @@
       "AetheryteRowId": 98,
       "Name": "Castrum Oriens",
       "MapArea": "The Fringes",
-      "BaseTeleportFee": 100,
       "X": 9.0,
       "Y": 11.1
     },
@@ -294,7 +258,6 @@
       "AetheryteRowId": 99,
       "Name": "The Peering Stones",
       "MapArea": "The Fringes",
-      "BaseTeleportFee": 100,
       "X": 29.9,
       "Y": 26.3
     },
@@ -302,7 +265,6 @@
       "AetheryteRowId": 100,
       "Name": "Ala Gannha",
       "MapArea": "The Peaks",
-      "BaseTeleportFee": 100,
       "X": 23.8,
       "Y": 6.5
     },
@@ -310,7 +272,6 @@
       "AetheryteRowId": 101,
       "Name": "Ala Ghiri",
       "MapArea": "The Peaks",
-      "BaseTeleportFee": 100,
       "X": 15.8,
       "Y": 36.6
     },
@@ -318,7 +279,6 @@
       "AetheryteRowId": 102,
       "Name": "Porta Praetoria",
       "MapArea": "The Lochs",
-      "BaseTeleportFee": 100,
       "X": 8.3,
       "Y": 20.9
     },
@@ -326,7 +286,6 @@
       "AetheryteRowId": 103,
       "Name": "The Ala Mhigan Quarter",
       "MapArea": "The Lochs",
-      "BaseTeleportFee": 100,
       "X": 33.6,
       "Y": 34.0
     },
@@ -334,7 +293,6 @@
       "AetheryteRowId": 104,
       "Name": "Rhalgr's Reach",
       "MapArea": "Rhalgr's Reach",
-      "BaseTeleportFee": 100,
       "X": 12.7,
       "Y": 13.1
     },
@@ -342,7 +300,6 @@
       "AetheryteRowId": 105,
       "Name": "Tamamizu",
       "MapArea": "The Ruby Sea",
-      "BaseTeleportFee": 100,
       "X": 28.7,
       "Y": 15.9
     },
@@ -350,7 +307,6 @@
       "AetheryteRowId": 106,
       "Name": "Onokoro",
       "MapArea": "The Ruby Sea",
-      "BaseTeleportFee": 100,
       "X": 23.4,
       "Y": 9.7
     },
@@ -358,7 +314,6 @@
       "AetheryteRowId": 107,
       "Name": "Namai",
       "MapArea": "Yanxia",
-      "BaseTeleportFee": 100,
       "X": 29.6,
       "Y": 20.0
     },
@@ -366,7 +321,6 @@
       "AetheryteRowId": 108,
       "Name": "The House of the Fierce",
       "MapArea": "Yanxia",
-      "BaseTeleportFee": 100,
       "X": 26.5,
       "Y": 13.5
     },
@@ -374,7 +328,6 @@
       "AetheryteRowId": 109,
       "Name": "Reunion",
       "MapArea": "The Azim Steppe",
-      "BaseTeleportFee": 100,
       "X": 32.9,
       "Y": 28.0
     },
@@ -382,7 +335,6 @@
       "AetheryteRowId": 110,
       "Name": "The Dawn Throne",
       "MapArea": "The Azim Steppe",
-      "BaseTeleportFee": 100,
       "X": 23.0,
       "Y": 22.2
     },
@@ -390,7 +342,6 @@
       "AetheryteRowId": 111,
       "Name": "Kugane",
       "MapArea": "Kugane",
-      "BaseTeleportFee": 100,
       "X": 12.1,
       "Y": 10.5
     },
@@ -398,7 +349,6 @@
       "AetheryteRowId": 128,
       "Name": "Dhoro Iloh",
       "MapArea": "The Azim Steppe",
-      "BaseTeleportFee": 100,
       "X": 6.8,
       "Y": 23.5
     },
@@ -406,7 +356,6 @@
       "AetheryteRowId": 132,
       "Name": "Fort Jobb",
       "MapArea": "Lakeland",
-      "BaseTeleportFee": 100,
       "X": 36.7,
       "Y": 21.3
     },
@@ -414,7 +363,6 @@
       "AetheryteRowId": 133,
       "Name": "The Crystarium",
       "MapArea": "The Crystarium",
-      "BaseTeleportFee": 100,
       "X": 7.6,
       "Y": 9.5
     },
@@ -422,7 +370,6 @@
       "AetheryteRowId": 134,
       "Name": "Eulmore",
       "MapArea": "Eulmore",
-      "BaseTeleportFee": 100,
       "X": 11.2,
       "Y": 11.2
     },
@@ -430,7 +377,6 @@
       "AetheryteRowId": 136,
       "Name": "The Ostall Imperative",
       "MapArea": "Lakeland",
-      "BaseTeleportFee": 100,
       "X": 6.7,
       "Y": 16.8
     },
@@ -438,7 +384,6 @@
       "AetheryteRowId": 137,
       "Name": "Stilltide",
       "MapArea": "Kholusia",
-      "BaseTeleportFee": 100,
       "X": 34.4,
       "Y": 27.7
     },
@@ -446,7 +391,6 @@
       "AetheryteRowId": 138,
       "Name": "Wright",
       "MapArea": "Kholusia",
-      "BaseTeleportFee": 100,
       "X": 17.1,
       "Y": 29.3
     },
@@ -454,7 +398,6 @@
       "AetheryteRowId": 139,
       "Name": "Tomra",
       "MapArea": "Kholusia",
-      "BaseTeleportFee": 100,
       "X": 12.7,
       "Y": 8.4
     },
@@ -462,7 +405,6 @@
       "AetheryteRowId": 140,
       "Name": "Mord Souq",
       "MapArea": "Amh Araeng",
-      "BaseTeleportFee": 100,
       "X": 26.5,
       "Y": 17.2
     },
@@ -470,7 +412,6 @@
       "AetheryteRowId": 141,
       "Name": "Twine",
       "MapArea": "Amh Araeng",
-      "BaseTeleportFee": 100,
       "X": 11.4,
       "Y": 17.1
     },
@@ -478,7 +419,6 @@
       "AetheryteRowId": 142,
       "Name": "Slitherbough",
       "MapArea": "The Rak'tika Greatwood",
-      "BaseTeleportFee": 100,
       "X": 19.4,
       "Y": 27.4
     },
@@ -486,7 +426,6 @@
       "AetheryteRowId": 143,
       "Name": "Fanow",
       "MapArea": "The Rak'tika Greatwood",
-      "BaseTeleportFee": 100,
       "X": 29.1,
       "Y": 17.8
     },
@@ -494,7 +433,6 @@
       "AetheryteRowId": 144,
       "Name": "Lydha Lran",
       "MapArea": "Il Mheg",
-      "BaseTeleportFee": 100,
       "X": 14.2,
       "Y": 31.6
     },
@@ -502,7 +440,6 @@
       "AetheryteRowId": 145,
       "Name": "Pla Enni",
       "MapArea": "Il Mheg",
-      "BaseTeleportFee": 100,
       "X": 19.4,
       "Y": 4.2
     },
@@ -510,7 +447,6 @@
       "AetheryteRowId": 146,
       "Name": "Wolekdorf",
       "MapArea": "Il Mheg",
-      "BaseTeleportFee": 100,
       "X": 29.4,
       "Y": 7.3
     },
@@ -518,7 +454,6 @@
       "AetheryteRowId": 147,
       "Name": "The Ondo Cups",
       "MapArea": "The Tempest",
-      "BaseTeleportFee": 100,
       "X": 32.6,
       "Y": 17.6
     },
@@ -526,7 +461,6 @@
       "AetheryteRowId": 148,
       "Name": "The Macarenses Angle",
       "MapArea": "The Tempest",
-      "BaseTeleportFee": 100,
       "X": 19.1,
       "Y": 25.5
     },
@@ -534,7 +468,6 @@
       "AetheryteRowId": 161,
       "Name": "The Inn at Journey's Head",
       "MapArea": "Amh Araeng",
-      "BaseTeleportFee": 100,
       "X": 29.6,
       "Y": 27.5
     },
@@ -542,7 +475,6 @@
       "AetheryteRowId": 166,
       "Name": "The Archeion",
       "MapArea": "Labyrinthos",
-      "BaseTeleportFee": 100,
       "X": 30.3,
       "Y": 11.9
     },
@@ -550,7 +482,6 @@
       "AetheryteRowId": 167,
       "Name": "Sharlayan Hamlet",
       "MapArea": "Labyrinthos",
-      "BaseTeleportFee": 100,
       "X": 24.6,
       "Y": 20.3
     },
@@ -558,7 +489,6 @@
       "AetheryteRowId": 168,
       "Name": "Aporia",
       "MapArea": "Labyrinthos",
-      "BaseTeleportFee": 100,
       "X": 6.9,
       "Y": 27.4
     },
@@ -566,7 +496,6 @@
       "AetheryteRowId": 169,
       "Name": "Yedlihmad",
       "MapArea": "Thavnair",
-      "BaseTeleportFee": 100,
       "X": 25.3,
       "Y": 34.0
     },
@@ -574,7 +503,6 @@
       "AetheryteRowId": 170,
       "Name": "The Great Work",
       "MapArea": "Thavnair",
-      "BaseTeleportFee": 100,
       "X": 10.9,
       "Y": 22.2
     },
@@ -582,7 +510,6 @@
       "AetheryteRowId": 171,
       "Name": "Palaka's Stand",
       "MapArea": "Thavnair",
-      "BaseTeleportFee": 100,
       "X": 29.5,
       "Y": 16.5
     },
@@ -590,7 +517,6 @@
       "AetheryteRowId": 172,
       "Name": "Camp Broken Glass",
       "MapArea": "Garlemald",
-      "BaseTeleportFee": 100,
       "X": 13.3,
       "Y": 31.1
     },
@@ -598,7 +524,6 @@
       "AetheryteRowId": 173,
       "Name": "Tertium",
       "MapArea": "Garlemald",
-      "BaseTeleportFee": 100,
       "X": 31.7,
       "Y": 18.0
     },
@@ -606,7 +531,6 @@
       "AetheryteRowId": 174,
       "Name": "Sinus Lacrimarum",
       "MapArea": "Mare Lamentorum",
-      "BaseTeleportFee": 100,
       "X": 10.6,
       "Y": 34.3
     },
@@ -614,7 +538,6 @@
       "AetheryteRowId": 175,
       "Name": "Bestways Burrow",
       "MapArea": "Mare Lamentorum",
-      "BaseTeleportFee": 100,
       "X": 21.7,
       "Y": 11.1
     },
@@ -622,7 +545,6 @@
       "AetheryteRowId": 176,
       "Name": "Anagnorisis",
       "MapArea": "Elpis",
-      "BaseTeleportFee": 100,
       "X": 24.6,
       "Y": 24.0
     },
@@ -630,7 +552,6 @@
       "AetheryteRowId": 177,
       "Name": "The Twelve Wonders",
       "MapArea": "Elpis",
-      "BaseTeleportFee": 100,
       "X": 8.3,
       "Y": 32.3
     },
@@ -638,7 +559,6 @@
       "AetheryteRowId": 178,
       "Name": "Poieten Oikos",
       "MapArea": "Elpis",
-      "BaseTeleportFee": 100,
       "X": 10.8,
       "Y": 17.0
     },
@@ -646,7 +566,6 @@
       "AetheryteRowId": 179,
       "Name": "Reah Tahra",
       "MapArea": "Ultima Thule",
-      "BaseTeleportFee": 100,
       "X": 10.5,
       "Y": 26.7
     },
@@ -654,7 +573,6 @@
       "AetheryteRowId": 180,
       "Name": "Abode of the Ea",
       "MapArea": "Ultima Thule",
-      "BaseTeleportFee": 100,
       "X": 22.7,
       "Y": 8.3
     },
@@ -662,7 +580,6 @@
       "AetheryteRowId": 181,
       "Name": "Base Omicron",
       "MapArea": "Ultima Thule",
-      "BaseTeleportFee": 100,
       "X": 31.3,
       "Y": 28.0
     },
@@ -670,7 +587,6 @@
       "AetheryteRowId": 182,
       "Name": "Old Sharlayan",
       "MapArea": "Old Sharlayan",
-      "BaseTeleportFee": 100,
       "X": 11.2,
       "Y": 11.2
     },
@@ -678,7 +594,6 @@
       "AetheryteRowId": 183,
       "Name": "Radz-at-Han",
       "MapArea": "Radz-at-Han",
-      "BaseTeleportFee": 100,
       "X": 11.7,
       "Y": 10.6
     },
@@ -686,7 +601,6 @@
       "AetheryteRowId": 200,
       "Name": "Wachunpelo",
       "MapArea": "Urqopacha",
-      "BaseTeleportFee": 100,
       "X": 28.1,
       "Y": 13.1
     },
@@ -694,7 +608,6 @@
       "AetheryteRowId": 201,
       "Name": "Worlar's Echo",
       "MapArea": "Urqopacha",
-      "BaseTeleportFee": 100,
       "X": 30.5,
       "Y": 34.2
     },
@@ -702,7 +615,6 @@
       "AetheryteRowId": 202,
       "Name": "Ok'hanu",
       "MapArea": "Kozama'uka",
-      "BaseTeleportFee": 100,
       "X": 18.0,
       "Y": 20.0
     },
@@ -710,7 +622,6 @@
       "AetheryteRowId": 203,
       "Name": "Many Fires",
       "MapArea": "Kozama'uka",
-      "BaseTeleportFee": 100,
       "X": 32.2,
       "Y": 25.5
     },
@@ -718,7 +629,6 @@
       "AetheryteRowId": 204,
       "Name": "Earthenshire",
       "MapArea": "Kozama'uka",
-      "BaseTeleportFee": 100,
       "X": 11.8,
       "Y": 27.8
     },
@@ -726,7 +636,6 @@
       "AetheryteRowId": 205,
       "Name": "Iq Br'aax",
       "MapArea": "Yak T'el",
-      "BaseTeleportFee": 100,
       "X": 13.5,
       "Y": 12.9
     },
@@ -734,7 +643,6 @@
       "AetheryteRowId": 206,
       "Name": "Mamook",
       "MapArea": "Yak T'el",
-      "BaseTeleportFee": 100,
       "X": 35.9,
       "Y": 32.0
     },
@@ -742,7 +650,6 @@
       "AetheryteRowId": 207,
       "Name": "Hhusatahwi",
       "MapArea": "Shaaloani",
-      "BaseTeleportFee": 100,
       "X": 29.0,
       "Y": 30.8
     },
@@ -750,7 +657,6 @@
       "AetheryteRowId": 208,
       "Name": "Sheshenewezi Springs",
       "MapArea": "Shaaloani",
-      "BaseTeleportFee": 100,
       "X": 15.6,
       "Y": 19.2
     },
@@ -758,7 +664,6 @@
       "AetheryteRowId": 209,
       "Name": "Mehwahhetsoan",
       "MapArea": "Shaaloani",
-      "BaseTeleportFee": 100,
       "X": 27.7,
       "Y": 10.1
     },
@@ -766,7 +671,6 @@
       "AetheryteRowId": 210,
       "Name": "Yyasulani Station",
       "MapArea": "Heritage Found",
-      "BaseTeleportFee": 100,
       "X": 31.7,
       "Y": 25.7
     },
@@ -774,7 +678,6 @@
       "AetheryteRowId": 211,
       "Name": "The Outskirts",
       "MapArea": "Heritage Found",
-      "BaseTeleportFee": 100,
       "X": 17.0,
       "Y": 9.8
     },
@@ -782,7 +685,6 @@
       "AetheryteRowId": 212,
       "Name": "Electrope Strike",
       "MapArea": "Heritage Found",
-      "BaseTeleportFee": 100,
       "X": 17.0,
       "Y": 23.9
     },
@@ -790,7 +692,6 @@
       "AetheryteRowId": 213,
       "Name": "Leynode Mnemo",
       "MapArea": "Living Memory",
-      "BaseTeleportFee": 100,
       "X": 21.5,
       "Y": 37.3
     },
@@ -798,7 +699,6 @@
       "AetheryteRowId": 214,
       "Name": "Leynode Pyro",
       "MapArea": "Living Memory",
-      "BaseTeleportFee": 100,
       "X": 34.7,
       "Y": 15.7
     },
@@ -806,7 +706,6 @@
       "AetheryteRowId": 215,
       "Name": "Leynode Aero",
       "MapArea": "Living Memory",
-      "BaseTeleportFee": 100,
       "X": 34.7,
       "Y": 15.7
     },
@@ -814,7 +713,6 @@
       "AetheryteRowId": 216,
       "Name": "Tuliyollal",
       "MapArea": "Tuliyollal",
-      "BaseTeleportFee": 100,
       "X": 12.9,
       "Y": 11.1
     },
@@ -822,7 +720,6 @@
       "AetheryteRowId": 217,
       "Name": "Solution Nine",
       "MapArea": "Solution Nine",
-      "BaseTeleportFee": 100,
       "X": 12.3,
       "Y": 14.2
     },
@@ -830,7 +727,6 @@
       "AetheryteRowId": 238,
       "Name": "Dock Poga",
       "MapArea": "Kozama'uka",
-      "BaseTeleportFee": 100,
       "X": 37.2,
       "Y": 16.8
     }

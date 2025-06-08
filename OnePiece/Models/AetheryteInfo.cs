@@ -38,10 +38,7 @@ public class AetheryteInfo
     /// </summary>
     public Vector2 Position { get; set; }
 
-    /// <summary>
-    /// Gets or sets the base teleport fee for this aetheryte.
-    /// </summary>
-    public int BaseTeleportFee { get; set; }
+
 
     /// <summary>
     /// Gets or sets the actual teleport fee for this aetheryte.

@@ -45,9 +45,9 @@ public class CustomMessageWindow : Window, IDisposable
         };
 
         this.plugin = plugin;
-        
-        // Initialize selected template
-        UpdateCurrentTemplate();
+
+        // Initialize selected template - if there's an active template, select it
+        InitializeTemplateSelection();
     }
     
     public override void Draw()
@@ -333,10 +333,11 @@ public class CustomMessageWindow : Window, IDisposable
         
         // Note: All separators in this section have been removed as requested
         ImGui.Text(LocalizationManager.GetString("CurrentMessageComponentList"));
-        
-        List<MessageComponent> componentsToEdit = currentTemplate != null ?
-            currentTemplate.Components : plugin.Configuration.SelectedMessageComponents;
-        
+
+        // Determine which components to display and edit
+        List<MessageComponent> componentsToEdit = GetComponentsToEdit();
+        bool canEdit = CanEditComponents();
+
         if (componentsToEdit.Count == 0)
         {
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), LocalizationManager.GetString("NoComponents"));
@@ -348,139 +349,112 @@ public class CustomMessageWindow : Window, IDisposable
             {
                 // Get component text for display
                 string componentText = GetComponentDisplayText(componentsToEdit[i]);
-                
+
                 ImGui.PushID($"component_{i}");
-                
+
                 // Simple display without drag functionality
                 ImGui.Text($"{i + 1}. {componentText}");
-                
-                // Up/Down buttons for reordering with fixed width and tooltips
-                ImGui.SameLine();
-                string moveUpText = LocalizationManager.GetString("MoveUp");
-                // Check if window width is too small for full text
-                if (ImGui.GetWindowWidth() < 550)
+
+                // Only show edit buttons if editing is allowed
+                if (canEdit)
                 {
-                    moveUpText = "↑"; // Use just an up arrow symbol if window is small
+                    // Up/Down buttons for reordering with fixed width and tooltips
+                    ImGui.SameLine();
+                    string moveUpText = LocalizationManager.GetString("MoveUp");
+                    // Check if window width is too small for full text
+                    if (ImGui.GetWindowWidth() < 550)
+                    {
+                        moveUpText = "↑"; // Use just an up arrow symbol if window is small
+                    }
+
+                    if (i > 0 && ImGui.SmallButton(moveUpText + "##" + i))
+                    {
+                        // Move component up
+                        var component = componentsToEdit[i];
+                        componentsToEdit.RemoveAt(i);
+                        componentsToEdit.Insert(i - 1, component);
+                        SaveComponentChanges();
+                    }
+
+                    // Add tooltip for the move up button
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.GetString("MoveUp"));
+                    }
+
+                    ImGui.SameLine();
+                    string moveDownText = LocalizationManager.GetString("MoveDown");
+                    // Check if window width is too small for full text
+                    if (ImGui.GetWindowWidth() < 550)
+                    {
+                        moveDownText = "↓"; // Use just a down arrow symbol if window is small
+                    }
+
+                    if (i < componentsToEdit.Count - 1 && ImGui.SmallButton(moveDownText + "##" + i))
+                    {
+                        // Move component down
+                        var component = componentsToEdit[i];
+                        componentsToEdit.RemoveAt(i);
+                        componentsToEdit.Insert(i + 1, component);
+                        SaveComponentChanges();
+                    }
+
+                    // Add tooltip for the move down button
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.GetString("MoveDown"));
+                    }
+
+                    // Remove button with adaptive text based on window width
+                    ImGui.SameLine();
+                    string deleteText = LocalizationManager.GetString("Delete");
+                    // Check if window width is too small for full text
+                    if (ImGui.GetWindowWidth() < 550)
+                    {
+                        deleteText = LocalizationManager.GetString("DeleteShort"); // Use localized short text if window is small
+                    }
+
+                    if (ImGui.SmallButton(deleteText + "##" + i))
+                    {
+                        componentsToEdit.RemoveAt(i);
+                        SaveComponentChanges();
+                        i--; // Adjust for the removed item
+                    }
+
+                    // Add tooltip for the delete button
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.GetString("Delete"));
+                    }
                 }
-                
-                if (i > 0 && ImGui.SmallButton(moveUpText + "##" + i))
-                {
-                    // Move component up
-                    var component = componentsToEdit[i];
-                    componentsToEdit.RemoveAt(i);
-                    componentsToEdit.Insert(i - 1, component);
-                    SaveComponentChanges();
-                }
-                
-                // Add tooltip for the move up button
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(LocalizationManager.GetString("MoveUp"));
-                }
-                
-                ImGui.SameLine();
-                string moveDownText = LocalizationManager.GetString("MoveDown");
-                // Check if window width is too small for full text
-                if (ImGui.GetWindowWidth() < 550)
-                {
-                    moveDownText = "↓"; // Use just a down arrow symbol if window is small
-                }
-                
-                if (i < componentsToEdit.Count - 1 && ImGui.SmallButton(moveDownText + "##" + i))
-                {
-                    // Move component down
-                    var component = componentsToEdit[i];
-                    componentsToEdit.RemoveAt(i);
-                    componentsToEdit.Insert(i + 1, component);
-                    SaveComponentChanges();
-                }
-                
-                // Add tooltip for the move down button
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(LocalizationManager.GetString("MoveDown"));
-                }
-                
-                // Remove button with adaptive text based on window width
-                ImGui.SameLine();
-                string deleteText = LocalizationManager.GetString("Delete");
-                // Check if window width is too small for full text
-                if (ImGui.GetWindowWidth() < 550)
-                {
-                    deleteText = LocalizationManager.GetString("DeleteShort"); // Use localized short text if window is small
-                }
-                
-                if (ImGui.SmallButton(deleteText + "##" + i))
-                {
-                    componentsToEdit.RemoveAt(i);
-                    SaveComponentChanges();
-                    i--; // Adjust for the removed item
-                }
-                
-                // Add tooltip for the delete button
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(LocalizationManager.GetString("Delete"));
-                }
-                
+
                 ImGui.PopID();
             }
         }
         
         ImGui.Separator();
-        
-        // Add components section
-        ImGui.Text(LocalizationManager.GetString("AddComponents"));
-        
-        // Player name checkbox
-        if (ImGui.Button(LocalizationManager.GetString("AddPlayerName")))
+
+        // Add components section - only show if editing is allowed
+        if (canEdit)
         {
-            componentsToEdit.Add(new MessageComponent(MessageComponentType.PlayerName));
-            SaveComponentChanges();
+            ImGui.Text(LocalizationManager.GetString("AddComponents"));
+
+            // Create adaptive button layout for component buttons
+            DrawAdaptiveButtonLayout(componentsToEdit);
+        }
+        else
+        {
+            // Show read-only message
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f),
+                LocalizationManager.GetString("ViewingActiveTemplateReadOnly"));
         }
         
-        ImGui.SameLine();
-        
-        // Coordinates checkbox
-        if (ImGui.Button(LocalizationManager.GetString("AddCoordinates")))
-        {
-            componentsToEdit.Add(new MessageComponent(MessageComponentType.Coordinates));
-            SaveComponentChanges();
-        }
-        
-        ImGui.SameLine();
-        
-        // Number button
-        if (ImGui.Button(LocalizationManager.GetString("AddNumber")))
-        {
-            componentsToEdit.Add(new MessageComponent(MessageComponentType.Number));
-            SaveComponentChanges();
-        }
-        
-        ImGui.SameLine();
-        
-        // BoxedNumber button
-        if (ImGui.Button(LocalizationManager.GetString("AddBoxedNumber")))
-        {
-            componentsToEdit.Add(new MessageComponent(MessageComponentType.BoxedNumber));
-            SaveComponentChanges();
-        }
-        
-        ImGui.SameLine();
-        
-        // BoxedOutlinedNumber button
-        if (ImGui.Button(LocalizationManager.GetString("AddBoxedOutlinedNumber")))
-        {
-            componentsToEdit.Add(new MessageComponent(MessageComponentType.BoxedOutlinedNumber));
-            SaveComponentChanges();
-        }
-        
-        // Display all custom messages with direct add buttons
-        if (plugin.Configuration.CustomMessages.Count > 0)
+        // Display all custom messages with direct add buttons - only if editing is allowed
+        if (canEdit && plugin.Configuration.CustomMessages.Count > 0)
         {
             ImGui.Separator();
             ImGui.Text(LocalizationManager.GetString("AddCustomMessage"));
-            
+
             // Display each custom message with its own add button
             for (int i = 0; i < plugin.Configuration.CustomMessages.Count; i++)
             {
@@ -489,13 +463,13 @@ public class CustomMessageWindow : Window, IDisposable
                 {
                     message = message.Substring(0, 27) + "...";
                 }
-                
+
                 if (ImGui.Button($"{message}##add_{i}"))
                 {
                     componentsToEdit.Add(new MessageComponent(MessageComponentType.CustomMessage, i));
                     SaveComponentChanges();
                 }
-                
+
                 // Create multiple columns of buttons for better layout
                 if ((i + 1) % 2 != 0 && i < plugin.Configuration.CustomMessages.Count - 1)
                 {
@@ -523,9 +497,8 @@ public class CustomMessageWindow : Window, IDisposable
             ImGui.SameLine();
             if (ImGui.Button(LocalizationManager.GetString("Cancel")))
             {
-                // Reset to original template
-                selectedTemplateIndex = -1;
-                UpdateCurrentTemplate();
+                // Reset to original template content without changing selection
+                CancelTemplateEditing();
             }
             
             // "Set as Active Template" button removed as requested
@@ -657,6 +630,71 @@ public class CustomMessageWindow : Window, IDisposable
         }
     }
     
+    /// <summary>
+    /// Initializes template selection when the window is opened
+    /// </summary>
+    private void InitializeTemplateSelection()
+    {
+        // If there's an active template, select it automatically
+        if (plugin.Configuration.ActiveTemplateIndex >= 0 &&
+            plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+        {
+            selectedTemplateIndex = plugin.Configuration.ActiveTemplateIndex;
+        }
+        else
+        {
+            selectedTemplateIndex = -1;
+        }
+
+        UpdateCurrentTemplate();
+    }
+
+    /// <summary>
+    /// Gets the appropriate components list to display and edit
+    /// </summary>
+    /// <returns>The components list that should be displayed</returns>
+    private List<MessageComponent> GetComponentsToEdit()
+    {
+        // If we're editing a selected template, use its components
+        if (currentTemplate != null)
+        {
+            return currentTemplate.Components;
+        }
+
+        // If there's an active template but no template is selected for editing,
+        // show the active template's components (read-only view)
+        if (plugin.Configuration.ActiveTemplateIndex >= 0 &&
+            plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+        {
+            return plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Components;
+        }
+
+        // Otherwise, show the global selected components
+        return plugin.Configuration.SelectedMessageComponents;
+    }
+
+    /// <summary>
+    /// Determines whether components can be edited in the current context
+    /// </summary>
+    /// <returns>True if components can be edited, false if read-only</returns>
+    private bool CanEditComponents()
+    {
+        // Can edit if we're editing a selected template
+        if (currentTemplate != null)
+        {
+            return true;
+        }
+
+        // Can edit global components only if there's no active template
+        if (plugin.Configuration.ActiveTemplateIndex < 0)
+        {
+            return true;
+        }
+
+        // Otherwise, it's a read-only view of the active template
+        return false;
+    }
+
     // Updates the current template based on selection
     private void UpdateCurrentTemplate()
     {
@@ -679,10 +717,23 @@ public class CustomMessageWindow : Window, IDisposable
             // Update the template in the configuration
             plugin.Configuration.MessageTemplates[selectedTemplateIndex] = currentTemplate;
             plugin.Configuration.Save();
-            
+
             // Notify other windows about the template update
             plugin.NotifyMessageTemplateUpdated();
         }
+    }
+
+    /// <summary>
+    /// Cancels template editing and reverts to the original template content
+    /// </summary>
+    private void CancelTemplateEditing()
+    {
+        if (selectedTemplateIndex >= 0 && selectedTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+        {
+            // Reload the original template content, discarding any unsaved changes
+            currentTemplate = plugin.Configuration.MessageTemplates[selectedTemplateIndex].Clone();
+        }
+        // Keep the selectedTemplateIndex unchanged to maintain the editing state
     }
     
     // Saves changes to components
@@ -690,14 +741,83 @@ public class CustomMessageWindow : Window, IDisposable
     {
         if (currentTemplate == null)
         {
-            // Saving changes to main selected components
-            plugin.Configuration.Save();
-            
-            // Notify other windows about the component update
-            plugin.NotifyMessageTemplateUpdated();
+            // Only save to global components if there's no active template
+            // or if we're specifically editing the global components
+            if (plugin.Configuration.ActiveTemplateIndex < 0)
+            {
+                // Saving changes to main selected components
+                plugin.Configuration.Save();
+
+                // Notify other windows about the component update
+                plugin.NotifyMessageTemplateUpdated();
+            }
+            // If there's an active template but we're not editing it,
+            // we shouldn't allow modifications (this is a read-only view)
         }
+        // If currentTemplate is not null, changes are automatically saved to the template
+        // when SaveTemplateChanges() is called
     }
     
+    /// <summary>
+    /// Draws component buttons with adaptive layout that automatically wraps to new lines when needed
+    /// </summary>
+    /// <param name="componentsToEdit">The list of components to edit</param>
+    private void DrawAdaptiveButtonLayout(List<MessageComponent> componentsToEdit)
+    {
+        // Define button data with their corresponding actions
+        var buttonData = new[]
+        {
+            new { Text = LocalizationManager.GetString("AddPlayerName"), Type = MessageComponentType.PlayerName },
+            new { Text = LocalizationManager.GetString("AddCoordinates"), Type = MessageComponentType.Coordinates },
+            new { Text = LocalizationManager.GetString("AddNumber"), Type = MessageComponentType.Number },
+            new { Text = LocalizationManager.GetString("AddBoxedNumber"), Type = MessageComponentType.BoxedNumber },
+            new { Text = LocalizationManager.GetString("AddBoxedOutlinedNumber"), Type = MessageComponentType.BoxedOutlinedNumber }
+        };
+
+        // Get available content width
+        float availableWidth = ImGui.GetContentRegionAvail().X;
+        float currentLineWidth = 0f;
+        bool isFirstButtonInLine = true;
+
+        // Minimum spacing between buttons
+        float buttonSpacing = ImGui.GetStyle().ItemSpacing.X;
+
+        for (int i = 0; i < buttonData.Length; i++)
+        {
+            var button = buttonData[i];
+
+            // Calculate button width including padding
+            Vector2 textSize = ImGui.CalcTextSize(button.Text);
+            float buttonWidth = textSize.X + ImGui.GetStyle().FramePadding.X * 2;
+
+            // Check if we need to wrap to next line
+            if (!isFirstButtonInLine && currentLineWidth + buttonSpacing + buttonWidth > availableWidth)
+            {
+                // Start new line
+                currentLineWidth = 0f;
+                isFirstButtonInLine = true;
+            }
+
+            // Add spacing if not the first button in line
+            if (!isFirstButtonInLine)
+            {
+                ImGui.SameLine();
+                currentLineWidth += buttonSpacing;
+            }
+
+            // Draw the button
+            if (ImGui.Button(button.Text))
+            {
+                componentsToEdit.Add(new MessageComponent(button.Type));
+                SaveComponentChanges();
+            }
+
+            // Update current line width and mark that we're no longer the first button
+            currentLineWidth += buttonWidth;
+            isFirstButtonInLine = false;
+        }
+    }
+
     public void Dispose()
     {
         // Nothing to dispose

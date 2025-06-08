@@ -52,11 +52,7 @@ public class AetheryteDataEntry
     [JsonPropertyName("MapArea")]
     public string MapArea { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets the base teleport fee for this aetheryte
-    /// </summary>
-    [JsonPropertyName("BaseTeleportFee")]
-    public int BaseTeleportFee { get; set; }
+
 
     /// <summary>
     /// Gets or sets the X coordinate of the aetheryte on the map
@@ -81,7 +77,6 @@ public class AetheryteDataEntry
             AetheryteId = this.AetheryteId,
             Name = this.Name,
             MapArea = this.MapArea,
-            BaseTeleportFee = this.BaseTeleportFee,
             Position = new Vector2(this.X, this.Y)
         };
     }

@@ -48,7 +48,7 @@
   "CrossWorldLinkShell8": "クロスワールドリンクシェル 8",
   "CoordinatesImported": "{0}座標がインポートされました。",
   "CoordinatesImportedFromClipboard": "クリップボードから{0}座標をインポートしました。",
-  "NoCoordinatesImported": "座標はインポートされませんでした。",
+  "NoCoordinatesImported": "座標はインポートされませんでした。座標には有効なマップエリアが必要です。形式：'マップ名 (x, y)'。",
   "ClipboardEmpty": "クリップボードが空です。",
   "CoordinatesExportedToClipboard": "座標がクリップボードにエクスポートされました。",
   "Export": "エクスポート",

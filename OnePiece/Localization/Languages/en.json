@@ -49,7 +49,7 @@
   "CrossWorldLinkShell8": "Cross-world Linkshell 8",
   "CoordinatesImported": "{0} coordinates imported.",
   "CoordinatesImportedFromClipboard": "Imported {0} coordinates from clipboard.",
-  "NoCoordinatesImported": "No coordinates were imported.",
+  "NoCoordinatesImported": "No coordinates were imported. Coordinates must include valid map area in format: 'MapName (x, y)'.",
   "ClipboardEmpty": "Clipboard is empty.",
   "CoordinatesExportedToClipboard": "Coordinates exported to clipboard.",
   "Export": "Export",

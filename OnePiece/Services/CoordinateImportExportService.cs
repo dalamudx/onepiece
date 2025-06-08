@@ -13,16 +13,19 @@ public class CoordinateImportExportService
 {
     private readonly Plugin plugin;
     private readonly TextParsingService textParsingService;
+    private readonly AetheryteService aetheryteService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CoordinateImportExportService"/> class.
     /// </summary>
     /// <param name="plugin">The plugin instance.</param>
     /// <param name="textParsingService">The text parsing service.</param>
-    public CoordinateImportExportService(Plugin plugin, TextParsingService textParsingService)
+    /// <param name="aetheryteService">The aetheryte service.</param>
+    public CoordinateImportExportService(Plugin plugin, TextParsingService textParsingService, AetheryteService aetheryteService)
     {
         this.plugin = plugin;
         this.textParsingService = textParsingService;
+        this.aetheryteService = aetheryteService;
     }
 
     /// <summary>
@@ -55,6 +58,20 @@ public class CoordinateImportExportService
                     // Limit to maximum of 8 coordinates for Number/BoxedNumber components
                     foreach (var coordinate in coordinates.Take(8))
                     {
+                        // Validate that coordinate has a map area - skip if missing
+                        if (string.IsNullOrWhiteSpace(coordinate.MapArea))
+                        {
+                            Plugin.Log.Warning($"Skipping coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) - missing map area information");
+                            continue;
+                        }
+
+                        // Validate that the map area is valid - skip if invalid
+                        if (!aetheryteService.IsValidMapArea(coordinate.MapArea))
+                        {
+                            Plugin.Log.Warning($"Skipping coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) - invalid map area '{coordinate.MapArea}'");
+                            continue;
+                        }
+
                         // Clean player name from special characters
                         if (!string.IsNullOrEmpty(coordinate.PlayerName))
                         {
@@ -105,11 +122,12 @@ public class CoordinateImportExportService
         // Regular expression to match player names in copied chat messages like [21:50](Player Name) Text...
         var playerNameRegex = new Regex(@"\[\d+:\d+\]\s*\(([^)]+)\)|\(([^)]+)\)", RegexOptions.IgnoreCase);
         
-        // Regular expression to match coordinates with map area in the format "MapName (x, y)" or just "(x, y)"
-        // Group 1: Map area (optional)
+        // Regular expression to match coordinates with map area in the format "MapName (x, y)"
+        // Map area is now required - coordinates without map area will not match
+        // Group 1: Map area (required)
         // Group 2: X coordinate
         // Group 3: Y coordinate
-        var coordinateRegex = new Regex(@"(?:([A-Za-z0-9\s']+)?\s*\(?\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)?)", RegexOptions.IgnoreCase);
+        var coordinateRegex = new Regex(@"([A-Za-z0-9\s']+)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
 
         var importedCount = 0;
         var matchCount = 0;
@@ -129,19 +147,33 @@ public class CoordinateImportExportService
                 // Count all matches, even if we don't import them
                 matchCount++;
 
-                // Only process the first 8 matches
+                // Only process the first 8 matches that have valid coordinates and map area
                 if (importedCount < 8 &&
                     match.Groups.Count >= 4 &&
                     float.TryParse(match.Groups[2].Value, out var x) &&
                     float.TryParse(match.Groups[3].Value, out var y))
                 {
-                    // Extract map area (if present)
-                    string mapArea = match.Groups[1].Success ? match.Groups[1].Value.Trim() : string.Empty;
-                    
+                    // Extract map area (guaranteed to be present due to regex requirement)
+                    string mapArea = match.Groups[1].Value.Trim();
+
                     // Remove player name from map area if it was incorrectly captured
-                    if (!string.IsNullOrEmpty(playerName) && !string.IsNullOrEmpty(mapArea))
+                    if (!string.IsNullOrEmpty(playerName))
                     {
                         mapArea = textParsingService.RemovePlayerNameFromMapArea(mapArea, playerName);
+                    }
+
+                    // Final validation - ensure map area is not empty after cleaning
+                    if (string.IsNullOrWhiteSpace(mapArea))
+                    {
+                        Plugin.Log.Warning($"Skipping coordinate ({x:F1}, {y:F1}) - map area became empty after processing");
+                        continue;
+                    }
+
+                    // Validate that the map area is valid - skip if invalid
+                    if (!aetheryteService.IsValidMapArea(mapArea))
+                    {
+                        Plugin.Log.Warning($"Skipping coordinate ({x:F1}, {y:F1}) - invalid map area '{mapArea}'");
+                        continue;
                     }
 
                     // Create coordinate with player name if available
@@ -160,6 +192,18 @@ public class CoordinateImportExportService
         if (matchCount > 8)
         {
             Plugin.Log.Warning($"Only imported the first 8 coordinates out of {matchCount} found in text. Additional coordinates were ignored.");
+        }
+
+        // Log information about import requirements if no coordinates were imported
+        if (importedCount == 0 && matchCount == 0)
+        {
+            Plugin.Log.Information("No valid coordinates found. Coordinates must include valid map area information in the format: 'MapName (x, y)'");
+            LogValidMapAreas();
+        }
+        else if (importedCount == 0 && matchCount > 0)
+        {
+            Plugin.Log.Warning($"Found {matchCount} coordinate patterns but none were imported. Ensure coordinates include valid map area information in the format: 'MapName (x, y)'");
+            LogValidMapAreas();
         }
 
         return importedCount;
@@ -200,5 +244,28 @@ public class CoordinateImportExportService
         // This method is now disabled to prevent automatic assignment of AetheryteId during import
         // AetheryteId should only be assigned during route optimization when teleportation is actually needed
         Plugin.Log.Debug($"Skipping automatic aetheryte assignment for coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) in {coordinate.MapArea} - will be assigned during route optimization if needed");
+    }
+
+    /// <summary>
+    /// Logs the first few valid map areas to help users understand the required format.
+    /// </summary>
+    private void LogValidMapAreas()
+    {
+        try
+        {
+            var validMapAreas = aetheryteService.GetValidMapAreas().Take(10).ToList();
+            if (validMapAreas.Count > 0)
+            {
+                Plugin.Log.Information($"Valid map areas include: {string.Join(", ", validMapAreas)}");
+                if (aetheryteService.GetValidMapAreas().Count > 10)
+                {
+                    Plugin.Log.Information($"... and {aetheryteService.GetValidMapAreas().Count - 10} more areas available.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error($"Error logging valid map areas: {ex.Message}");
+        }
     }
 }

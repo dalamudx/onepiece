@@ -99,7 +99,7 @@ public class TreasureHuntService : IDisposable
         this.plugin = plugin;
         this.textParser = new TextParsingService(plugin);
         this.coordinateManager = new CoordinateManagementService(plugin, textParser);
-        this.importExportService = new CoordinateImportExportService(plugin, textParser);
+        this.importExportService = new CoordinateImportExportService(plugin, textParser, plugin.AetheryteService);
         this.routeOptimizer = new RouteOptimizationService(plugin);
 
         // Wire up event handlers

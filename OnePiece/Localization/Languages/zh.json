@@ -49,7 +49,7 @@
   "CrossWorldLinkShell8": "跨界通讯贝 8",
   "CoordinatesImported": "已导入 {0} 个坐标。",
   "CoordinatesImportedFromClipboard": "从剪贴板导入了 {0} 个坐标。",
-  "NoCoordinatesImported": "未导入任何坐标。",
+  "NoCoordinatesImported": "未导入任何坐标。坐标必须包含有效的地图区域，格式为：'地图名称 (x, y)'。",
   "ClipboardEmpty": "剪贴板为空。",
   "CoordinatesExportedToClipboard": "坐标已导出到剪贴板。",
   "Export": "导出",

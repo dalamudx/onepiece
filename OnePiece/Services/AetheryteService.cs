@@ -112,6 +112,32 @@ public class AetheryteService : IDisposable
     }
 
     /// <summary>
+    /// Gets all valid map areas that have aetherytes.
+    /// </summary>
+    /// <returns>A set of valid map area names.</returns>
+    public IReadOnlySet<string> GetValidMapAreas()
+    {
+        return aetherytes
+            .Where(a => !string.IsNullOrWhiteSpace(a.MapArea))
+            .Select(a => a.MapArea)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks if a map area is valid (has aetherytes).
+    /// </summary>
+    /// <param name="mapArea">The map area to check.</param>
+    /// <returns>True if the map area is valid, false otherwise.</returns>
+    public bool IsValidMapArea(string mapArea)
+    {
+        if (string.IsNullOrWhiteSpace(mapArea))
+            return false;
+
+        return aetherytes.Any(a => a.MapArea.Equals(mapArea, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Gets the cheapest aetheryte to teleport to in a specific map area.
     /// </summary>
     /// <param name="mapArea">The map area name.</param>

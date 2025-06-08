@@ -256,32 +256,8 @@ public class ChatMonitorService : IDisposable
     /// <returns>The name with special characters removed</returns>
     private string RemoveSpecialCharactersFromName(string name)
     {
-        if (string.IsNullOrEmpty(name))
-            return name;
-
-        // Create a StringBuilder to build the cleaned name
-        var cleanedName = new StringBuilder(name.Length);
-        
-        // Process each character in the name
-        foreach (var c in name)
-        {   
-            // Check for BoxedNumber character range (U+2460 to U+2473)
-            // These are ①,②,③, etc.
-            if (c >= '①' && c <= '⑳')
-                continue;
-                
-            // Check for BoxedOutlinedNumber character range (U+2776 to U+277F)
-            // These are ❶,❷,❸, etc.
-            if (c >= '❶' && c <= '❿')
-                continue;
-            
-            // Any other special characters that need to be filtered can be added here
-            
-            // Add the character to the cleaned name if it passed all filters
-            cleanedName.Append(c);
-        }
-        
-        return cleanedName.ToString().Trim();
+        // Use the centralized GameIconHelper for consistent special character handling
+        return GameIconHelper.RemoveGameSpecialCharacters(name);
     }
 
 /// <summary>
@@ -700,31 +676,45 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                 case MessageComponentType.Number:
                     // Get index from coordinate or active route
                     int index = GetCoordinateIndex(coordinate);
-                    if (index >= 0 && index < 8)
+                    if (GameIconHelper.IsValidIndexForComponent(MessageComponentType.Number, index))
                     {
-                        // Insert the Number1-Number8 special characters into chat using direct Unicode values
-                        // According to SeIconChar source, Number1 = 0xE061, and so on
-                        // This is a more direct approach that inserts the actual character into the text
-                        int unicodeValue = 0xE061 + index; // SeIconChar.Number1 + index offset
-                        string iconChar = char.ConvertFromUtf32(unicodeValue);
-                        messageParts.Add(iconChar);
+                        // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
+                        string iconChar = GameIconHelper.GetNumberIcon(index);
+                        if (!string.IsNullOrEmpty(iconChar))
+                        {
+                            messageParts.Add(iconChar);
+                        }
                     }
                     break;
-                    
+
                 case MessageComponentType.BoxedNumber:
                     // Get index from coordinate or active route
                     int boxedIndex = GetCoordinateIndex(coordinate);
-                    if (boxedIndex >= 0 && boxedIndex < 8)
+                    if (GameIconHelper.IsValidIndexForComponent(MessageComponentType.BoxedNumber, boxedIndex))
                     {
-                        // Insert the BoxedNumber1-BoxedNumber8 special characters into chat using direct Unicode values
-                        // According to SeIconChar source, BoxedNumber1 = 0xE090, and so on
-                        // This is a more direct approach that inserts the actual character into the text
-                        int unicodeValue = 0xE090 + boxedIndex; // SeIconChar.BoxedNumber1 + index offset
-                        string iconChar = char.ConvertFromUtf32(unicodeValue);
-                        messageParts.Add(iconChar);
+                        // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
+                        string iconChar = GameIconHelper.GetBoxedNumberIcon(boxedIndex);
+                        if (!string.IsNullOrEmpty(iconChar))
+                        {
+                            messageParts.Add(iconChar);
+                        }
                     }
                     break;
-                    
+
+                case MessageComponentType.BoxedOutlinedNumber:
+                    // Get index from coordinate or active route
+                    int boxedOutlinedIndex = GetCoordinateIndex(coordinate);
+                    if (GameIconHelper.IsValidIndexForComponent(MessageComponentType.BoxedOutlinedNumber, boxedOutlinedIndex))
+                    {
+                        // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
+                        string iconChar = GameIconHelper.GetBoxedOutlinedNumberIcon(boxedOutlinedIndex);
+                        if (!string.IsNullOrEmpty(iconChar))
+                        {
+                            messageParts.Add(iconChar);
+                        }
+                    }
+                    break;
+
                 case MessageComponentType.CustomMessage:
                     if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)
                     {
@@ -753,10 +743,11 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                     
                     // If this component was added to messageParts, increment the position
                     if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
-                        (component.Type == MessageComponentType.Number && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
-                        (component.Type == MessageComponentType.BoxedNumber && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
-                        (component.Type == MessageComponentType.CustomMessage && 
-                         component.CustomMessageIndex >= 0 && 
+                        (component.Type == MessageComponentType.Number && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.BoxedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.BoxedOutlinedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.CustomMessage &&
+                         component.CustomMessageIndex >= 0 &&
                          component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
                     {
                         flagPosition++;
@@ -785,10 +776,11 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                     
                     // If this component was added to messageParts, increment the position
                     if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
-                        (component.Type == MessageComponentType.Number && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
-                        (component.Type == MessageComponentType.BoxedNumber && GetCoordinateIndex(coordinate) >= 0 && GetCoordinateIndex(coordinate) < 8) ||
-                        (component.Type == MessageComponentType.CustomMessage && 
-                         component.CustomMessageIndex >= 0 && 
+                        (component.Type == MessageComponentType.Number && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.BoxedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.BoxedOutlinedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.CustomMessage &&
+                         component.CustomMessageIndex >= 0 &&
                          component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
                     {
                         coordPosition++;

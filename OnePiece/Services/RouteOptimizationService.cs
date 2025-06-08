@@ -106,13 +106,12 @@ public class RouteOptimizationService
             coord.Type = CoordinateType.TreasurePoint;
             coord.NavigationInstruction = string.Empty;
         }
-        
-        if (coordinates.Count <= 1)
-        {
-            OptimizedRoute = new List<TreasureCoordinate>(coordinates);
-            OnRouteOptimized?.Invoke(this, OptimizedRoute.Count);
-            return OptimizedRoute;
-        }
+
+        // Remove the early return for single coordinates - they still need teleport optimization
+        // Even with 1 coordinate, we need to:
+        // 1. Assign the nearest aetheryte for teleportation
+        // 2. Calculate optimal route (which may include teleport points)
+        // 3. Set proper coordinate types and navigation instructions
 
         // Get player's current location (use provided location or fetch from main thread)
         TreasureCoordinate currentPlayerLocation;
@@ -496,20 +495,28 @@ public class RouteOptimizationService
                 }
             }
 
-            // Normalize teleport cost (higher cost = higher score)
-            float normalizedTeleportCost = teleportCost / 1000.0f; // Normalize to 0-1 range
-            
-            // Normalize coordinate density (higher density = lower score)
-            float coordinateDensity = (float)mapCoordinates.Count / totalCoordinates;
-            
             // Calculate the final score (lower is better)
-            float score = normalizedTeleportCost * 0.5f + distanceToNearest * 0.3f - coordinateDensity * 0.2f;
-            
+            // Primary factor: teleport cost (most important)
+            // Secondary factor: distance to nearest coordinate (minor consideration)
+
+            // Use teleport cost directly as primary score, with distance as tiebreaker
+            float teleportCostScore = teleportCost; // Use actual cost, not normalized
+            float distanceScore = distanceToNearest * 10.0f; // Scale distance to be comparable but secondary
+
+            float score = teleportCostScore + distanceScore;
+
+            // Add debug logging to understand scoring decisions
+            Plugin.Log.Information($"Map area scoring - {mapArea}: teleportCost={teleportCost}, distance={distanceToNearest:F1}, teleportScore={teleportCostScore:F0}, distanceScore={distanceScore:F1}, finalScore={score:F1}");
+
             mapAreaScores[mapArea] = score;
         }
         
         // Return the map area with the lowest score
         var bestMapArea = mapAreaScores.OrderBy(kv => kv.Value).First().Key;
+        var bestScore = mapAreaScores[bestMapArea];
+
+        Plugin.Log.Information($"Selected map area: {bestMapArea} with score {bestScore:F1} (lower is better)");
+
         return bestMapArea;
     }
 

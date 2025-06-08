@@ -139,10 +139,11 @@ namespace OnePiece.Services
             bool forceTeleport = false,
             AetheryteInfo teleportAetheryte = null)
         {
-            if (coordinates.Count <= 1)
-                return new List<TreasureCoordinate>(coordinates);
-
-
+            // Remove early return for single coordinates - they still need teleport optimization
+            // Even with 1 coordinate, we need to:
+            // 1. Determine optimal starting point (teleport vs direct travel)
+            // 2. Assign proper AetheryteId and coordinate type
+            // 3. Set navigation instructions
 
             // Check if teleport is forced by RouteOptimizationService
             if (forceTeleport && teleportAetheryte != null)
@@ -153,8 +154,6 @@ namespace OnePiece.Services
 
             // Step 1: Determine the optimal starting point (current location vs teleport to aetheryte)
             var optimalStart = DetermineOptimalStartingPoint(startLocation, coordinates, mapAetherytes);
-
-
 
             // Step 2: Optimize the route from the optimal starting point using ground travel only
             var optimizedRoute = OptimizeGroundRoute(optimalStart.startPoint, coordinates, optimalStart.usedAetheryte);

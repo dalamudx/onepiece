@@ -9,25 +9,27 @@ using Lumina.Excel.Sheets;
 namespace OnePiece.Services
 {
     /// <summary>
-    /// Service for translating map area names from different languages to English.
-    /// Uses Dalamud's Excel data to provide accurate translations.
+    /// Service for translating map area names from current client language to English.
+    /// Optimized to only load mappings for the current client language for better performance.
     /// </summary>
     public class MapAreaTranslationService
     {
         private readonly IPluginLog log;
         private readonly Dictionary<string, string> translationCache;
-        private readonly Dictionary<ClientLanguage, Dictionary<string, string>> languageMappings;
+        private readonly Dictionary<string, string> currentLanguageMapping;
+        private readonly ClientLanguage currentClientLanguage;
         private bool isInitialized = false;
 
         public MapAreaTranslationService(IPluginLog logger)
         {
             log = logger ?? throw new ArgumentNullException(nameof(logger));
             translationCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            languageMappings = new Dictionary<ClientLanguage, Dictionary<string, string>>();
+            currentLanguageMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            currentClientLanguage = Svc.ClientState.ClientLanguage;
         }
 
         /// <summary>
-        /// Initializes the translation service by building language mappings.
+        /// Initializes the translation service by building mapping for current client language only.
         /// </summary>
         public void Initialize()
         {
@@ -36,10 +38,14 @@ namespace OnePiece.Services
 
             try
             {
-                log.Information("Initializing MapAreaTranslationService...");
-                BuildLanguageMappings();
+                log.Information($"Initializing MapAreaTranslationService for client language: {currentClientLanguage}...");
+                var startTime = DateTime.UtcNow;
+
+                BuildCurrentLanguageMapping();
+
+                var initTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
                 isInitialized = true;
-                log.Information($"MapAreaTranslationService initialized with {translationCache.Count} cached translations");
+                log.Information($"MapAreaTranslationService initialized in {initTime:F2}ms with {currentLanguageMapping.Count} mappings");
             }
             catch (Exception ex)
             {
@@ -49,7 +55,7 @@ namespace OnePiece.Services
         }
 
         /// <summary>
-        /// Translates a map area name from any supported language to English.
+        /// Translates a map area name from current client language to English.
         /// </summary>
         /// <param name="mapAreaName">The map area name to translate.</param>
         /// <returns>The English map area name, or the original name if no translation found.</returns>
@@ -69,25 +75,29 @@ namespace OnePiece.Services
                 return cachedTranslation;
             }
 
-            // If input is already English, return as-is
+            // If client language is English, no translation needed
+            if (currentClientLanguage == ClientLanguage.English)
+            {
+                translationCache[mapAreaName] = mapAreaName;
+                return mapAreaName;
+            }
+
+            // Check if input is already English
             if (IsEnglishMapArea(mapAreaName))
             {
                 translationCache[mapAreaName] = mapAreaName;
                 return mapAreaName;
             }
 
-            // Search through all language mappings
-            foreach (var languageMapping in languageMappings.Values)
+            // Search in current language mapping
+            if (currentLanguageMapping.TryGetValue(mapAreaName, out var englishName))
             {
-                if (languageMapping.TryGetValue(mapAreaName, out var englishName))
-                {
-                    log.Information($"Translated map area: '{mapAreaName}' -> '{englishName}'");
-                    translationCache[mapAreaName] = englishName;
-                    return englishName;
-                }
+                log.Information($"Translated map area: '{mapAreaName}' -> '{englishName}'");
+                translationCache[mapAreaName] = englishName;
+                return englishName;
             }
 
-            log.Warning($"No translation found for map area: '{mapAreaName}'");
+            log.Warning($"No translation found for map area: '{mapAreaName}' in language: {currentClientLanguage}");
             return mapAreaName; // Return original if no translation found
         }
 
@@ -115,16 +125,31 @@ namespace OnePiece.Services
         }
 
         /// <summary>
-        /// Builds language mappings from non-English languages to English using PlaceName Excel data.
+        /// Builds mapping from current client language to English using PlaceName Excel data.
+        /// Only loads data for the current client language for optimal performance.
         /// </summary>
-        private void BuildLanguageMappings()
+        private void BuildCurrentLanguageMapping()
         {
+            // If client language is English, no mapping needed
+            if (currentClientLanguage == ClientLanguage.English)
+            {
+                log.Information("Client language is English, no translation mapping needed");
+                return;
+            }
+
+            // Check if current language is supported
             var supportedLanguages = new[]
             {
                 ClientLanguage.Japanese,
                 ClientLanguage.German,
                 ClientLanguage.French
             };
+
+            if (!supportedLanguages.Contains(currentClientLanguage))
+            {
+                log.Warning($"Current client language {currentClientLanguage} is not supported for translation");
+                return;
+            }
 
             try
             {
@@ -136,56 +161,45 @@ namespace OnePiece.Services
                     return;
                 }
 
-                // Build mappings for each supported language
-                foreach (var language in supportedLanguages)
+                // Get current language place names
+                var localizedPlaceNames = Svc.Data.GetExcelSheet<PlaceName>(currentClientLanguage);
+                if (localizedPlaceNames == null)
                 {
-                    try
+                    log.Error($"Failed to load PlaceName data for current language: {currentClientLanguage}");
+                    return;
+                }
+
+                // Create mapping from current language to English
+                var mappingCount = 0;
+                foreach (var localizedPlace in localizedPlaceNames)
+                {
+                    var localizedName = localizedPlace.Name.ToString();
+                    if (string.IsNullOrWhiteSpace(localizedName))
+                        continue;
+
+                    // Find corresponding English name using RowId
+                    var englishPlace = englishPlaceNames.GetRowOrDefault(localizedPlace.RowId);
+                    if (englishPlace == null)
+                        continue;
+
+                    var englishName = englishPlace.Value.Name.ToString();
+                    if (string.IsNullOrWhiteSpace(englishName))
+                        continue;
+
+                    // Only add if names are different (avoid same-language mappings)
+                    if (!localizedName.Equals(englishName, StringComparison.OrdinalIgnoreCase))
                     {
-                        var languageMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                        var localizedPlaceNames = Svc.Data.GetExcelSheet<PlaceName>(language);
-                        
-                        if (localizedPlaceNames == null)
-                        {
-                            log.Warning($"Failed to load PlaceName data for language: {language}");
-                            continue;
-                        }
-
-                        // Create mapping from localized name to English name
-                        foreach (var localizedPlace in localizedPlaceNames)
-                        {
-                            var localizedName = localizedPlace.Name.ToString();
-                            if (string.IsNullOrWhiteSpace(localizedName))
-                                continue;
-
-                            // Find corresponding English name using RowId
-                            var englishPlace = englishPlaceNames.GetRowOrDefault(localizedPlace.RowId);
-                            if (englishPlace == null)
-                                continue;
-
-                            var englishName = englishPlace.Value.Name.ToString();
-                            if (string.IsNullOrWhiteSpace(englishName))
-                                continue;
-
-                            // Only add if names are different (avoid English->English mappings)
-                            if (!localizedName.Equals(englishName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                languageMapping[localizedName] = englishName;
-                                log.Debug($"Added {language} mapping: '{localizedName}' -> '{englishName}'");
-                            }
-                        }
-
-                        languageMappings[language] = languageMapping;
-                        log.Information($"Built {language} mapping with {languageMapping.Count} entries");
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Error($"Error building mapping for language {language}: {ex.Message}");
+                        currentLanguageMapping[localizedName] = englishName;
+                        mappingCount++;
+                        log.Debug($"Added mapping: '{localizedName}' -> '{englishName}'");
                     }
                 }
+
+                log.Information($"Built {currentClientLanguage} to English mapping with {mappingCount} entries");
             }
             catch (Exception ex)
             {
-                log.Error($"Error building language mappings: {ex.Message}");
+                log.Error($"Error building mapping for current language {currentClientLanguage}: {ex.Message}");
                 throw;
             }
         }
@@ -210,15 +224,19 @@ namespace OnePiece.Services
         /// <returns>A dictionary with language statistics.</returns>
         public Dictionary<string, int> GetTranslationStats()
         {
-            var stats = new Dictionary<string, int>();
-            
-            foreach (var kvp in languageMappings)
+            var stats = new Dictionary<string, int>
             {
-                stats[kvp.Key.ToString()] = kvp.Value.Count;
-            }
-            
-            stats["CacheSize"] = translationCache.Count;
+                ["CurrentLanguage"] = currentClientLanguage == ClientLanguage.English ? 0 : currentLanguageMapping.Count,
+                ["CacheSize"] = translationCache.Count,
+                ["ClientLanguage"] = (int)currentClientLanguage
+            };
+
             return stats;
         }
+
+        /// <summary>
+        /// Gets the current client language being used for translation.
+        /// </summary>
+        public ClientLanguage CurrentClientLanguage => currentClientLanguage;
     }
 }

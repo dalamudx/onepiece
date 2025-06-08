@@ -100,15 +100,7 @@ namespace OnePiece.Helpers
             // Check for other common special characters
             if (charValue == (int)SeIconChar.LinkMarker)
                 return true;
-
-            // Check for Unicode boxed numbers (①②③ etc.)
-            if (character >= '①' && character <= '⑳')
-                return true;
-
-            // Check for Unicode boxed outlined numbers (❶❷❸ etc.)
-            if (character >= '❶' && character <= '❿')
-                return true;
-
+            
             return false;
         }
 

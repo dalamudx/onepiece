@@ -42,6 +42,11 @@ public class ChatMonitorService : IDisposable
     public bool IsMonitoring => isMonitoring;
 
     /// <summary>
+    /// Gets whether the service is currently importing coordinates from chat.
+    /// </summary>
+    public bool IsImportingCoordinates => isImportingCoordinates;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ChatMonitorService"/> class.
     /// </summary>
     /// <param name="plugin">The plugin instance.</param>
@@ -69,13 +74,11 @@ public class ChatMonitorService : IDisposable
     /// <param name="count">The count of coordinates in the optimized route.</param>
     private void OnRouteOptimized(object? sender, int count)
     {
-        // Ensure coordinate importing remains active after route optimization
-        isImportingCoordinates = true;
+        // Pause coordinate importing when route is optimized to prevent new coordinates from being added
+        isImportingCoordinates = false;
 
         // Log the optimization completion for debugging purposes
-        log.Information($"Route optimization completed with {count} coordinates. Chat monitoring remains active.");
-
-
+        log.Information($"Route optimization completed with {count} coordinates. Coordinate importing paused.");
     }
 
     /// <summary>
@@ -85,7 +88,10 @@ public class ChatMonitorService : IDisposable
     /// <param name="e">The event arguments.</param>
     private void OnRouteOptimizationReset(object? sender, EventArgs e)
     {
+        // Resume coordinate importing when route optimization is reset
         isImportingCoordinates = true;
+
+        log.Information("Route optimization reset. Coordinate importing resumed.");
     }
 
     /// <summary>
@@ -98,6 +104,12 @@ public class ChatMonitorService : IDisposable
 
         Plugin.ChatGui.ChatMessage += OnChatMessage;
         isMonitoring = true;
+
+        // Only enable coordinate importing if route is not optimized
+        if (!plugin.TreasureHuntService.IsRouteOptimized)
+        {
+            isImportingCoordinates = true;
+        }
     }
 
     /// <summary>
@@ -110,6 +122,9 @@ public class ChatMonitorService : IDisposable
 
         Plugin.ChatGui.ChatMessage -= OnChatMessage;
         isMonitoring = false;
+
+        // Stop coordinate importing when monitoring stops
+        isImportingCoordinates = false;
     }
 
     /// <summary>

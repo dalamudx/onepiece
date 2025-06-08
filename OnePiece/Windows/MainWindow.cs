@@ -286,6 +286,13 @@ public class MainWindow : Window, IDisposable
         if (ImGui.Button(LocalizationManager.GetString("ClearAll")))
         {
             plugin.TreasureHuntService.ClearCoordinates();
+
+            // Reset route optimization if it was active
+            if (plugin.TreasureHuntService.IsRouteOptimized)
+            {
+                plugin.TreasureHuntService.ResetRouteOptimization();
+            }
+
             ClearEditingStates(); // Clear editing states when coordinates are cleared
         }
 
@@ -751,11 +758,11 @@ public class MainWindow : Window, IDisposable
                 {
                     ImGui.Separator();
 
-                    // Display trash bin title with count
+                    // Display trash bin title with count and clear button on the same line
                     ImGui.TextUnformatted(string.Format(LocalizationManager.GetString("TrashBinWithCount"), plugin.TreasureHuntService.DeletedCoordinates.Count));
 
-                    // Clear trash button
-                    ImGui.SameLine(ImGui.GetWindowWidth() - 100);
+                    // Clear trash button - positioned to the right of the title with adequate spacing
+                    ImGui.SameLine();
                     if (ImGui.SmallButton(LocalizationManager.GetString("ClearTrash")))
                     {
                         plugin.TreasureHuntService.ClearTrash();

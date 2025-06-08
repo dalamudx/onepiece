@@ -112,17 +112,6 @@ public class TextParsingService
         if (mapArea.StartsWith(playerName, StringComparison.OrdinalIgnoreCase))
         {
             mapArea = mapArea.Substring(playerName.Length).Trim();
-        
-            // If map area starts with "さん" or other player suffixes, remove them too
-            string[] suffixes = new[] { "さん", "san", "の", "no" };
-            foreach (var suffix in suffixes)
-            {
-                if (mapArea.StartsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                {
-                    mapArea = mapArea.Substring(suffix.Length).Trim();
-                    break;
-                }
-            }
         }
     
         return mapArea;

@@ -35,9 +35,6 @@ public class ConfigurationValidationService : IDisposable
             // Validate language setting
             ValidateLanguageSetting(config, result);
 
-            // Validate log level
-            ValidateLogLevel(config, result);
-
             // Validate chat channel
             ValidateChatChannel(config, result);
 
@@ -146,16 +143,7 @@ public class ConfigurationValidationService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Validates the log level setting.
-    /// </summary>
-    private void ValidateLogLevel(Configuration config, ValidationResult result)
-    {
-        if (!Enum.IsDefined(typeof(LogLevel), config.LogLevel))
-        {
-            result.AddError($"Invalid log level: {config.LogLevel}");
-        }
-    }
+
 
     /// <summary>
     /// Validates the chat channel setting.
@@ -296,12 +284,7 @@ public class ConfigurationValidationService : IDisposable
             Plugin.Log.Information("Fixed empty language setting to 'English'");
         }
 
-        // Fix invalid log level
-        if (!Enum.IsDefined(typeof(LogLevel), config.LogLevel))
-        {
-            config.LogLevel = LogLevel.Normal;
-            Plugin.Log.Information("Fixed invalid log level to 'Normal'");
-        }
+
 
         // Fix invalid chat channel
         if (!Enum.IsDefined(typeof(ChatChannelType), config.MonitoredChatChannel))
@@ -429,7 +412,6 @@ public class ConfigurationValidationService : IDisposable
         var config = plugin.Configuration;
 
         config.Language = "English";
-        config.LogLevel = LogLevel.Normal;
         config.MonitoredChatChannel = ChatChannelType.Party;
         config.EnableChatMonitoring = false;
         config.ActiveTemplateIndex = -1;

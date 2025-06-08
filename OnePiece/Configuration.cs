@@ -10,7 +10,6 @@ public class Configuration : IPluginConfiguration
     public int Version { get; set; } = 0;
 
     public string Language { get; set; } = "en";
-    public LogLevel LogLevel { get; set; } = LogLevel.Normal;
 
     // Chat monitoring settings
     public bool EnableChatMonitoring { get; set; } = false;
@@ -58,15 +57,7 @@ public enum ChatChannelType
     CrossWorldLinkShell8
 }
 
-/// <summary>
-/// Represents the level of notifications to display.
-/// </summary>
-public enum LogLevel
-{
-    Minimal,   // Only show critical information
-    Normal,    // Show normal notifications
-    Verbose    // Show all information
-}
+
 
 /// <summary>
 /// Represents a component of the custom message to be sent in chat.

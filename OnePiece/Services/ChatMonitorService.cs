@@ -72,7 +72,13 @@ public class ChatMonitorService : IDisposable
     /// <param name="count">The count of coordinates in the optimized route.</param>
     private void OnRouteOptimized(object? sender, int count)
     {
-        // Continue importing coordinates even after route optimization
+        // Ensure coordinate importing remains active after route optimization
+        isImportingCoordinates = true;
+
+        // Log the optimization completion for debugging purposes
+        log.Information($"Route optimization completed with {count} coordinates. Chat monitoring remains active.");
+
+
     }
 
     /// <summary>
@@ -317,12 +323,8 @@ private void ExtractCoordinates(string messageText, string playerName)
             // Directly add the coordinate to preserve player name instead of re-importing
             plugin.TreasureHuntService.AddCoordinate(coordinate);
 
-            // Notify the user based on log level
-            if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-            {
-                log.Information(string.Format(LocalizationManager.GetString("CoordinateDetected"),
-                    playerName, coordinate));
-            }
+            log.Information(string.Format(LocalizationManager.GetString("CoordinateDetected"),
+                playerName, coordinate));
 
             // Raise the event
             OnCoordinateDetected?.Invoke(this, coordinate);
@@ -377,12 +379,8 @@ public bool ProcessChatMessage(string playerName, string message)
                     // Directly add the coordinate to preserve player name instead of re-importing
                     plugin.TreasureHuntService.AddCoordinate(coordinate);
 
-                    // Notify the user based on log level
-                    if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-                    {
-                        log.Information(string.Format(LocalizationManager.GetString("CoordinateDetected"),
-                            effectivePlayerName, coordinate));
-                    }
+                    log.Information(string.Format(LocalizationManager.GetString("CoordinateDetected"),
+                        effectivePlayerName, coordinate));
 
                     // Raise the event
                     OnCoordinateDetected?.Invoke(this, coordinate);
@@ -578,11 +576,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                         log.Information($"Successfully sent map link to {channelName} (no active template)");
                     }
                     
-                    // Only show notification if log level is Normal or higher
-                    if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-                    {
-                        log.Information($"Successfully sent to {channelName}");
-                    }
+                    log.Information($"Successfully sent to {channelName}");
                     
                     return;
                 }
@@ -613,11 +607,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                     }
                 }
                 
-                // Only log if log level is Normal or higher
-                if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-                {
-                    log.Information($"Successfully sent to {channelName}");
-                }
+                log.Information($"Successfully sent to {channelName}");
             }
             catch (Exception ex)
             {

@@ -15,16 +15,12 @@ public class MainWindow : Window, IDisposable
     private Plugin plugin;
     private string[] chatChannelNames = Array.Empty<string>(); // Initialize with empty array
     private string[] supportedLanguages;
-    private string[] logLevels = Array.Empty<string>();
     private int selectedLanguageIndex;
     private int selectedChatChannelIndex;
-    private int selectedLogLevelIndex;
 
     // UI performance optimization - cached values
     private string? cachedNotLoggedInMessage;
     private float cachedNotLoggedInWidth;
-    private string? cachedSubtitle;
-    private float cachedSubtitleWidth;
     private bool needsUIRecalculation = true;
 
     // We don't need a local reference to CustomMessageWindow anymore
@@ -49,9 +45,7 @@ public class MainWindow : Window, IDisposable
         selectedLanguageIndex = Array.IndexOf(supportedLanguages, this.plugin.Configuration.Language);
         if (selectedLanguageIndex < 0) selectedLanguageIndex = 0;
 
-        // Initialize log level selection
-        InitializeLogLevels();
-        selectedLogLevelIndex = (int)this.plugin.Configuration.LogLevel;
+
 
         // Initialize chat channel selection
         selectedChatChannelIndex = (int)this.plugin.Configuration.MonitoredChatChannel;
@@ -97,16 +91,7 @@ public class MainWindow : Window, IDisposable
         };
     }
 
-    private void InitializeLogLevels()
-    {
-        // Create localized log level names
-        logLevels = new[]
-        {
-            LocalizationManager.GetString("LogLevelMinimal"),
-            LocalizationManager.GetString("LogLevelNormal"),
-            LocalizationManager.GetString("LogLevelVerbose")
-        };
-    }
+
 
     public void Dispose()
     {
@@ -143,18 +128,7 @@ public class MainWindow : Window, IDisposable
             ImGui.Separator();
         }
 
-        // Display subtitle (centered) - cache the calculation
-        if (needsUIRecalculation || cachedSubtitle == null)
-        {
-            cachedSubtitle = LocalizationManager.GetString("MainWindowSubtitle");
-            cachedSubtitleWidth = ImGui.CalcTextSize(cachedSubtitle).X;
-            needsUIRecalculation = false; // Reset the flag after recalculation
-        }
 
-        ImGui.SetCursorPosX((windowWidth - cachedSubtitleWidth) * 0.5f);
-        ImGui.TextUnformatted(cachedSubtitle);
-
-        ImGui.Separator();
         
         // Begin disabled group if player is not logged in
         if (!isLoggedIn)
@@ -168,7 +142,6 @@ public class MainWindow : Window, IDisposable
         // Calculate the width needed for the longest label
         string[] labelsToMeasure = new string[] {
             LocalizationManager.GetString("Language"),
-            LocalizationManager.GetString("LogLevel"),
             LocalizationManager.GetString("SelectChatChannel")
         };
         
@@ -203,39 +176,12 @@ public class MainWindow : Window, IDisposable
 
                 // Refresh localized LocalizationManager
                 InitializeChatChannelNames();
-                InitializeLogLevels();
 
                 // Trigger UI recalculation for cached values
                 needsUIRecalculation = true;
             }
 
-            // Log level
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(LocalizationManager.GetString("LogLevel"));
-            ImGui.SameLine(labelWidth);
-            ImGui.SetNextItemWidth(controlWidth);
-            if (ImGui.Combo("##LogLevelSelector", ref selectedLogLevelIndex, logLevels, logLevels.Length))
-            {
-                plugin.Configuration.LogLevel = (LogLevel)selectedLogLevelIndex;
-                plugin.Configuration.Save();
-            }
 
-            // Show tooltip for the selected log level
-            if (ImGui.IsItemHovered())
-            {
-                switch (plugin.Configuration.LogLevel)
-                {
-                    case LogLevel.Minimal:
-                        ImGui.SetTooltip(LocalizationManager.GetString("LogLevelMinimalTooltip"));
-                        break;
-                    case LogLevel.Normal:
-                        ImGui.SetTooltip(LocalizationManager.GetString("LogLevelNormalTooltip"));
-                        break;
-                    case LogLevel.Verbose:
-                        ImGui.SetTooltip(LocalizationManager.GetString("LogLevelVerboseTooltip"));
-                        break;
-                }
-            }
         }
 
         ImGui.Separator();
@@ -285,7 +231,7 @@ public class MainWindow : Window, IDisposable
                     plugin.ChatMonitorService.StartMonitoring();
                 }
             }
-            
+
             // End of ChannelSettings section
         }
         
@@ -758,20 +704,12 @@ public class MainWindow : Window, IDisposable
 
     private void OnCoordinatesImported(object? sender, int count)
     {
-        // Only show log message if log level is Normal or higher
-        if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-        {
-            Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("CoordinatesImported"), count));
-        }
+        Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("CoordinatesImported"), count));
     }
 
     private void OnRouteOptimized(object? sender, int count)
     {
-        // Only show log message if log level is Normal or higher
-        if (plugin.Configuration.LogLevel >= LogLevel.Normal)
-        {
-            Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("RouteOptimized"), count));
-        }
+        Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("RouteOptimized"), count));
     }
     
     // Handles the MessageTemplateUpdated event from CustomMessageWindow

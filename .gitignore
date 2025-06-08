@@ -1,9 +1,7 @@
 .vs/
 .editorconfig
-.idea
 OnePiece/obj/
 OnePiece/bin/
 *.user
 global.json
 getAetheryteData.py
-.windsurf/

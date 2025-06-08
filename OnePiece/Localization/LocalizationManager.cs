@@ -185,7 +185,6 @@ public static class LocalizationManager
         var fallback = new Dictionary<string, string>
         {
             { "MainWindowTitle", "One Piece" },
-            { "MainWindowSubtitle", "Plan and optimize your treasure hunt route" },
             { "ClearAll", "Clear All" },
             { "OptimizeRoute", "Optimize Route" },
             { "ResetOptimization", "Reset Optimization" },
@@ -195,9 +194,7 @@ public static class LocalizationManager
             { "SendToChat", "Send to Chat" },
             { "Collected", "Collected" },
             { "Delete", "Delete" },
-            { "Restore", "Restore" },
-            { "Error", "Error" },
-            { "Success", "Success" }
+            { "Restore", "Restore" }
         };
         
         LoadedTranslations["en"] = fallback;

@@ -494,6 +494,12 @@ public class MainWindow : Window, IDisposable
                                         // Calculate teleport price using aetheryte info
                                         teleportPrice = plugin.AetheryteService.CalculateTeleportPrice(aetheryteInfo);
 
+                                        // Disable teleport button if coordinate is collected
+                                        if (isCollected)
+                                        {
+                                            ImGui.BeginDisabled();
+                                        }
+
                                         // Add teleport button
                                         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.5f, 1.0f, 0.7f));
                                         if (ImGui.SmallButton($"{LocalizationManager.GetString("TeleportButton")}##{optimizedRoute.IndexOf(coord)}"))
@@ -515,6 +521,12 @@ public class MainWindow : Window, IDisposable
                                         }
 
                                         ImGui.PopStyleColor();
+
+                                        // End disabled state if coordinate is collected
+                                        if (isCollected)
+                                        {
+                                            ImGui.EndDisabled();
+                                        }
 
                                         // Add consistent spacing between buttons (same as top buttons)
                                         ImGui.SameLine();
@@ -550,14 +562,15 @@ public class MainWindow : Window, IDisposable
                                 // Add consistent spacing between buttons (same as top buttons)
                                 ImGui.SameLine();
 
-                                // Collected button
-                                if (ImGui.SmallButton(LocalizationManager.GetString("Collected") + $"##{optimizedRoute.IndexOf(coord)}"))
+                                // Collected button - toggle between collected and not collected
+                                string collectedButtonText = coord.IsCollected ?
+                                    LocalizationManager.GetString("MarkAsNotCollected") :
+                                    LocalizationManager.GetString("Collected");
+
+                                if (ImGui.SmallButton(collectedButtonText + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
-                                    var index = plugin.TreasureHuntService.Coordinates.IndexOf(coord);
-                                    if (index >= 0)
-                                    {
-                                        plugin.TreasureHuntService.MarkCoordinateAsCollected(index, true);
-                                    }
+                                    // Toggle the collected state
+                                    coord.IsCollected = !coord.IsCollected;
                                 }
 
                                 // No Delete button for optimized route
@@ -732,21 +745,21 @@ public class MainWindow : Window, IDisposable
             // Use components from the active template
             componentsToPreview = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Components;
             
-            // If the active template has no components, show only treasure marker message
+            // If the active template has no components, show only coordinate message
             if (componentsToPreview.Count == 0)
             {
-                return LocalizationManager.GetString("OnlyTreasureMarker");
+                return LocalizationManager.GetString("SendCoordinateOnly");
             }
         }
         else
         {
             // No active template, use selected components
             componentsToPreview = plugin.Configuration.SelectedMessageComponents;
-            
-            // If no selected components, show only treasure marker message
+
+            // If no selected components, show only coordinate message
             if (componentsToPreview.Count == 0)
             {
-                return LocalizationManager.GetString("OnlyTreasureMarker");
+                return LocalizationManager.GetString("SendCoordinateOnly");
             }
         }
         
@@ -757,13 +770,13 @@ public class MainWindow : Window, IDisposable
             switch (component.Type)
             {
                 case MessageComponentType.PlayerName:
-                    // Use a specific player name example for better preview
-                    previewParts.Add("Tataru Taru");
+                    // Use a localized player name example for better preview
+                    previewParts.Add(LocalizationManager.GetString("PlayerNameExample"));
                     break;
                 case MessageComponentType.Coordinates:
-                    // Use a specific map location example with special LinkMarker character from SeIconChar
+                    // Use a localized map location example with special LinkMarker character from SeIconChar
                     string linkMarker = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.LinkMarker);
-                    previewParts.Add($"{linkMarker} Limsa Lominsa Lower Decks ( 9.5 , 11.2 )");
+                    previewParts.Add($"{linkMarker} {LocalizationManager.GetString("LocationExample")}");
                     break;
                 case MessageComponentType.Number:
                     // Show specific Number1 special character using the actual Unicode value from SeIconChar

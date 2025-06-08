@@ -407,7 +407,7 @@ public class CustomMessageWindow : Window, IDisposable
                 // Check if window width is too small for full text
                 if (ImGui.GetWindowWidth() < 550)
                 {
-                    deleteText = "X"; // Use just an X symbol if window is small
+                    deleteText = LocalizationManager.GetString("DeleteShort"); // Use localized short text if window is small
                 }
                 
                 if (ImGui.SmallButton(deleteText + "##" + i))
@@ -586,7 +586,7 @@ public class CustomMessageWindow : Window, IDisposable
     {
         if (components.Count == 0)
         {
-            return LocalizationManager.GetString("WillOnlySendFlag");
+            return LocalizationManager.GetString("SendCoordinateOnly");
         }
         
         var previewParts = new List<string>();
@@ -596,13 +596,13 @@ public class CustomMessageWindow : Window, IDisposable
             switch (component.Type)
             {
                 case MessageComponentType.PlayerName:
-                    // Use a specific player name example for better preview
-                    previewParts.Add("Tataru Taru");
+                    // Use a localized player name example for better preview
+                    previewParts.Add(LocalizationManager.GetString("PlayerNameExample"));
                     break;
                 case MessageComponentType.Coordinates:
-                    // Use a specific map location example with special LinkMarker character from SeIconChar
+                    // Use a localized map location example with special LinkMarker character from SeIconChar
                     string linkMarker = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.LinkMarker);
-                    previewParts.Add($"{linkMarker} Limsa Lominsa Lower Decks ( 9.5 , 11.2 )");
+                    previewParts.Add($"{linkMarker} {LocalizationManager.GetString("LocationExample")}");
                     break;
                 case MessageComponentType.Number:
                     // Show specific Number1 special character using the actual Unicode value from SeIconChar
@@ -639,7 +639,7 @@ public class CustomMessageWindow : Window, IDisposable
             case MessageComponentType.PlayerName:
                 return LocalizationManager.GetString("PlayerName");
             case MessageComponentType.Coordinates:
-                return LocalizationManager.GetString("TreasureMapCoordinates");
+                return LocalizationManager.GetString("Coordinates");
             case MessageComponentType.Number:
                 return LocalizationManager.GetString("Number");
             case MessageComponentType.BoxedNumber:

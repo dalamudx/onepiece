@@ -450,8 +450,9 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
     {
         mapArea = mapArea.Substring(playerName.Length).Trim();
         
-        // If map area starts with "さん" or other player suffixes, remove them too
-        string[] suffixes = new[] { "さん", "san", "の", "no" };
+        // If map area starts with common player name suffixes, remove them too
+        // These are common suffixes that might appear after player names in different languages
+        string[] suffixes = new[] { "さん", "san", "の", "no", "chan", "kun", "sama" };
         foreach (var suffix in suffixes)
         {
             if (mapArea.StartsWith(suffix, StringComparison.OrdinalIgnoreCase))

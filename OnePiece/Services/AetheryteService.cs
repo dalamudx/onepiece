@@ -61,7 +61,7 @@ public class AetheryteService : IDisposable
     /// <summary>
     /// Gets aetherytes in a specific map area.
     /// </summary>
-    /// <param name="mapArea">The map area name.</param>
+    /// <param name="mapArea">The map area name (should be in English).</param>
     /// <returns>A list of aetherytes in the specified map area.</returns>
     public IReadOnlyList<AetheryteInfo> GetAetherytesInMapArea(string mapArea)
     {
@@ -72,13 +72,16 @@ public class AetheryteService : IDisposable
     /// Gets the nearest aetheryte to a coordinate in a specific map area.
     /// </summary>
     /// <param name="coordinate">The coordinate.</param>
+    /// <param name="translationService">Optional translation service for map area names.</param>
     /// <returns>The nearest aetheryte, or null if none found.</returns>
-    public AetheryteInfo? GetNearestAetheryteToCoordinate(TreasureCoordinate coordinate)
+    public AetheryteInfo? GetNearestAetheryteToCoordinate(TreasureCoordinate coordinate, OnePiece.Services.MapAreaTranslationService? translationService = null)
     {
         if (string.IsNullOrEmpty(coordinate.MapArea))
             return null;
 
-        var aetherytesInMap = GetAetherytesInMapArea(coordinate.MapArea);
+        // Use English map area name for aetheryte lookup
+        var englishMapArea = coordinate.GetEnglishMapArea(translationService);
+        var aetherytesInMap = GetAetherytesInMapArea(englishMapArea);
         if (aetherytesInMap.Count == 0)
             return null;
 
@@ -127,7 +130,7 @@ public class AetheryteService : IDisposable
     /// <summary>
     /// Checks if a map area is valid (has aetherytes).
     /// </summary>
-    /// <param name="mapArea">The map area to check.</param>
+    /// <param name="mapArea">The map area to check (should be in English).</param>
     /// <returns>True if the map area is valid, false otherwise.</returns>
     public bool IsValidMapArea(string mapArea)
     {

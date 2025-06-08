@@ -40,6 +40,7 @@ public sealed class Plugin : IDalamudPlugin
     public PlayerLocationService PlayerLocationService { get; init; }
     public AetheryteService AetheryteService { get; init; }
     public ConfigurationValidationService ConfigurationValidationService { get; init; }
+    public MapAreaTranslationService MapAreaTranslationService { get; init; }
 
     public readonly WindowSystem WindowSystem = new("OnePiece");
     private MainWindow MainWindow { get; init; }
@@ -88,6 +89,7 @@ public sealed class Plugin : IDalamudPlugin
 
         PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager, GameGui, DataManager);
         AetheryteService = new AetheryteService(DataManager, ClientState, Log, TerritoryManager, ChatGui, CommandManager);
+        MapAreaTranslationService = new MapAreaTranslationService(Log);
         TreasureHuntService = new TreasureHuntService(this);
         ChatMonitorService = new ChatMonitorService(this);
 
@@ -135,6 +137,9 @@ public sealed class Plugin : IDalamudPlugin
 
         if (TerritoryManager is IDisposable territoryDisposable)
             territoryDisposable.Dispose();
+
+        if (MapAreaTranslationService is IDisposable mapAreaTranslationDisposable)
+            mapAreaTranslationDisposable.Dispose();
 
         try
         {

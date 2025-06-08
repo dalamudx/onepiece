@@ -691,7 +691,7 @@ public class MainWindow : Window, IDisposable
                                         editingYCoords.Remove(coordIndex);
 
                                         // Re-assign aetheryte since coordinates changed
-                                        var nearestAetheryte = plugin.AetheryteService.GetNearestAetheryteToCoordinate(coord);
+                                        var nearestAetheryte = plugin.AetheryteService.GetNearestAetheryteToCoordinate(coord, plugin.MapAreaTranslationService);
                                         if (nearestAetheryte != null)
                                         {
                                             coord.AetheryteId = nearestAetheryte.AetheryteId;

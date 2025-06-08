@@ -133,11 +133,24 @@ public class RouteOptimizationService
             currentPlayerLocation = new TreasureCoordinate(0, 0, string.Empty);
         }
 
-        // Group coordinates by map area, excluding collected ones
-        var coordinatesByMap = coordinates
+        // First, translate all map area names to English for proper grouping
+        // This ensures coordinates with different language names for the same area are grouped together
+        var coordinatesWithEnglishMapAreas = coordinates
             .Where(c => !c.IsCollected)
-            .GroupBy(c => c.MapArea)
-            .ToDictionary(g => g.Key, g => g.ToList());
+            .Select(c =>
+            {
+                var englishMapArea = MapAreaHelper.GetEnglishMapAreaFromCoordinate(c, plugin.MapAreaTranslationService);
+                // Create a copy with English map area for grouping, but keep original for display
+                var coordCopy = c.DeepCopy();
+                coordCopy.MapArea = englishMapArea;
+                return new { Original = c, EnglishCopy = coordCopy, EnglishMapArea = englishMapArea };
+            })
+            .ToList();
+
+        // Group coordinates by English map area names
+        var coordinatesByMap = coordinatesWithEnglishMapAreas
+            .GroupBy(x => x.EnglishMapArea)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Original).ToList());
 
         if (coordinatesByMap.Count == 0)
         {
@@ -154,7 +167,9 @@ public class RouteOptimizationService
         var currentLocation = currentPlayerLocation;
         var currentMapArea = currentPlayerLocation.MapArea;
 
-        var mapAreaTeleportCosts = await GetAllMapAreaTeleportCostsAsync(currentMapArea, coordinatesByMap.Keys.ToList(), cancellationToken);
+        // Translate current map area to English for teleport cost calculation
+        var currentEnglishMapArea = MapAreaHelper.GetEnglishMapArea(currentMapArea, plugin.MapAreaTranslationService);
+        var mapAreaTeleportCosts = await GetAllMapAreaTeleportCostsAsync(currentEnglishMapArea, coordinatesByMap.Keys.ToList(), cancellationToken);
 
         // Process all map areas until all coordinates are visited
         while (coordinatesByMap.Count > 0)
@@ -165,9 +180,9 @@ public class RouteOptimizationService
             string nextMapArea;
 
             // If player is already in a map area with coordinates, prioritize that
-            if (coordinatesByMap.ContainsKey(currentMapArea))
+            if (coordinatesByMap.ContainsKey(currentEnglishMapArea))
             {
-                nextMapArea = currentMapArea;
+                nextMapArea = currentEnglishMapArea;
             }
             else
             {
@@ -176,6 +191,7 @@ public class RouteOptimizationService
 
             var mapCoordinates = coordinatesByMap[nextMapArea];
 
+            // nextMapArea is already in English, so use it directly for aetheryte lookup
             var mapAetherytes = plugin.AetheryteService.GetAetherytesInMapArea(nextMapArea).ToList();
 
             if (mapAetherytes.Count > 0)
@@ -199,33 +215,24 @@ public class RouteOptimizationService
 
             // Check if player needs to teleport to the map area
             bool needsTeleport = false;
-            
-            if (currentMapArea != nextMapArea)
+
+            Plugin.Log.Information($"Teleport decision: currentMapArea='{currentMapArea}', currentEnglishMapArea='{currentEnglishMapArea}', nextMapArea='{nextMapArea}', mapCoordinates.Count={mapCoordinates.Count}");
+
+            if (currentEnglishMapArea != nextMapArea)
             {
                 // Different map - definitely need to teleport
                 needsTeleport = true;
-
+                Plugin.Log.Information($"Different map areas - teleport required");
             }
             else if (mapCoordinates.Count > 0)
             {
-                // Same map - check if player is far from all coordinates and closer to an aetheryte
-                bool isCloseToAnyTarget = false;
-                float closestTargetDistance = float.MaxValue;
-                float closestAetheryteDistance = float.MaxValue;
-                
-                // Find distance to closest target and closest aetheryte
-                foreach (var coord in mapCoordinates)
-                {
-                    float distance = currentLocation.DistanceTo(coord);
+                Plugin.Log.Information($"Same map area - analyzing time costs for teleport decision");
 
-                    if (distance < closestTargetDistance)
-                        closestTargetDistance = distance;
-                        
-                    // If player is within 20 units of any target, consider them close
-                    if (distance < 20.0f)
-                        isCloseToAnyTarget = true;
-                }
-                
+                // Same map - use time-based comparison instead of distance threshold
+                // Calculate time for direct route vs teleport route
+                float directRouteTime = pathFinder.CalculateRouteTimeFromStart(currentLocation, mapCoordinates);
+
+                float teleportRouteTime = float.MaxValue;
                 if (mapAetheryte != null)
                 {
                     var aetherytePos = new TreasureCoordinate(
@@ -233,18 +240,29 @@ public class RouteOptimizationService
                         mapAetheryte.Position.Y,
                         mapAetheryte.MapArea,
                         CoordinateSystemType.Map);
-                    
-                    closestAetheryteDistance = currentLocation.DistanceTo(aetherytePos);
+
+                    // Calculate teleport time: cast + loading + route from aetheryte
+                    float teleportCost = 3.0f + 2.0f; // TELEPORT_CAST_TIME + TELEPORT_LOADING_TIME
+                    float routeFromAetheryteTime = pathFinder.CalculateRouteTimeFromStart(aetherytePos, mapCoordinates);
+                    teleportRouteTime = teleportCost + routeFromAetheryteTime;
                 }
-                
-                // Only teleport if player is not close to any target and closer to aetheryte than targets
-                if (!isCloseToAnyTarget && closestAetheryteDistance < closestTargetDistance)
+
+                Plugin.Log.Information($"Same map route comparison - Direct route time: {directRouteTime:F2}s, Teleport route time: {teleportRouteTime:F2}s");
+
+                // Only teleport if it's significantly faster (saves at least 5 seconds)
+                if (teleportRouteTime < directRouteTime - 5.0f)
                 {
                     needsTeleport = true;
+                    Plugin.Log.Information($"Teleport chosen: saves {directRouteTime - teleportRouteTime:F2}s");
+                }
+                else
+                {
+                    Plugin.Log.Information($"Direct route chosen: teleport would only save {directRouteTime - teleportRouteTime:F2}s (minimum 5s required)");
                 }
             }
             
             // Get all aetherytes in the current map area for better path optimization
+            // nextMapArea is already in English, so use it directly
             var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(nextMapArea);
             List<AetheryteInfo> allMapAetherytes;
 
@@ -320,12 +338,13 @@ public class RouteOptimizationService
                 
                 // Update the current location to the last coordinate in this map area
                 currentLocation = mapRoute.Last();
-                currentMapArea = currentLocation.MapArea;
+                // Translate the current map area to English for next iteration
+                currentEnglishMapArea = MapAreaHelper.GetEnglishMapAreaFromCoordinate(currentLocation, plugin.MapAreaTranslationService);
 
                 // Update teleport costs if there are more areas to visit
                 if (coordinatesByMap.Count > 1)
                 {
-                    mapAreaTeleportCosts = GetAllMapAreaTeleportCosts(currentMapArea, coordinatesByMap.Keys.ToList());
+                    mapAreaTeleportCosts = GetAllMapAreaTeleportCosts(currentEnglishMapArea, coordinatesByMap.Keys.ToList());
                 }
             }
 
@@ -426,9 +445,11 @@ public class RouteOptimizationService
             return string.Empty;
             
         // If we're already in a map area with coordinates, prioritize that
-        if (!string.IsNullOrEmpty(currentLocation.MapArea) && coordinatesByMap.ContainsKey(currentLocation.MapArea))
+        // Translate current location's map area to English for comparison
+        var currentLocationEnglishMapArea = MapAreaHelper.GetEnglishMapAreaFromCoordinate(currentLocation, plugin.MapAreaTranslationService);
+        if (!string.IsNullOrEmpty(currentLocationEnglishMapArea) && coordinatesByMap.ContainsKey(currentLocationEnglishMapArea))
         {
-            return currentLocation.MapArea;
+            return currentLocationEnglishMapArea;
         }
 
         // Calculate the score for each map area (lower is better)
@@ -452,7 +473,7 @@ public class RouteOptimizationService
             // Get all coordinates in this map area
             var mapCoordinates = coordinatesByMap[mapArea];
 
-            // Get all aetherytes in this map area
+            // mapArea is already in English, so use it directly for aetheryte lookup
             var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(mapArea);
             var bestAetheryte = FindBestAetheryteForCoordinates(aetherytesInMap.ToList(), coordinatesByMap[mapArea]);
             float distanceToNearest = 0;

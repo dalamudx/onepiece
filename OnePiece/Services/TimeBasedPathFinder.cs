@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using OnePiece.Helpers;
 using OnePiece.Models;
 
 namespace OnePiece.Services
@@ -111,8 +112,8 @@ namespace OnePiece.Services
                 float fromAetheryteTime = CalculateTimeCost(aetheryte, end, true, false);
                 float totalTime = teleportTime + fromAetheryteTime;
 
-                // Teleport must be 20% faster than direct travel to be chosen
-                if (totalTime < bestTime * 0.8f)
+                // Choose teleport if it's faster than direct travel (removed 20% threshold)
+                if (totalTime < bestTime)
                 {
                     bestTime = totalTime;
                     bestAetheryte = aetheryte;
@@ -278,8 +279,8 @@ namespace OnePiece.Services
 
             Plugin.Log.Debug($"Same map area comparison - Direct route time: {directTotalTime:F2}s, Best teleport route time: {bestTeleportTimeForComparison:F2}s");
 
-            // Choose teleport if it's 20% faster than direct travel
-            if (bestTeleportTimeForComparison < directTotalTime * 0.8f && bestAetheryteForComparison != null)
+            // Choose teleport if it's faster than direct travel (removed 20% threshold)
+            if (bestTeleportTimeForComparison < directTotalTime && bestAetheryteForComparison != null)
             {
                 var aetheryteStartPoint = new TreasureCoordinate(
                     bestAetheryteForComparison.Position.X,
@@ -304,7 +305,7 @@ namespace OnePiece.Services
         /// <param name="startPoint">Starting point</param>
         /// <param name="coordinates">Coordinates to visit</param>
         /// <returns>Total time for the optimal ground route</returns>
-        private float CalculateRouteTimeFromStart(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
+        public float CalculateRouteTimeFromStart(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
         {
             if (coordinates.Count == 0)
                 return 0;
@@ -396,7 +397,9 @@ namespace OnePiece.Services
 
             foreach (var mapArea in mapAreas)
             {
-                var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(mapArea);
+                // Get English map area name for aetheryte lookup
+                var englishMapArea = MapAreaHelper.GetEnglishMapAreaFromCollection(route, mapArea, plugin.MapAreaTranslationService);
+                var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(englishMapArea);
                 if (aetherytesInMap != null)
                 {
                     foreach (var aetheryte in aetherytesInMap)
@@ -438,8 +441,9 @@ namespace OnePiece.Services
 
                 if (bestAetheryte != null && bestTime < directTime)
                 {
-                    // Find the corresponding AetheryteInfo
-                    var aetheryteInfo = plugin.AetheryteService.GetAetherytesInMapArea(bestAetheryte.MapArea)
+                    // Find the corresponding AetheryteInfo using English map area name
+                    var englishMapAreaForLookup = MapAreaHelper.GetEnglishMapAreaFromCollection(route, bestAetheryte.MapArea, plugin.MapAreaTranslationService);
+                    var aetheryteInfo = plugin.AetheryteService.GetAetherytesInMapArea(englishMapAreaForLookup)
                         ?.FirstOrDefault(a => a.Name == bestAetheryte.Name);
 
                     if (aetheryteInfo != null)
@@ -485,29 +489,49 @@ namespace OnePiece.Services
                 return new List<TreasureCoordinate>(coordinates);
             }
 
+            // Get all aetherytes for teleport-aware TSP calculation
+            var allAetherytes = new List<TreasureCoordinate>();
+            var mapAreas = coordinates.Select(c => c.MapArea).Distinct().ToList();
+
+            foreach (var mapArea in mapAreas)
+            {
+                var englishMapArea = MapAreaHelper.GetEnglishMapArea(mapArea, plugin.MapAreaTranslationService);
+                var aetherytesInMap = plugin.AetheryteService.GetAetherytesInMapArea(englishMapArea);
+                if (aetherytesInMap != null)
+                {
+                    foreach (var aetheryte in aetherytesInMap)
+                    {
+                        allAetherytes.Add(new TreasureCoordinate(
+                            aetheryte.Position.X,
+                            aetheryte.Position.Y,
+                            aetheryte.MapArea,
+                            CoordinateSystemType.Map,
+                            aetheryte.Name));
+                    }
+                }
+            }
+
             // For small number of coordinates, use permutation for exact solution
             if (coordinates.Count <= 7)
             {
-                return SolveTSPByPermutation(startPoint, coordinates);
+                return SolveTSPByPermutation(startPoint, coordinates, allAetherytes);
             }
             // For 8 coordinates, use hybrid approach
             else if (coordinates.Count == 8)
             {
-                var permResult = SolveTSPByPermutation(startPoint, coordinates);
-                var nnResult = SolveTSPByNearestNeighbor(startPoint, coordinates);
+                var permResult = SolveTSPByPermutation(startPoint, coordinates, allAetherytes);
+                var nnResult = SolveTSPByNearestNeighbor(startPoint, coordinates, allAetherytes);
 
                 // Calculate time for both routes
                 float permTime = CalculateRouteTimeFromStartToCoordinates(startPoint, permResult);
                 float nnTime = CalculateRouteTimeFromStartToCoordinates(startPoint, nnResult);
-
-
 
                 return permTime <= nnTime ? permResult : nnResult;
             }
             // For larger numbers, use approximation algorithms
             else
             {
-                return SolveTSPByNearestNeighbor(startPoint, coordinates);
+                return SolveTSPByNearestNeighbor(startPoint, coordinates, allAetherytes);
             }
         }
 
@@ -557,8 +581,9 @@ namespace OnePiece.Services
         /// </summary>
         /// <param name="startPoint">Starting point</param>
         /// <param name="coordinates">Coordinates to visit</param>
+        /// <param name="allAetherytes">All available aetherytes for teleport consideration</param>
         /// <returns>Optimal route (coordinates only, without start point)</returns>
-        private List<TreasureCoordinate> SolveTSPByPermutation(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
+        private List<TreasureCoordinate> SolveTSPByPermutation(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates, List<TreasureCoordinate> allAetherytes)
         {
             var allPermutations = GetAllPermutations(coordinates);
             var bestRoute = new List<TreasureCoordinate>();
@@ -572,7 +597,9 @@ namespace OnePiece.Services
 
                 foreach (var coord in perm)
                 {
-                    totalTime += CalculateTimeCost(currentPos, coord, false, false);
+                    // Use CalculateBestTimeCost to consider teleportation
+                    TreasureCoordinate bestAetheryte;
+                    totalTime += CalculateBestTimeCost(currentPos, coord, false, allAetherytes, out bestAetheryte);
                     currentPos = coord;
                 }
 
@@ -583,8 +610,6 @@ namespace OnePiece.Services
                 }
             }
 
-
-
             return bestRoute;
         }
 
@@ -593,8 +618,9 @@ namespace OnePiece.Services
         /// </summary>
         /// <param name="startPoint">Starting point</param>
         /// <param name="coordinates">Coordinates to visit</param>
+        /// <param name="allAetherytes">All available aetherytes for teleport consideration</param>
         /// <returns>Approximate optimal route (coordinates only, without start point)</returns>
-        private List<TreasureCoordinate> SolveTSPByNearestNeighbor(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates)
+        private List<TreasureCoordinate> SolveTSPByNearestNeighbor(TreasureCoordinate startPoint, List<TreasureCoordinate> coordinates, List<TreasureCoordinate> allAetherytes)
         {
             var remaining = new List<TreasureCoordinate>(coordinates);
             var route = new List<TreasureCoordinate>();
@@ -602,7 +628,13 @@ namespace OnePiece.Services
 
             while (remaining.Count > 0)
             {
-                var nearest = remaining.OrderBy(c => CalculateTimeCost(currentPos, c, false, false)).First();
+                // Find the nearest coordinate considering teleportation
+                var nearest = remaining.OrderBy(c =>
+                {
+                    TreasureCoordinate bestAetheryte;
+                    return CalculateBestTimeCost(currentPos, c, false, allAetherytes, out bestAetheryte);
+                }).First();
+
                 route.Add(nearest);
                 remaining.Remove(nearest);
                 currentPos = nearest;

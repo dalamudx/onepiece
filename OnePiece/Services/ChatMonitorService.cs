@@ -3,10 +3,13 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
+using Dalamud.Game;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Plugin.Services;
+using ECommons.DalamudServices;
+using OnePiece.Helpers;
 using OnePiece.Models;
 using OnePiece.Localization;
 using ECommons.Automation;
@@ -23,12 +26,6 @@ public class ChatMonitorService : IDisposable
     private bool isMonitoring;
     private bool isImportingCoordinates = true; // Flag to control coordinate import
 
-    // Regular expression to match coordinates with map area in the format "MapName (x, y)" or just "(x, y)"
-    // Group 1: Map area (optional)
-    // Group 2: X coordinate
-    // Group 3: Y coordinate
-    private static readonly Regex CoordinateRegex = new(@"(?:([A-Za-z0-9\s']+)?\s*\(?\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)?)", RegexOptions.IgnoreCase);
-    
     // Regular expression to match player names in copied chat messages like [21:50](Player Name) Text...
     // Group 1: Timestamp (optional)
     // Group 2: Player name
@@ -305,7 +302,12 @@ private void ExtractCoordinates(string messageText, string playerName)
     // This is important for party chat where messages may contain BoxedNumber characters
     string cleanedText = RemoveSpecialCharactersFromMessage(messageText);
 
-    var matches = CoordinateRegex.Matches(cleanedText);
+    // Get language-specific coordinate regex
+    var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
+
+    log.Information($"Chat monitoring: Processing message '{cleanedText}' from {playerName}");
+    var matches = coordinateRegex.Matches(cleanedText);
+    log.Information($"Chat monitoring: Found {matches.Count} coordinate matches");
     foreach (Match match in matches)
     {
         if (match.Groups.Count >= 4 &&
@@ -315,7 +317,24 @@ private void ExtractCoordinates(string messageText, string playerName)
             // Extract map area (if present)
             string mapArea = match.Groups[1].Success ? match.Groups[1].Value.Trim() : string.Empty;
 
-            // Use the cleaned player name to create the coordinate
+            // Validate map area using English translation if needed, but keep original for display
+            if (!string.IsNullOrEmpty(mapArea))
+            {
+                var (isValid, englishMapArea, originalMapArea) = MapAreaHelper.TranslateAndValidateMapArea(
+                    mapArea,
+                    plugin.MapAreaTranslationService,
+                    plugin.AetheryteService,
+                    log,
+                    "- chat monitoring");
+
+                if (!isValid)
+                {
+                    log.Warning($"Chat monitoring: Skipping coordinate due to invalid map area");
+                    return; // Skip this coordinate
+                }
+            }
+
+            // Use the cleaned player name to create the coordinate with original map area name
             var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", playerName);
 
             log.Information($"Detected coordinate from {playerName}: {mapArea} ({x}, {y})");
@@ -355,8 +374,10 @@ public bool ProcessChatMessage(string playerName, string message)
             // Use extracted player name if available, otherwise use the provided one
             string effectivePlayerName = !string.IsNullOrEmpty(extractedPlayerName) ? extractedPlayerName : playerName;
             
-            // Look for coordinates in the segment
-            var matches = CoordinateRegex.Matches(segment);
+            // Look for coordinates in the segment using language-specific regex
+            var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
+            var matches = coordinateRegex.Matches(segment);
+            log.Information($"Manual chat processing: Found {matches.Count} matches in segment '{segment}'");
             foreach (Match match in matches)
             {
                 if (match.Groups.Count >= 4 &&
@@ -365,13 +386,31 @@ public bool ProcessChatMessage(string playerName, string message)
                 {
                     // Extract map area (if present)
                     string mapArea = match.Groups[1].Success ? match.Groups[1].Value.Trim() : string.Empty;
-                    
+
                     // Remove player name from map area if it was incorrectly captured
                     if (!string.IsNullOrEmpty(effectivePlayerName) && !string.IsNullOrEmpty(mapArea))
                     {
                         mapArea = RemovePlayerNameFromMapArea(mapArea, effectivePlayerName);
                     }
 
+                    // Validate map area using English translation if needed, but keep original for display
+                    if (!string.IsNullOrEmpty(mapArea))
+                    {
+                        var (isValid, englishMapArea, originalMapArea) = MapAreaHelper.TranslateAndValidateMapArea(
+                            mapArea,
+                            plugin.MapAreaTranslationService,
+                            plugin.AetheryteService,
+                            log,
+                            "- manual chat processing");
+
+                        if (!isValid)
+                        {
+                            log.Warning($"Manual chat processing: Skipping coordinate due to invalid map area");
+                            continue; // Skip this coordinate
+                        }
+                    }
+
+                    // Create coordinate with original map area name for display
                     var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", effectivePlayerName);
 
                     log.Information($"Manually processed coordinate from {effectivePlayerName}: {mapArea} ({x}, {y})");
@@ -881,6 +920,74 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
 
 
     
+    /// <summary>
+    /// Gets the appropriate coordinate regex based on the current game client language.
+    /// </summary>
+    /// <returns>A regex pattern optimized for the current language.</returns>
+    private Regex GetCoordinateRegexForCurrentLanguage()
+    {
+        var currentLanguage = Svc.ClientState.ClientLanguage;
+        log.Information($"Creating coordinate regex for chat monitoring, language: {currentLanguage}");
+
+        var regex = currentLanguage switch
+        {
+            ClientLanguage.Japanese => GetJapaneseCoordinateRegex(),
+            ClientLanguage.German => GetGermanCoordinateRegex(),
+            ClientLanguage.French => GetFrenchCoordinateRegex(),
+            _ => GetEnglishCoordinateRegex() // Default to English for English and any other languages
+        };
+
+        log.Information($"Selected chat monitoring regex pattern: {regex}");
+        return regex;
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for English map area names.
+    /// </summary>
+    private Regex GetEnglishCoordinateRegex()
+    {
+        // English pattern: supports ASCII letters, numbers, spaces, apostrophes, hyphens
+        // Examples: "Heritage Found (15.0, 20.5)", "Ul'dah - Steps of Nald (8.2, 7.8)"
+        // Made optional map area with ? to handle coordinates without map names
+        return new Regex(@"(?:([A-Za-z0-9\s''\-–—]+?)\s*)?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for Japanese map area names.
+    /// </summary>
+    private Regex GetJapaneseCoordinateRegex()
+    {
+        // Japanese pattern: supports all Unicode letters and common punctuation used in Japanese
+        // This includes Hiragana, Katakana, Kanji, ASCII letters, numbers, spaces, and Japanese punctuation
+        // Examples: "ヘリテージファウンド (16.0, 21.3)", "リムサ・ロミンサ：下甲板層 (9.5, 11.2)"
+        // Made optional map area with ? to handle coordinates without map names
+        return new Regex(@"(?:([\p{L}\p{N}\s''\-–—：・]+?)\s*)?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for German map area names.
+    /// </summary>
+    private Regex GetGermanCoordinateRegex()
+    {
+        // German pattern: supports all Unicode letters, numbers, spaces, and common punctuation
+        // This includes German umlauts and other special characters
+        // Examples: "Östliche Noscea (21.0, 21.0)", "Mor Dhona (22.2, 7.9)"
+        // Made optional map area with ? to handle coordinates without map names
+        return new Regex(@"(?:([\p{L}\p{N}\s''\-–—]+?)\s*)?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for French map area names.
+    /// </summary>
+    private Regex GetFrenchCoordinateRegex()
+    {
+        // French pattern: supports all Unicode letters, numbers, spaces, and common punctuation
+        // This includes French accented characters
+        // Examples: "Noscea orientale (21.0, 21.0)", "Mor Dhona (22.2, 7.9)"
+        // Made optional map area with ? to handle coordinates without map names
+        return new Regex(@"(?:([\p{L}\p{N}\s''\-–—]+?)\s*)?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+    }
+
     /// <summary>
     /// Disposes the service.
     /// </summary>

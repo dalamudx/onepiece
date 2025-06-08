@@ -1,5 +1,7 @@
 using System;
 using System.Numerics;
+using OnePiece.Helpers;
+using OnePiece.Services;
 
 namespace OnePiece.Models;
 
@@ -82,8 +84,20 @@ public class TreasureCoordinate
 
     /// <summary>
     /// Gets or sets the map area name.
+    /// This stores the original map area name as entered by the user (can be in any language).
     /// </summary>
     public string MapArea { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the English version of the map area name for internal processing.
+    /// This is used for aetheryte lookups and route optimization.
+    /// </summary>
+    /// <param name="translationService">The translation service to use for converting map area names.</param>
+    /// <returns>The English version of the map area name, or the original if translation fails.</returns>
+    public string GetEnglishMapArea(MapAreaTranslationService? translationService = null)
+    {
+        return MapAreaHelper.GetEnglishMapAreaFromCoordinate(this, translationService);
+    }
 
     /// <summary>
     /// Gets or sets a general purpose tag to store additional information.

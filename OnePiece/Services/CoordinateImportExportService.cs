@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Dalamud.Game;
+using ECommons.DalamudServices;
+using OnePiece.Helpers;
 using OnePiece.Models;
 
 namespace OnePiece.Services;
@@ -14,6 +17,7 @@ public class CoordinateImportExportService
     private readonly Plugin plugin;
     private readonly TextParsingService textParsingService;
     private readonly AetheryteService aetheryteService;
+    private readonly MapAreaTranslationService mapAreaTranslationService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CoordinateImportExportService"/> class.
@@ -21,11 +25,13 @@ public class CoordinateImportExportService
     /// <param name="plugin">The plugin instance.</param>
     /// <param name="textParsingService">The text parsing service.</param>
     /// <param name="aetheryteService">The aetheryte service.</param>
-    public CoordinateImportExportService(Plugin plugin, TextParsingService textParsingService, AetheryteService aetheryteService)
+    /// <param name="mapAreaTranslationService">The map area translation service.</param>
+    public CoordinateImportExportService(Plugin plugin, TextParsingService textParsingService, AetheryteService aetheryteService, MapAreaTranslationService mapAreaTranslationService)
     {
         this.plugin = plugin;
         this.textParsingService = textParsingService;
         this.aetheryteService = aetheryteService;
+        this.mapAreaTranslationService = mapAreaTranslationService;
     }
 
     /// <summary>
@@ -65,12 +71,22 @@ public class CoordinateImportExportService
                             continue;
                         }
 
-                        // Validate that the map area is valid - skip if invalid
-                        if (!aetheryteService.IsValidMapArea(coordinate.MapArea))
+                        // Translate and validate map area name, but keep original for display
+                        var (isValid, englishMapArea, originalMapArea) = MapAreaHelper.TranslateAndValidateMapArea(
+                            coordinate.MapArea,
+                            mapAreaTranslationService,
+                            aetheryteService,
+                            Plugin.Log,
+                            $"({coordinate.X:F1}, {coordinate.Y:F1})");
+
+                        if (!isValid)
                         {
-                            Plugin.Log.Warning($"Skipping coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) - invalid map area '{coordinate.MapArea}'");
+                            Plugin.Log.Warning($"Skipping coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) - invalid map area");
                             continue;
                         }
+
+                        // Keep the original map area name for display purposes
+                        // coordinate.MapArea remains unchanged
 
                         // Clean player name from special characters
                         if (!string.IsNullOrEmpty(coordinate.PlayerName))
@@ -122,30 +138,77 @@ public class CoordinateImportExportService
         // Regular expression to match player names in copied chat messages like [21:50](Player Name) Text...
         var playerNameRegex = new Regex(@"\[\d+:\d+\]\s*\(([^)]+)\)|\(([^)]+)\)", RegexOptions.IgnoreCase);
         
-        // Regular expression to match coordinates with map area in the format "MapName (x, y)"
-        // Map area is now required - coordinates without map area will not match
-        // Group 1: Map area (required)
-        // Group 2: X coordinate
-        // Group 3: Y coordinate
-        var coordinateRegex = new Regex(@"([A-Za-z0-9\s']+)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+        // Get language-specific coordinate regex based on current game client language
+        var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
 
         var importedCount = 0;
         var matchCount = 0;
-        
+
+        Plugin.Log.Information($"Processing coordinate import with text: '{text}'");
+        Plugin.Log.Information($"Text length: {text.Length}, bytes: {System.Text.Encoding.UTF8.GetByteCount(text)}");
+        Plugin.Log.Information($"Current game language: {Svc.ClientState.ClientLanguage}");
+        Plugin.Log.Information($"Using regex pattern: {coordinateRegex}");
+
+        // Test the regex directly on the input text first
+        var directMatches = coordinateRegex.Matches(text);
+        Plugin.Log.Information($"Direct regex test on full text found {directMatches.Count} matches");
+
         // Split text into segments if it contains multiple entries
         string[] segments = textParsingService.SplitTextIntoSegments(text);
-        
+        Plugin.Log.Information($"Split text into {segments.Length} segments");
+
         // Process each segment
-        foreach (string segment in segments)
+        for (int i = 0; i < segments.Length; i++)
         {
+            string segment = segments[i];
+            Plugin.Log.Information($"Processing segment {i + 1}/{segments.Length}: '{segment}'");
+            Plugin.Log.Information($"Segment length: {segment.Length}, bytes: {System.Text.Encoding.UTF8.GetByteCount(segment)}");
+
             // Try to extract player name from segment
             string playerName = textParsingService.ExtractPlayerNameFromSegment(segment, playerNameRegex);
-            
+            if (!string.IsNullOrEmpty(playerName))
+            {
+                Plugin.Log.Information($"Extracted player name: '{playerName}'");
+            }
+
             var matches = coordinateRegex.Matches(segment);
+            Plugin.Log.Information($"Found {matches.Count} coordinate matches in segment");
+
+            // If no matches, let's try some diagnostic tests
+            if (matches.Count == 0)
+            {
+                Plugin.Log.Warning($"No matches found for segment: '{segment}'");
+
+                // Test if the segment contains Japanese characters
+                bool hasJapanese = segment.Any(c => c >= 0x3040 && c <= 0x309F || c >= 0x30A0 && c <= 0x30FF || c >= 0x4E00 && c <= 0x9FAF);
+                Plugin.Log.Information($"Segment contains Japanese characters: {hasJapanese}");
+
+                // Test if the segment contains coordinate pattern
+                bool hasCoordinatePattern = System.Text.RegularExpressions.Regex.IsMatch(segment, @"\(\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*\)");
+                Plugin.Log.Information($"Segment contains coordinate pattern: {hasCoordinatePattern}");
+
+                // Try a very simple regex to see what we can match
+                var simpleRegex = new Regex(@"(.+?)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)");
+                var simpleMatches = simpleRegex.Matches(segment);
+                Plugin.Log.Information($"Simple regex found {simpleMatches.Count} matches");
+                if (simpleMatches.Count > 0)
+                {
+                    foreach (Match simpleMatch in simpleMatches)
+                    {
+                        Plugin.Log.Information($"Simple match - Area: '{simpleMatch.Groups[1].Value}', X: '{simpleMatch.Groups[2].Value}', Y: '{simpleMatch.Groups[3].Value}'");
+                    }
+                }
+            }
             foreach (Match match in matches)
             {
                 // Count all matches, even if we don't import them
                 matchCount++;
+
+                Plugin.Log.Information($"Match {matchCount}: Full match = '{match.Value}'");
+                Plugin.Log.Information($"  Group 0 (full): '{match.Groups[0].Value}'");
+                Plugin.Log.Information($"  Group 1 (map area): '{match.Groups[1].Value}'");
+                Plugin.Log.Information($"  Group 2 (X coord): '{match.Groups[2].Value}'");
+                Plugin.Log.Information($"  Group 3 (Y coord): '{match.Groups[3].Value}'");
 
                 // Only process the first 8 matches that have valid coordinates and map area
                 if (importedCount < 8 &&
@@ -155,6 +218,7 @@ public class CoordinateImportExportService
                 {
                     // Extract map area (guaranteed to be present due to regex requirement)
                     string mapArea = match.Groups[1].Value.Trim();
+                    Plugin.Log.Information($"  Extracted map area: '{mapArea}', coordinates: ({x}, {y})");
 
                     // Remove player name from map area if it was incorrectly captured
                     if (!string.IsNullOrEmpty(playerName))
@@ -169,15 +233,22 @@ public class CoordinateImportExportService
                         continue;
                     }
 
-                    // Validate that the map area is valid - skip if invalid
-                    if (!aetheryteService.IsValidMapArea(mapArea))
+                    // Translate and validate map area name, but keep original for display
+                    var (isValid, englishMapArea, originalMapArea) = MapAreaHelper.TranslateAndValidateMapArea(
+                        mapArea,
+                        mapAreaTranslationService,
+                        aetheryteService,
+                        Plugin.Log,
+                        $"({x:F1}, {y:F1})");
+
+                    if (!isValid)
                     {
-                        Plugin.Log.Warning($"Skipping coordinate ({x:F1}, {y:F1}) - invalid map area '{mapArea}'");
+                        Plugin.Log.Warning($"Skipping coordinate ({x:F1}, {y:F1}) - invalid map area");
                         continue;
                     }
 
-                    // Create coordinate with player name if available
-                    var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", playerName);
+                    // Create coordinate with original map area name for display
+                    var coordinate = new TreasureCoordinate(x, y, originalMapArea, CoordinateSystemType.Map, "", playerName);
 
                     // Assign the nearest aetheryte to the coordinate for teleport functionality
                     AssignAetheryteToCoordinate(coordinate);
@@ -244,6 +315,71 @@ public class CoordinateImportExportService
         // This method is now disabled to prevent automatic assignment of AetheryteId during import
         // AetheryteId should only be assigned during route optimization when teleportation is actually needed
         Plugin.Log.Debug($"Skipping automatic aetheryte assignment for coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) in {coordinate.MapArea} - will be assigned during route optimization if needed");
+    }
+
+    /// <summary>
+    /// Gets the appropriate coordinate regex based on the current game client language.
+    /// </summary>
+    /// <returns>A regex pattern optimized for the current language.</returns>
+    private Regex GetCoordinateRegexForCurrentLanguage()
+    {
+        var currentLanguage = Svc.ClientState.ClientLanguage;
+        Plugin.Log.Information($"Creating coordinate regex for language: {currentLanguage}");
+
+        var regex = currentLanguage switch
+        {
+            ClientLanguage.Japanese => GetJapaneseCoordinateRegex(),
+            ClientLanguage.German => GetGermanCoordinateRegex(),
+            ClientLanguage.French => GetFrenchCoordinateRegex(),
+            _ => GetEnglishCoordinateRegex() // Default to English for English and any other languages
+        };
+
+        Plugin.Log.Information($"Selected regex pattern: {regex}");
+        return regex;
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for English map area names.
+    /// </summary>
+    private Regex GetEnglishCoordinateRegex()
+    {
+        // English pattern: supports ASCII letters, numbers, spaces, apostrophes, hyphens
+        // Examples: "Heritage Found (15.0, 20.5)", "Ul'dah - Steps of Nald (8.2, 7.8)"
+        return new Regex(@"([A-Za-z0-9\s''\-–—]+?)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for Japanese map area names.
+    /// </summary>
+    private Regex GetJapaneseCoordinateRegex()
+    {
+        // Japanese pattern: supports all Unicode letters and common punctuation used in Japanese
+        // This includes Hiragana, Katakana, Kanji, ASCII letters, numbers, spaces, and Japanese punctuation
+        // Examples: "ヘリテージファウンド (16.0, 21.3)", "リムサ・ロミンサ：下甲板層 (9.5, 11.2)"
+        // Using \s+ to handle multiple spaces and \s* for flexible spacing around parentheses
+        return new Regex(@"([\p{L}\p{N}\s''\-–—：・]+?)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for German map area names.
+    /// </summary>
+    private Regex GetGermanCoordinateRegex()
+    {
+        // German pattern: supports all Unicode letters, numbers, spaces, and common punctuation
+        // This includes German umlauts and other special characters
+        // Examples: "Östliche Noscea (21.0, 21.0)", "Mor Dhona (22.2, 7.9)"
+        return new Regex(@"([\p{L}\p{N}\s''\-–—]+?)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets regex pattern optimized for French map area names.
+    /// </summary>
+    private Regex GetFrenchCoordinateRegex()
+    {
+        // French pattern: supports all Unicode letters, numbers, spaces, and common punctuation
+        // This includes French accented characters
+        // Examples: "Noscea orientale (21.0, 21.0)", "Mor Dhona (22.2, 7.9)"
+        return new Regex(@"([\p{L}\p{N}\s''\-–—]+?)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
     }
 
     /// <summary>

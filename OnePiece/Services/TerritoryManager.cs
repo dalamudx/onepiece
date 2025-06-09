@@ -10,7 +10,7 @@ namespace OnePiece.Services;
 /// <summary>
 /// Manager for territory and map information.
 /// </summary>
-public class TerritoryManager : IDisposable
+public class TerritoryManager
 {
     private readonly IDataManager data;
     private readonly IPluginLog log;
@@ -147,12 +147,5 @@ public class TerritoryManager : IDisposable
         }
     }
 
-    /// <summary>
-    /// Disposes the service and cleans up resources.
-    /// </summary>
-    public void Dispose()
-    {
-        // No specific resources to dispose currently
-        // This method is here for future extensibility and consistency
-    }
+
 }

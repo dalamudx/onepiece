@@ -480,9 +480,6 @@ public class AetheryteService : IDisposable
     {
         // Clear aetheryte list to free memory
         aetherytes.Clear();
-
-        // No other resources to dispose currently
-        // This method is here for future extensibility
     }
 }
 

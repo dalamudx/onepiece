@@ -296,9 +296,9 @@ private void ExtractCoordinates(string messageText, string playerName)
     // Get language-specific coordinate regex
     var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
 
-    log.Information($"Chat monitoring: Processing message '{cleanedText}' from {playerName}");
+    log.Debug($"Chat monitoring: Processing message from {playerName}");
     var matches = coordinateRegex.Matches(cleanedText);
-    log.Information($"Chat monitoring: Found {matches.Count} coordinate matches");
+    log.Debug($"Found {matches.Count} coordinate matches");
     foreach (Match match in matches)
     {
         if (match.Groups.Count >= 4 &&
@@ -368,7 +368,7 @@ public bool ProcessChatMessage(string playerName, string message)
             // Look for coordinates in the segment using language-specific regex
             var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
             var matches = coordinateRegex.Matches(segment);
-            log.Information($"Manual chat processing: Found {matches.Count} matches in segment '{segment}'");
+            log.Debug($"Manual chat processing: Found {matches.Count} matches in segment");
             foreach (Match match in matches)
             {
                 if (match.Groups.Count >= 4 &&
@@ -642,17 +642,15 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
             }
             catch (Exception ex)
             {
-                // Always log error messages
                 log.Error($"Error sending coordinate to chat: {ex.Message}");
             }
         }
         catch (Exception ex)
         {
-            // Always log error messages
             log.Error($"Error sending coordinate to chat: {ex.Message}");
         }
     }
-    
+
     /// <summary>
     /// Builds a custom message based on the selected message components.
     /// </summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using OnePiece.Models;
@@ -16,11 +17,6 @@ public class TreasureHuntService : IDisposable
     private readonly Plugin plugin;
 
     /// <summary>
-    /// Service for managing coordinates.
-    /// </summary>
-    private readonly CoordinateManagementService coordinateManager;
-
-    /// <summary>
     /// Service for importing and exporting coordinates.
     /// </summary>
     private readonly CoordinateImportExportService importExportService;
@@ -31,19 +27,16 @@ public class TreasureHuntService : IDisposable
     private readonly RouteOptimizationService routeOptimizer;
 
     /// <summary>
-    /// Service for parsing text.
-    /// </summary>
-    private readonly TextParsingService textParser;
-
-    /// <summary>
     /// Gets the list of treasure coordinates.
     /// </summary>
-    public List<TreasureCoordinate> Coordinates => coordinateManager.Coordinates;
+    public List<TreasureCoordinate> Coordinates { get; private set; } = new();
 
     /// <summary>
     /// Gets the list of deleted treasure coordinates (trash bin).
     /// </summary>
-    public List<TreasureCoordinate> DeletedCoordinates => coordinateManager.DeletedCoordinates;
+    public List<TreasureCoordinate> DeletedCoordinates { get; private set; } = new();
+
+
 
     /// <summary>
     /// Gets the optimized route through the coordinates.
@@ -97,15 +90,10 @@ public class TreasureHuntService : IDisposable
     public TreasureHuntService(Plugin plugin)
     {
         this.plugin = plugin;
-        this.textParser = new TextParsingService(plugin);
-        this.coordinateManager = new CoordinateManagementService(plugin, textParser);
-        this.importExportService = new CoordinateImportExportService(plugin, textParser, plugin.AetheryteService, plugin.MapAreaTranslationService);
+        this.importExportService = new CoordinateImportExportService(plugin, plugin.AetheryteService, plugin.MapAreaTranslationService);
         this.routeOptimizer = new RouteOptimizationService(plugin);
 
         // Wire up event handlers
-        coordinateManager.OnCoordinateDeleted += (sender, coordinate) => OnCoordinateDeleted?.Invoke(this, coordinate);
-        coordinateManager.OnCoordinateRestored += (sender, coordinate) => OnCoordinateRestored?.Invoke(this, coordinate);
-        coordinateManager.OnCoordinatesCleared += (sender, args) => OnCoordinatesCleared?.Invoke(this, args);
         routeOptimizer.OnRouteOptimized += (sender, count) => OnRouteOptimized?.Invoke(this, count);
         routeOptimizer.OnRouteOptimizationReset += (sender, args) => OnRouteOptimizationReset?.Invoke(this, args);
     }
@@ -116,7 +104,14 @@ public class TreasureHuntService : IDisposable
     /// <param name="coordinate">The coordinate to add.</param>
     public void AddCoordinate(TreasureCoordinate coordinate)
     {
-        coordinateManager.AddCoordinate(coordinate);
+        // Clean player name from special characters if it's not empty
+        if (!string.IsNullOrEmpty(coordinate.PlayerName))
+        {
+            coordinate.PlayerName = RemoveSpecialCharactersFromName(coordinate.PlayerName);
+        }
+
+        // Add the coordinate
+        Coordinates.Add(coordinate);
     }
 
     /// <summary>
@@ -129,7 +124,7 @@ public class TreasureHuntService : IDisposable
         if (string.IsNullOrWhiteSpace(text))
             return 0;
 
-        int importedCount = importExportService.ImportCoordinates(text, coordinateManager.AddCoordinate);
+        int importedCount = importExportService.ImportCoordinates(text, AddCoordinate);
 
         if (importedCount > 0)
         {
@@ -168,7 +163,10 @@ public class TreasureHuntService : IDisposable
     /// </summary>
     public void ClearCoordinates()
     {
-        coordinateManager.ClearCoordinates();
+        Coordinates.Clear();
+
+        // Raise the event
+        OnCoordinatesCleared?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -178,7 +176,17 @@ public class TreasureHuntService : IDisposable
     /// <returns>True if the coordinate was deleted, false otherwise.</returns>
     public bool DeleteCoordinate(int index)
     {
-        return coordinateManager.DeleteCoordinate(index);
+        if (index < 0 || index >= Coordinates.Count)
+            return false;
+
+        var coordinate = Coordinates[index];
+        DeletedCoordinates.Add(coordinate);
+        Coordinates.RemoveAt(index);
+
+        // Raise the event
+        OnCoordinateDeleted?.Invoke(this, coordinate);
+
+        return true;
     }
 
     /// <summary>
@@ -188,7 +196,17 @@ public class TreasureHuntService : IDisposable
     /// <returns>True if the coordinate was restored, false otherwise.</returns>
     public bool RestoreCoordinate(int index)
     {
-        return coordinateManager.RestoreCoordinate(index);
+        if (index < 0 || index >= DeletedCoordinates.Count)
+            return false;
+
+        var coordinate = DeletedCoordinates[index];
+        Coordinates.Add(coordinate);
+        DeletedCoordinates.RemoveAt(index);
+
+        // Raise the event
+        OnCoordinateRestored?.Invoke(this, coordinate);
+
+        return true;
     }
 
     /// <summary>
@@ -196,7 +214,7 @@ public class TreasureHuntService : IDisposable
     /// </summary>
     public void ClearTrash()
     {
-        coordinateManager.ClearTrash();
+        DeletedCoordinates.Clear();
     }
 
     /// <summary>
@@ -206,7 +224,10 @@ public class TreasureHuntService : IDisposable
     /// <returns>The coordinate at the specified index, or null if the index is out of range.</returns>
     public TreasureCoordinate? GetCoordinate(int index)
     {
-        return coordinateManager.GetCoordinate(index);
+        if (index < 0 || index >= Coordinates.Count)
+            return null;
+
+        return Coordinates[index];
     }
 
     /// <summary>
@@ -216,7 +237,10 @@ public class TreasureHuntService : IDisposable
     /// <returns>The coordinate at the specified index, or null if the index is out of range.</returns>
     public TreasureCoordinate? GetDeletedCoordinate(int index)
     {
-        return coordinateManager.GetDeletedCoordinate(index);
+        if (index < 0 || index >= DeletedCoordinates.Count)
+            return null;
+
+        return DeletedCoordinates[index];
     }
 
     /// <summary>
@@ -293,19 +317,6 @@ public class TreasureHuntService : IDisposable
     /// </summary>
     public void Dispose()
     {
-        // Dispose sub-services if they implement IDisposable
-        if (coordinateManager is IDisposable coordinateDisposable)
-            coordinateDisposable.Dispose();
-
-        if (importExportService is IDisposable importExportDisposable)
-            importExportDisposable.Dispose();
-
-        if (routeOptimizer is IDisposable routeOptimizerDisposable)
-            routeOptimizerDisposable.Dispose();
-
-        if (textParser is IDisposable textParserDisposable)
-            textParserDisposable.Dispose();
-
         // Clear event handlers to prevent memory leaks
         OnCoordinatesImported = null;
         OnCoordinatesExported = null;
@@ -314,5 +325,44 @@ public class TreasureHuntService : IDisposable
         OnCoordinatesCleared = null;
         OnRouteOptimized = null;
         OnRouteOptimizationReset = null;
+    }
+
+    /// <summary>
+    /// Removes special characters from player names like BoxedNumber and BoxedOutlinedNumber
+    /// </summary>
+    /// <param name="name">The name that might contain special characters</param>
+    /// <returns>The name with special characters removed</returns>
+    private string RemoveSpecialCharactersFromName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return name;
+
+        // Create a StringBuilder to build the cleaned name
+        var cleanedName = new StringBuilder(name.Length);
+
+        // Process each character in the name
+        foreach (var c in name)
+        {
+            // Check for BoxedNumber character range (0xE090 to 0xE097)
+            // These are game-specific number icons
+            if ((int)c >= 0xE090 && (int)c <= 0xE097)
+                continue;
+
+            // Check for BoxedOutlinedNumber character range (0xE0E1 to 0xE0E9)
+            // These are game-specific outlined number icons
+            if ((int)c >= 0xE0E1 && (int)c <= 0xE0E9)
+                continue;
+
+            // Remove star character (★) often used in player names
+            if (c == '★')
+                continue;
+
+            // Any other special characters that need to be filtered can be added here
+
+            // Add the character to the cleaned name if it passed all filters
+            cleanedName.Append(c);
+        }
+
+        return cleanedName.ToString().Trim();
     }
 }

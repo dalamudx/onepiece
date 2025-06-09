@@ -1,6 +1,7 @@
 using Dalamud.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OnePiece;
 
@@ -22,6 +23,37 @@ public class Configuration : IPluginConfiguration
     // Message template settings
     public List<MessageTemplate> MessageTemplates { get; set; } = new List<MessageTemplate>();
     public int ActiveTemplateIndex { get; set; } = -1;
+    /// <summary>
+    /// Validates and fixes basic configuration issues.
+    /// </summary>
+    public void ValidateAndFix()
+    {
+        // Ensure collections are not null
+        MessageTemplates ??= new List<MessageTemplate>();
+        SelectedMessageComponents ??= new List<MessageComponent>();
+        CustomMessages ??= new List<string>();
+
+        // Ensure basic properties have valid values
+        Language ??= "en";
+
+        // Fix invalid chat channel
+        if (!Enum.IsDefined(typeof(ChatChannelType), MonitoredChatChannel))
+        {
+            MonitoredChatChannel = ChatChannelType.Party;
+        }
+
+        // Fix invalid active template index
+        if (ActiveTemplateIndex < -1 || ActiveTemplateIndex >= MessageTemplates.Count)
+        {
+            ActiveTemplateIndex = -1;
+        }
+
+        // Remove null templates and components
+        MessageTemplates = MessageTemplates.Where(t => t != null).ToList();
+        SelectedMessageComponents = SelectedMessageComponents.Where(c => c != null).ToList();
+        CustomMessages = CustomMessages.Where(m => !string.IsNullOrEmpty(m)).ToList();
+    }
+
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);

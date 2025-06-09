@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using Dalamud.Game;
 using ECommons.DalamudServices;
@@ -15,7 +16,6 @@ namespace OnePiece.Services;
 public class CoordinateImportExportService
 {
     private readonly Plugin plugin;
-    private readonly TextParsingService textParsingService;
     private readonly AetheryteService aetheryteService;
     private readonly MapAreaTranslationService mapAreaTranslationService;
 
@@ -23,13 +23,11 @@ public class CoordinateImportExportService
     /// Initializes a new instance of the <see cref="CoordinateImportExportService"/> class.
     /// </summary>
     /// <param name="plugin">The plugin instance.</param>
-    /// <param name="textParsingService">The text parsing service.</param>
     /// <param name="aetheryteService">The aetheryte service.</param>
     /// <param name="mapAreaTranslationService">The map area translation service.</param>
-    public CoordinateImportExportService(Plugin plugin, TextParsingService textParsingService, AetheryteService aetheryteService, MapAreaTranslationService mapAreaTranslationService)
+    public CoordinateImportExportService(Plugin plugin, AetheryteService aetheryteService, MapAreaTranslationService mapAreaTranslationService)
     {
         this.plugin = plugin;
-        this.textParsingService = textParsingService;
         this.aetheryteService = aetheryteService;
         this.mapAreaTranslationService = mapAreaTranslationService;
     }
@@ -48,7 +46,7 @@ public class CoordinateImportExportService
         var importedCount = 0;
 
         // Check if the text is a Base64 encoded string
-        if (textParsingService.IsBase64String(text))
+        if (IsBase64String(text))
         {
             try
             {
@@ -91,7 +89,7 @@ public class CoordinateImportExportService
                         // Clean player name from special characters
                         if (!string.IsNullOrEmpty(coordinate.PlayerName))
                         {
-                            coordinate.PlayerName = textParsingService.RemoveSpecialCharactersFromName(coordinate.PlayerName);
+                            coordinate.PlayerName = RemoveSpecialCharactersFromName(coordinate.PlayerName);
                         }
 
                         // Assign the nearest aetheryte to the coordinate for teleport functionality
@@ -144,71 +142,39 @@ public class CoordinateImportExportService
         var importedCount = 0;
         var matchCount = 0;
 
-        Plugin.Log.Information($"Processing coordinate import with text: '{text}'");
-        Plugin.Log.Information($"Text length: {text.Length}, bytes: {System.Text.Encoding.UTF8.GetByteCount(text)}");
-        Plugin.Log.Information($"Current game language: {Svc.ClientState.ClientLanguage}");
-        Plugin.Log.Information($"Using regex pattern: {coordinateRegex}");
-
-        // Test the regex directly on the input text first
-        var directMatches = coordinateRegex.Matches(text);
-        Plugin.Log.Information($"Direct regex test on full text found {directMatches.Count} matches");
+        Plugin.Log.Debug($"Processing coordinate import: {text.Length} chars, language: {Svc.ClientState.ClientLanguage}");
 
         // Split text into segments if it contains multiple entries
-        string[] segments = textParsingService.SplitTextIntoSegments(text);
-        Plugin.Log.Information($"Split text into {segments.Length} segments");
+        string[] segments = SplitTextIntoSegments(text);
+        Plugin.Log.Debug($"Split text into {segments.Length} segments");
 
         // Process each segment
         for (int i = 0; i < segments.Length; i++)
         {
             string segment = segments[i];
-            Plugin.Log.Information($"Processing segment {i + 1}/{segments.Length}: '{segment}'");
-            Plugin.Log.Information($"Segment length: {segment.Length}, bytes: {System.Text.Encoding.UTF8.GetByteCount(segment)}");
+            Plugin.Log.Debug($"Processing segment {i + 1}/{segments.Length}");
 
             // Try to extract player name from segment
-            string playerName = textParsingService.ExtractPlayerNameFromSegment(segment, playerNameRegex);
+            string playerName = ExtractPlayerNameFromSegment(segment, playerNameRegex);
             if (!string.IsNullOrEmpty(playerName))
             {
-                Plugin.Log.Information($"Extracted player name: '{playerName}'");
+                Plugin.Log.Debug($"Extracted player name: '{playerName}'");
             }
 
             var matches = coordinateRegex.Matches(segment);
-            Plugin.Log.Information($"Found {matches.Count} coordinate matches in segment");
+            Plugin.Log.Debug($"Found {matches.Count} coordinate matches in segment");
 
-            // If no matches, let's try some diagnostic tests
+            // If no matches, log for debugging
             if (matches.Count == 0)
             {
-                Plugin.Log.Warning($"No matches found for segment: '{segment}'");
-
-                // Test if the segment contains Japanese characters
-                bool hasJapanese = segment.Any(c => c >= 0x3040 && c <= 0x309F || c >= 0x30A0 && c <= 0x30FF || c >= 0x4E00 && c <= 0x9FAF);
-                Plugin.Log.Information($"Segment contains Japanese characters: {hasJapanese}");
-
-                // Test if the segment contains coordinate pattern
-                bool hasCoordinatePattern = System.Text.RegularExpressions.Regex.IsMatch(segment, @"\(\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?\s*\)");
-                Plugin.Log.Information($"Segment contains coordinate pattern: {hasCoordinatePattern}");
-
-                // Try a very simple regex to see what we can match
-                var simpleRegex = new Regex(@"(.+?)\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)");
-                var simpleMatches = simpleRegex.Matches(segment);
-                Plugin.Log.Information($"Simple regex found {simpleMatches.Count} matches");
-                if (simpleMatches.Count > 0)
-                {
-                    foreach (Match simpleMatch in simpleMatches)
-                    {
-                        Plugin.Log.Information($"Simple match - Area: '{simpleMatch.Groups[1].Value}', X: '{simpleMatch.Groups[2].Value}', Y: '{simpleMatch.Groups[3].Value}'");
-                    }
-                }
+                Plugin.Log.Debug($"No coordinate matches found in segment");
             }
             foreach (Match match in matches)
             {
                 // Count all matches, even if we don't import them
                 matchCount++;
 
-                Plugin.Log.Information($"Match {matchCount}: Full match = '{match.Value}'");
-                Plugin.Log.Information($"  Group 0 (full): '{match.Groups[0].Value}'");
-                Plugin.Log.Information($"  Group 1 (map area): '{match.Groups[1].Value}'");
-                Plugin.Log.Information($"  Group 2 (X coord): '{match.Groups[2].Value}'");
-                Plugin.Log.Information($"  Group 3 (Y coord): '{match.Groups[3].Value}'");
+                Plugin.Log.Debug($"Match {matchCount}: {match.Groups[1].Value} ({match.Groups[2].Value}, {match.Groups[3].Value})");
 
                 // Only process the first 8 matches that have valid coordinates and map area
                 if (importedCount < 8 &&
@@ -218,12 +184,11 @@ public class CoordinateImportExportService
                 {
                     // Extract map area (guaranteed to be present due to regex requirement)
                     string mapArea = match.Groups[1].Value.Trim();
-                    Plugin.Log.Information($"  Extracted map area: '{mapArea}', coordinates: ({x}, {y})");
 
                     // Remove player name from map area if it was incorrectly captured
                     if (!string.IsNullOrEmpty(playerName))
                     {
-                        mapArea = textParsingService.RemovePlayerNameFromMapArea(mapArea, playerName);
+                        mapArea = RemovePlayerNameFromMapArea(mapArea, playerName);
                     }
 
                     // Final validation - ensure map area is not empty after cleaning
@@ -404,4 +369,129 @@ public class CoordinateImportExportService
             Plugin.Log.Error($"Error logging valid map areas: {ex.Message}");
         }
     }
+
+    #region Text Parsing Methods (integrated from TextParsingService)
+
+    /// <summary>
+    /// Splits a text into segments that might contain individual coordinates.
+    /// </summary>
+    /// <param name="text">The text to split.</param>
+    /// <returns>An array of text segments.</returns>
+    private string[] SplitTextIntoSegments(string text)
+    {
+        // Try to split the text at timestamps like [21:50]
+        var timestampSegments = Regex.Split(text, @"(?=\[\d+:\d+\])");
+
+        // If no timestamps found or only one segment, return the whole text
+        if (timestampSegments.Length <= 1)
+        {
+            return new[] { text };
+        }
+
+        // Filter out empty segments
+        return timestampSegments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+    }
+
+    /// <summary>
+    /// Extracts player name from a text segment.
+    /// </summary>
+    /// <param name="segment">The text segment.</param>
+    /// <param name="playerNameRegex">The regex to use for player name extraction.</param>
+    /// <returns>The extracted player name, or empty string if none found.</returns>
+    private string ExtractPlayerNameFromSegment(string segment, Regex playerNameRegex)
+    {
+        var match = playerNameRegex.Match(segment);
+        if (match.Success)
+        {
+            // Group 1 contains the player name if it matched the first pattern ([21:50](Player Name))
+            // Group 2 contains the player name if it matched the second pattern ((Player Name))
+            string playerName = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+            return RemoveSpecialCharactersFromName(playerName.Trim());
+        }
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Removes special characters from player names like BoxedNumber and BoxedOutlinedNumber
+    /// </summary>
+    /// <param name="name">The name that might contain special characters</param>
+    /// <returns>The name with special characters removed</returns>
+    private string RemoveSpecialCharactersFromName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return name;
+
+        // Create a StringBuilder to build the cleaned name
+        var cleanedName = new StringBuilder(name.Length);
+
+        // Process each character in the name
+        foreach (var c in name)
+        {
+            // Check for BoxedNumber character range (0xE090 to 0xE097)
+            // These are game-specific number icons
+            if ((int)c >= 0xE090 && (int)c <= 0xE097)
+                continue;
+
+            // Check for BoxedOutlinedNumber character range (0xE0E1 to 0xE0E9)
+            // These are game-specific outlined number icons
+            if ((int)c >= 0xE0E1 && (int)c <= 0xE0E9)
+                continue;
+
+            // Remove star character (★) often used in player names
+            if (c == '★')
+                continue;
+
+            // Any other special characters that need to be filtered can be added here
+
+            // Add the character to the cleaned name if it passed all filters
+            cleanedName.Append(c);
+        }
+
+        return cleanedName.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Removes player name from map area if it was incorrectly captured.
+    /// </summary>
+    /// <param name="mapArea">The map area string.</param>
+    /// <param name="playerName">The player name to remove.</param>
+    /// <returns>The cleaned map area string.</returns>
+    private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
+    {
+        // If the map area starts with the player name, remove it
+        if (mapArea.StartsWith(playerName, StringComparison.OrdinalIgnoreCase))
+        {
+            mapArea = mapArea.Substring(playerName.Length).Trim();
+        }
+
+        return mapArea;
+    }
+
+    /// <summary>
+    /// Checks if a string is a valid Base64 encoded string.
+    /// </summary>
+    /// <param name="s">The string to check.</param>
+    /// <returns>True if the string is a valid Base64 encoded string, false otherwise.</returns>
+    private bool IsBase64String(string s)
+    {
+        // Check if the string is a valid Base64 string
+        if (string.IsNullOrWhiteSpace(s))
+            return false;
+
+        // Remove any whitespace
+        s = s.Trim();
+
+        // Check if the length is valid for Base64
+        if (s.Length % 4 != 0)
+            return false;
+
+        // Check if the string contains only valid Base64 characters
+        return s.All(c =>
+            (c >= 'A' && c <= 'Z') ||
+            (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') ||
+            c == '+' || c == '/' || c == '=');
+    }
+
+    #endregion
 }

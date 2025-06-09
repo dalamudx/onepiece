@@ -39,7 +39,6 @@ public sealed class Plugin : IDalamudPlugin
     public TerritoryManager TerritoryManager { get; init; }
     public PlayerLocationService PlayerLocationService { get; init; }
     public AetheryteService AetheryteService { get; init; }
-    public ConfigurationValidationService ConfigurationValidationService { get; init; }
     public MapAreaTranslationService MapAreaTranslationService { get; init; }
 
     public readonly WindowSystem WindowSystem = new("OnePiece");
@@ -68,23 +67,15 @@ public sealed class Plugin : IDalamudPlugin
         TerritoryManager = new TerritoryManager(DataManager, Log);
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
+        // Simple configuration validation and fix
         try
         {
-            ConfigurationValidationService = new ConfigurationValidationService(this);
-            var validationResult = ConfigurationValidationService.SafeValidateAndFixConfiguration();
-            if (validationResult.HasIssues)
-            {
-                Log.Warning($"Configuration validation: {validationResult.GetSummary()}");
-                foreach (var error in validationResult.Errors)
-                {
-                    Log.Error($"Configuration error: {error}");
-                }
-            }
+            Configuration.ValidateAndFix();
+            Configuration.Save();
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to initialize configuration validation: {ex}");
-            ConfigurationValidationService = null!;
+            Log.Error($"Failed to validate configuration: {ex}");
         }
 
         PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager, GameGui, DataManager);
@@ -125,30 +116,8 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
 
         ChatMonitorService?.Dispose();
-
-        if (TreasureHuntService is IDisposable treasureHuntDisposable)
-            treasureHuntDisposable.Dispose();
-
-        if (AetheryteService is IDisposable aetheryteDisposable)
-            aetheryteDisposable.Dispose();
-
-        if (PlayerLocationService is IDisposable playerLocationDisposable)
-            playerLocationDisposable.Dispose();
-
-        if (TerritoryManager is IDisposable territoryDisposable)
-            territoryDisposable.Dispose();
-
-        if (MapAreaTranslationService is IDisposable mapAreaTranslationDisposable)
-            mapAreaTranslationDisposable.Dispose();
-
-        try
-        {
-            ConfigurationValidationService?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Error disposing ConfigurationValidationService: {ex}");
-        }
+        TreasureHuntService?.Dispose();
+        AetheryteService?.Dispose();
 
         WindowSystem.RemoveAllWindows();
         MainWindow?.Dispose();

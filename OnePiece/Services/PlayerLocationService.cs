@@ -10,7 +10,7 @@ namespace OnePiece.Services;
 /// <summary>
 /// Service for getting player location information.
 /// </summary>
-public class PlayerLocationService : IDisposable
+public class PlayerLocationService
 {
     private readonly IClientState clientState;
     private readonly IPluginLog log;
@@ -215,12 +215,5 @@ public class PlayerLocationService : IDisposable
         return result;
     }
 
-    /// <summary>
-    /// Disposes the service and cleans up resources.
-    /// </summary>
-    public void Dispose()
-    {
-        // No specific resources to dispose currently
-        // This method is here for future extensibility and consistency
-    }
+
 }

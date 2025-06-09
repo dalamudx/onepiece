@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using Dalamud.Game;
 using Dalamud.Plugin.Services;
+using ECommons.DalamudServices;
 
 namespace OnePiece.Localization;
 
@@ -66,6 +68,68 @@ public static class LocalizationManager
         // If all else fails, return the key itself
         Log.Warning($"Missing translation for key: {key}");
         return key;
+    }
+
+    /// <summary>
+    /// Gets a localized string based on the current game client language instead of plugin language setting.
+    /// This is useful for content that should match the game client language (like map area names).
+    /// </summary>
+    /// <param name="key">The string key.</param>
+    /// <returns>The localized string in client language, or fallback to plugin language if not found.</returns>
+    public static string GetStringByClientLanguage(string key)
+    {
+        var clientLanguageCode = GetClientLanguageCode();
+
+        // Try client language first
+        if (LoadedTranslations.TryGetValue(clientLanguageCode, out var clientLanguageStrings) &&
+            clientLanguageStrings.TryGetValue(key, out var clientTranslation))
+        {
+            return clientTranslation;
+        }
+
+        // Fallback to English if client language is not available
+        if (clientLanguageCode != "en" &&
+            LoadedTranslations.TryGetValue("en", out var englishStrings) &&
+            englishStrings.TryGetValue(key, out var englishTranslation))
+        {
+            return englishTranslation;
+        }
+
+        // Final fallback to regular GetString method (uses plugin language)
+        return GetString(key);
+    }
+
+    /// <summary>
+    /// Converts the current game client language to our supported language code.
+    /// </summary>
+    /// <returns>The language code corresponding to the client language.</returns>
+    private static string GetClientLanguageCode()
+    {
+        try
+        {
+            var clientLanguage = Svc.ClientState.ClientLanguage;
+            var languageCode = clientLanguage switch
+            {
+                ClientLanguage.Japanese => "ja",
+                ClientLanguage.German => "de",
+                ClientLanguage.French => "fr",
+                (ClientLanguage)4 => "zh", // Chinese
+                _ => "en" // Default to English for English and any other languages
+            };
+
+            // Ensure the language is loaded
+            if (!LoadedTranslations.ContainsKey(languageCode))
+            {
+                LoadLanguage(languageCode);
+            }
+
+            return languageCode;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Error getting client language, falling back to English: {ex.Message}");
+            return "en";
+        }
     }
 
     /// <summary>

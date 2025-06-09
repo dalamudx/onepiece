@@ -20,7 +20,7 @@
   "ClearTrash": "Vider la corbeille",
   "EmptyTrashBin": "La corbeille est vide.",
   "ChannelSettings": "Paramètres de canal",
-  "SelectChatChannel": "Sélectionner le canal:",
+  "SelectChatChannel": "Sélectionner le canal",
   "StartMonitoring": "Démarrer la surveillance",
   "StopMonitoring": "Arrêter la surveillance",
   "UnknownArea": "Zone inconnue",
@@ -63,7 +63,7 @@
   "TeleportCost": "Coût: {0} gil",
   "CustomMessageSettings": "Paramètres de messages personnalisés",
   "MessageSettings": "Paramètres de messages",
-  "OpenSettingsWindow": "Ouvrir la fenêtre des paramètres",
+  "OpenSettingsWindow": "Messages personnalisés",
   "MessageTemplateManagement": "Gestion des modèles de messages",
   "SavedTemplates": "Modèles sauvegardés:",
   "NoSavedTemplates": "Aucun modèle sauvegardé",
@@ -98,7 +98,7 @@
   "MoveUp": "Monter",
   "MoveDown": "Descendre",
   "PlayerNameExample": "Tataru Taru",
-  "LocationExample": "Limsa Lominsa Ponts inférieurs ( 9.5 , 11.2 )",
+  "LocationExample": "Limsa Lominsa - L'Entrepont ( 9.5 , 11.2 )",
   "DeleteShort": "X",
   "ViewingActiveTemplateReadOnly": "Affichage des composants du modèle actif (lecture seule). Sélectionnez le modèle pour le modifier."
 }

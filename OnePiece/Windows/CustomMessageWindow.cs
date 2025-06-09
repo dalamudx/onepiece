@@ -7,6 +7,7 @@ using ImGuiNET;
 using System.Linq;
 using OnePiece.Localization;
 using OnePiece.Models;
+using OnePiece.Helpers;
 
 namespace OnePiece.Windows;
 
@@ -574,8 +575,9 @@ public class CustomMessageWindow : Window, IDisposable
                     break;
                 case MessageComponentType.Coordinates:
                     // Use a localized map location example with special LinkMarker character from SeIconChar
+                    // Use client language for LocationExample to match game client language
                     string linkMarker = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.LinkMarker);
-                    previewParts.Add($"{linkMarker} {LocalizationManager.GetString("LocationExample")}");
+                    previewParts.Add($"{linkMarker} {LocalizationManager.GetStringByClientLanguage("LocationExample")}");
                     break;
                 case MessageComponentType.Number:
                     // Show specific Number1 special character using the actual Unicode value from SeIconChar
@@ -786,9 +788,8 @@ public class CustomMessageWindow : Window, IDisposable
         {
             var button = buttonData[i];
 
-            // Calculate button width including padding
-            Vector2 textSize = ImGui.CalcTextSize(button.Text);
-            float buttonWidth = textSize.X + ImGui.GetStyle().FramePadding.X * 2;
+            // Calculate button width using the unified method
+            float buttonWidth = UIHelper.CalculateButtonWidth(button.Text, 60f, ImGui.GetStyle().FramePadding.X * 2);
 
             // Check if we need to wrap to next line
             if (!isFirstButtonInLine && currentLineWidth + buttonSpacing + buttonWidth > availableWidth)
@@ -817,6 +818,8 @@ public class CustomMessageWindow : Window, IDisposable
             isFirstButtonInLine = false;
         }
     }
+
+
 
     public void Dispose()
     {

@@ -204,10 +204,10 @@ public static class CoordinateDisplayHelper
         string chatText = LocalizationManager.GetString("SendToChat");
         string collectedText = LocalizationManager.GetString("Collected");
 
-        // Calculate button widths for consistent sizing
-        float teleportWidth = Math.Max(ImGui.CalcTextSize(teleportText).X + 24f, 80f);
-        float chatWidth = Math.Max(ImGui.CalcTextSize(chatText).X + 24f, 80f);
-        float collectedWidth = Math.Max(ImGui.CalcTextSize(collectedText).X + 24f, 80f);
+        // Calculate button widths for consistent sizing using the unified method
+        float teleportWidth = UIHelper.CalculateButtonWidth(teleportText, 80f);
+        float chatWidth = UIHelper.CalculateButtonWidth(chatText, 80f);
+        float collectedWidth = UIHelper.CalculateButtonWidth(collectedText, 80f);
 
         // Teleport button (if coordinate has aetheryte ID)
         if (onTeleport != null && coordinate.AetheryteId > 0)
@@ -275,4 +275,6 @@ public static class CoordinateDisplayHelper
         ImGui.SameLine();
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.5f, 1.0f), $"({mapAreas} areas)");
     }
+
+
 }

@@ -7,6 +7,7 @@ using ImGuiNET;
 using System.Linq;
 using OnePiece.Localization;
 using OnePiece.Models;
+using OnePiece.Helpers;
 
 namespace OnePiece.Windows;
 
@@ -144,27 +145,31 @@ public class MainWindow : Window, IDisposable
 
         // Calculate optimal width for labels and controls dynamically based on content
         float maxLabelWidth = 0;
-        
+
         // Calculate the width needed for the longest label
         string[] labelsToMeasure = new string[] {
             LocalizationManager.GetString("Language"),
-            LocalizationManager.GetString("SelectChatChannel")
+            LocalizationManager.GetString("SelectChatChannel"),
+            LocalizationManager.GetString("MessageSettings")
         };
-        
+
         foreach (var label in labelsToMeasure)
         {
             float width = ImGui.CalcTextSize(label).X;
             maxLabelWidth = Math.Max(maxLabelWidth, width);
         }
-        
+
         // Add padding to the calculated width
         float labelWidth = maxLabelWidth + 40; // Add padding for comfortable spacing
         // Ensure a minimum width
         labelWidth = Math.Max(labelWidth, 180);
         // Cap the maximum width to avoid taking too much space
         labelWidth = Math.Min(labelWidth, 260);
-        
-        float controlWidth = 250; // Keep the same control width
+
+        // Calculate adaptive control widths based on content
+        float languageControlWidth = UIHelper.CalculateComboWidth(supportedLanguages) + 20; // Add padding
+        float channelControlWidth = UIHelper.CalculateComboWidth(chatChannelNames) + 20; // Add padding
+        float messageButtonWidth = UIHelper.CalculateButtonWidth(LocalizationManager.GetString("OpenSettingsWindow"), 120f, 30f);
 
         // Get monitoring status once for use in multiple sections
         bool isMonitoring = plugin.ChatMonitorService.IsMonitoring;
@@ -176,7 +181,7 @@ public class MainWindow : Window, IDisposable
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(LocalizationManager.GetString("Language"));
             ImGui.SameLine(labelWidth);
-            ImGui.SetNextItemWidth(controlWidth);
+            ImGui.SetNextItemWidth(languageControlWidth);
             if (ImGui.Combo("##LanguageSelector", ref selectedLanguageIndex, supportedLanguages, supportedLanguages.Length))
             {
                 plugin.Configuration.Language = supportedLanguages[selectedLanguageIndex];
@@ -196,7 +201,7 @@ public class MainWindow : Window, IDisposable
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(LocalizationManager.GetString("SelectChatChannel"));
             ImGui.SameLine(labelWidth);
-            ImGui.SetNextItemWidth(controlWidth);
+            ImGui.SetNextItemWidth(channelControlWidth);
 
             // Disable the combo box if monitoring is active
             if (isMonitoring)
@@ -215,50 +220,47 @@ public class MainWindow : Window, IDisposable
             {
                 ImGui.EndDisabled();
             }
-        }
 
+            ImGui.Spacing();
 
-        
-        ImGui.Separator();
+            // Message settings button (moved under General Settings)
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(LocalizationManager.GetString("MessageSettings"));
+            ImGui.SameLine(labelWidth);
 
-        // Message settings section with collapsing header (parallel to ChannelSettings)
-        if (ImGui.CollapsingHeader(LocalizationManager.GetString("MessageSettings")))
-        {
-            // Button to open custom message settings window
-            float buttonWidth = 200; // Fixed width for the button
-            
-            if (ImGui.Button(LocalizationManager.GetString("OpenSettingsWindow"), new Vector2(buttonWidth, 0)))
+            if (ImGui.Button(LocalizationManager.GetString("OpenSettingsWindow"), new Vector2(messageButtonWidth, 0)))
             {
                 plugin.ShowCustomMessageWindow();
             }
-            
+        }
+
+        ImGui.Separator();
+
+        // Message settings section (no collapsing header, always visible)
+        // Show active template information if there is one
+        if (plugin.Configuration.ActiveTemplateIndex >= 0 &&
+            plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+        {
+            string templateName = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name;
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), string.Format(LocalizationManager.GetString("CurrentActiveTemplate"), templateName));
+
+            // Preview of the active template
             ImGui.Spacing();
-            
-            // Show active template information if there is one
-            if (plugin.Configuration.ActiveTemplateIndex >= 0 && 
-                plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+            ImGui.Text(LocalizationManager.GetString("MessagePreview"));
+            string previewMessage = GeneratePreviewMessage();
+            ImGui.TextWrapped(previewMessage);
+        }
+        else
+        {
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), LocalizationManager.GetString("NoActiveMessageTemplate"));
+
+            // If there are components but no template, still show preview
+            if (plugin.Configuration.SelectedMessageComponents.Count > 0)
             {
-                string templateName = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name;
-                ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), string.Format(LocalizationManager.GetString("CurrentActiveTemplate"), templateName));
-                
-                // Preview of the active template
                 ImGui.Spacing();
                 ImGui.Text(LocalizationManager.GetString("MessagePreview"));
                 string previewMessage = GeneratePreviewMessage();
                 ImGui.TextWrapped(previewMessage);
-            }
-            else
-            {
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), LocalizationManager.GetString("NoActiveMessageTemplate"));
-                
-                // If there are components but no template, still show preview
-                if (plugin.Configuration.SelectedMessageComponents.Count > 0)
-                {
-                    ImGui.Spacing();
-                    ImGui.Text(LocalizationManager.GetString("MessagePreview"));
-                    string previewMessage = GeneratePreviewMessage();
-                    ImGui.TextWrapped(previewMessage);
-                }
             }
         }
 
@@ -477,16 +479,10 @@ public class MainWindow : Window, IDisposable
                                 string chatText = LocalizationManager.GetString("SendToChat");
                                 string collectedText = LocalizationManager.GetString("Collected");
 
-                                // Calculate actual text widths for current language
-                                float teleportTextWidth = ImGui.CalcTextSize(teleportText).X;
-                                float chatTextWidth = ImGui.CalcTextSize(chatText).X;
-                                float collectedTextWidth = ImGui.CalcTextSize(collectedText).X;
-
-                                // Add padding for button content (ImGui internal padding + extra space)
-                                float buttonPadding = 24f;
-                                float teleportButtonWidth = Math.Max(teleportTextWidth + buttonPadding, 80f); // Minimum 80px
-                                float chatButtonWidth = Math.Max(chatTextWidth + buttonPadding, 100f); // Minimum 100px
-                                float collectedButtonWidth = Math.Max(collectedTextWidth + buttonPadding, 80f); // Minimum 80px
+                                // Calculate button widths using the unified method
+                                float teleportButtonWidth = UIHelper.CalculateButtonWidth(teleportText, 80f);
+                                float chatButtonWidth = UIHelper.CalculateButtonWidth(chatText, 100f);
+                                float collectedButtonWidth = UIHelper.CalculateButtonWidth(collectedText, 80f);
 
                                 // Add consistent spacing before buttons (same as top buttons)
                                 ImGui.SameLine();
@@ -917,8 +913,9 @@ public class MainWindow : Window, IDisposable
                     break;
                 case MessageComponentType.Coordinates:
                     // Use a localized map location example with special LinkMarker character from SeIconChar
+                    // Use client language for LocationExample to match game client language
                     string linkMarker = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.LinkMarker);
-                    previewParts.Add($"{linkMarker} {LocalizationManager.GetString("LocationExample")}");
+                    previewParts.Add($"{linkMarker} {LocalizationManager.GetStringByClientLanguage("LocationExample")}");
                     break;
                 case MessageComponentType.Number:
                     // Show specific Number1 special character using the actual Unicode value from SeIconChar
@@ -946,4 +943,6 @@ public class MainWindow : Window, IDisposable
         
         return string.Join(" ", previewParts);
     }
+
+
 }

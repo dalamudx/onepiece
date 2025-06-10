@@ -31,59 +31,7 @@ public static class ThreadSafetyHelper
         return currentThreadId == 1;
     }
 
-    /// <summary>
-    /// Executes an action only if on the main thread.
-    /// </summary>
-    /// <param name="action">The action to execute.</param>
-    /// <param name="onNonMainThread">Optional action to execute if not on main thread.</param>
-    /// <returns>True if action was executed, false if not on main thread.</returns>
-    public static bool ExecuteOnMainThread(Action action, Action? onNonMainThread = null)
-    {
-        if (IsMainThread())
-        {
-            action();
-            return true;
-        }
-        else
-        {
-            onNonMainThread?.Invoke();
-            return false;
-        }
-    }
 
-    /// <summary>
-    /// Executes a function only if on the main thread.
-    /// </summary>
-    /// <typeparam name="T">The return type.</typeparam>
-    /// <param name="func">The function to execute.</param>
-    /// <param name="defaultValue">The default value to return if not on main thread.</param>
-    /// <param name="onNonMainThread">Optional action to execute if not on main thread.</param>
-    /// <returns>The function result if on main thread, otherwise the default value.</returns>
-    public static T ExecuteOnMainThread<T>(Func<T> func, T defaultValue, Action? onNonMainThread = null)
-    {
-        if (IsMainThread())
-        {
-            return func();
-        }
-        else
-        {
-            onNonMainThread?.Invoke();
-            return defaultValue;
-        }
-    }
-
-    /// <summary>
-    /// Throws an exception if not on the main thread.
-    /// </summary>
-    /// <param name="operationName">The name of the operation that requires main thread.</param>
-    /// <exception cref="InvalidOperationException">Thrown if not on main thread.</exception>
-    public static void EnsureMainThread(string operationName)
-    {
-        if (!IsMainThread())
-        {
-            throw new InvalidOperationException($"{operationName} must be called from the main thread");
-        }
-    }
 
     /// <summary>
     /// Gets the current thread information for debugging.

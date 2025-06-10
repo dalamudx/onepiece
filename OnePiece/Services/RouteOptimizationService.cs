@@ -309,8 +309,6 @@ public class RouteOptimizationService
             }
 
             float estimatedTime = pathFinder.EstimateCompletionTime(mapRoute);
-            int actualTreasurePoints = mapRoute.Count(c => c.Type == CoordinateType.TreasurePoint);
-            int teleportPoints = mapRoute.Count(c => c.Type == CoordinateType.TeleportPoint);
 
             // Add the optimized route for this map area to the overall route
             if (mapRoute.Count > 0)
@@ -357,9 +355,6 @@ public class RouteOptimizationService
 
         OptimizedRoute = route;
 
-        int totalTreasurePoints = OptimizedRoute.Count(c => c.Type == CoordinateType.TreasurePoint);
-        int totalTeleportPoints = OptimizedRoute.Count(c => c.Type == CoordinateType.TeleportPoint);
-        
         // Raise the event
         OnRouteOptimized?.Invoke(this, OptimizedRoute.Count);
 

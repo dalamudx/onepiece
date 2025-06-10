@@ -79,7 +79,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager, GameGui, DataManager);
-        AetheryteService = new AetheryteService(DataManager, ClientState, Log, TerritoryManager, ChatGui, CommandManager);
+        AetheryteService = new AetheryteService(ClientState, Log, ChatGui, CommandManager);
         MapAreaTranslationService = new MapAreaTranslationService(Log);
         TreasureHuntService = new TreasureHuntService(this);
         ChatMonitorService = new ChatMonitorService(this);

@@ -92,9 +92,6 @@ public class CoordinateImportExportService
                             coordinate.PlayerName = RemoveSpecialCharactersFromName(coordinate.PlayerName);
                         }
 
-                        // Assign the nearest aetheryte to the coordinate for teleport functionality
-                        AssignAetheryteToCoordinate(coordinate);
-
                         addCoordinateAction(coordinate);
                         importedCount++;
                     }
@@ -106,6 +103,10 @@ public class CoordinateImportExportService
                     }
 
                     Plugin.Log.Debug($"Imported {importedCount} coordinates from Base64 encoded data");
+                    if (importedCount > 0)
+                    {
+                        Plugin.Log.Debug("Aetheryte assignments will be optimized during route planning for best teleport efficiency");
+                    }
                 }
             }
             catch (Exception ex)
@@ -215,31 +216,33 @@ public class CoordinateImportExportService
                     // Create coordinate with original map area name for display
                     var coordinate = new TreasureCoordinate(x, y, originalMapArea, CoordinateSystemType.Map, "", playerName);
 
-                    // Assign the nearest aetheryte to the coordinate for teleport functionality
-                    AssignAetheryteToCoordinate(coordinate);
-
                     addCoordinateAction(coordinate);
                     importedCount++;
                 }
             }
         }
 
-        // Log a warning if more than 8 coordinates were found
+        // Log import results
         if (matchCount > 8)
         {
             Plugin.Log.Warning($"Only imported the first 8 coordinates out of {matchCount} found in text. Additional coordinates were ignored.");
         }
 
-        // Log information about import requirements if no coordinates were imported
-        if (importedCount == 0 && matchCount == 0)
+        if (importedCount == 0)
         {
-            Plugin.Log.Information("No valid coordinates found. Coordinates must include valid map area information in the format: 'MapName (x, y)'");
+            if (matchCount == 0)
+            {
+                Plugin.Log.Information("No valid coordinates found. Coordinates must include valid map area information in the format: 'MapName (x, y)'");
+            }
+            else
+            {
+                Plugin.Log.Warning($"Found {matchCount} coordinate patterns but none were imported. Ensure coordinates include valid map area information in the format: 'MapName (x, y)'");
+            }
             LogValidMapAreas();
         }
-        else if (importedCount == 0 && matchCount > 0)
+        else
         {
-            Plugin.Log.Warning($"Found {matchCount} coordinate patterns but none were imported. Ensure coordinates include valid map area information in the format: 'MapName (x, y)'");
-            LogValidMapAreas();
+            Plugin.Log.Debug("Aetheryte assignments will be optimized during route planning for best teleport efficiency");
         }
 
         return importedCount;
@@ -270,17 +273,7 @@ public class CoordinateImportExportService
         }
     }
 
-    /// <summary>
-    /// Assigns the nearest aetheryte to a coordinate for teleport functionality.
-    /// This method is now disabled - AetheryteId should only be assigned during route optimization.
-    /// </summary>
-    /// <param name="coordinate">The coordinate to assign an aetheryte to.</param>
-    private void AssignAetheryteToCoordinate(TreasureCoordinate coordinate)
-    {
-        // This method is now disabled to prevent automatic assignment of AetheryteId during import
-        // AetheryteId should only be assigned during route optimization when teleportation is actually needed
-        Plugin.Log.Debug($"Skipping automatic aetheryte assignment for coordinate ({coordinate.X:F1}, {coordinate.Y:F1}) in {coordinate.MapArea} - will be assigned during route optimization if needed");
-    }
+
 
     /// <summary>
     /// Gets the appropriate coordinate regex based on the current game client language.
@@ -354,13 +347,14 @@ public class CoordinateImportExportService
     {
         try
         {
-            var validMapAreas = aetheryteService.GetValidMapAreas().Take(10).ToList();
+            var allValidMapAreas = aetheryteService.GetValidMapAreas();
+            var validMapAreas = allValidMapAreas.Take(10).ToList();
             if (validMapAreas.Count > 0)
             {
                 Plugin.Log.Information($"Valid map areas include: {string.Join(", ", validMapAreas)}");
-                if (aetheryteService.GetValidMapAreas().Count > 10)
+                if (allValidMapAreas.Count > 10)
                 {
-                    Plugin.Log.Information($"... and {aetheryteService.GetValidMapAreas().Count - 10} more areas available.");
+                    Plugin.Log.Information($"... and {allValidMapAreas.Count - 10} more areas available.");
                 }
             }
         }

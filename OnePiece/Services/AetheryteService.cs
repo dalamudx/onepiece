@@ -16,13 +16,12 @@ namespace OnePiece.Services;
 
 /// <summary>
 /// Service for managing aetheryte (teleport crystal) information.
+/// Loads data exclusively from aetheryte.json static file.
 /// </summary>
 public class AetheryteService : IDisposable
 {
-    private readonly IDataManager data;
     private readonly IClientState clientState;
     private readonly IPluginLog log;
-    private readonly TerritoryManager territoryManager;
     private readonly IChatGui chatGui;
     private readonly ICommandManager commandManager;
     private List<AetheryteInfo> aetherytes = new();
@@ -30,23 +29,19 @@ public class AetheryteService : IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="AetheryteService"/> class.
     /// </summary>
-    /// <param name="data">The data manager.</param>
     /// <param name="clientState">The client state.</param>
     /// <param name="log">The plugin log.</param>
-    /// <param name="territoryManager">The territory manager.</param>
     /// <param name="chatGui">The chat GUI service.</param>
     /// <param name="commandManager">The command manager.</param>
-    public AetheryteService(IDataManager data, IClientState clientState, IPluginLog log, TerritoryManager territoryManager, IChatGui chatGui, ICommandManager commandManager)
+    public AetheryteService(IClientState clientState, IPluginLog log, IChatGui chatGui, ICommandManager commandManager)
     {
-        this.data = data;
         this.clientState = clientState;
         this.log = log;
-        this.territoryManager = territoryManager;
         this.chatGui = chatGui;
         this.commandManager = commandManager;
-        
-        // LoadAetherytes also calls LoadAetherytePositionsFromJson internally
-        LoadAetherytes();
+
+        // Load aetherytes exclusively from JSON file
+        LoadAetherytesFromJson();
     }
 
     /// <summary>
@@ -198,14 +193,8 @@ public class AetheryteService : IDisposable
             {
                 try
                 {
-                    // Check if player is in the same territory as the aetheryte
-                    if (playerTerritory != 0 && playerTerritory == aetheryte.TerritoryId)
-                    {
-                        // If in the same map, teleport cost is fixed at 100 gil
-                        aetheryte.ActualTeleportFee = 100;
-                        log.Debug($"Same territory teleport fee for {aetheryte.Name}: 100 gil");
-                        continue;
-                    }
+                    // Note: Since we're using JSON-only data, we don't have TerritoryId
+                    // We'll rely on the Telepo API to provide accurate costs for all cases
 
                     // Get the real teleport cost from Telepo API
                     bool foundCost = false;
@@ -243,109 +232,41 @@ public class AetheryteService : IDisposable
     }
 
     /// <summary>
-    /// Loads aetheryte information from the game data.
+    /// Loads aetheryte information exclusively from aetheryte.json file.
     /// </summary>
-    private void LoadAetherytes()
-    {
-        try
-        {
-            var aetheryteSheet = data.GetExcelSheet<Aetheryte>();
-            if (aetheryteSheet == null)
-            {
-                log.Error("Failed to load Aetheryte sheet");
-                return;
-            }
-
-            var loadedAetherytes = new List<AetheryteInfo>();
-
-            foreach (var aetheryte in aetheryteSheet)
-            {
-                try
-                {
-                    // Skip non-teleportable aetherytes
-                    if (!aetheryte.IsAetheryte)
-                        continue;
-
-                    // Get territory and map information
-                    var territory = territoryManager.GetByTerritoryType(aetheryte.Territory.RowId);
-                    if (territory == null)
-                        continue;
-
-                    // Create aetheryte info
-                    var aetheryteInfo = new AetheryteInfo
-                    {
-                        Id = aetheryte.RowId,
-                        AetheryteId = aetheryte.RowId, // Store the ID for later use with Telepo API
-                        Name = aetheryte.PlaceName.ValueNullable?.Name.ToString() ?? string.Empty,
-                        TerritoryId = territory.TerritoryId,
-                        MapId = territory.MapId,
-                        MapArea = territory.Name,
-                        // Create a default position since we can't access X and Z directly in the current API
-                        Position = new Vector2(0, 0),
-                        ActualTeleportFee = 0, // Will be updated when needed
-                        IsFavorite = false, // This would need to be determined from character data
-                        IsFreeDestination = false // This would need to be determined from character data
-                    };
-
-                    loadedAetherytes.Add(aetheryteInfo);
-                }
-                catch (Exception ex)
-                {
-                    log.Error($"Error processing aetheryte {aetheryte.RowId}: {ex.Message}");
-                }
-            }
-
-            this.aetherytes = loadedAetherytes;
-            log.Information($"Loaded {this.aetherytes.Count} aetherytes");
-
-            // Load positions from the JSON file instead of setting default positions
-            LoadAetherytePositionsFromJson();
-        }
-        catch (Exception ex)
-        {
-            log.Error($"Error loading aetherytes: {ex.Message}");
-        }
-    }
-
-    
-    /// <summary>
-    /// Loads aetheryte positions from the aetheryte.json file.
-    /// </summary>
-    private void LoadAetherytePositionsFromJson()
+    private void LoadAetherytesFromJson()
     {
         try
         {
             // Use PluginInterface to get the plugin directory
             string pluginDirectory = Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName);
-            log.Information($"Plugin directory from PluginInterface: {pluginDirectory}");
-            
+            log.Information($"Plugin directory: {pluginDirectory}");
+
             // Define the file name to load
             const string fileName = "aetheryte.json";
-            
+
             // Look for the file in the plugin directory
             string aetheryteJsonPath = Path.Combine(pluginDirectory, fileName);
-            log.Information($"Looking for aetheryte.json in plugin directory: {aetheryteJsonPath}");
-            
+            log.Information($"Loading aetherytes from: {aetheryteJsonPath}");
+
             // Check if the file exists
             if (!File.Exists(aetheryteJsonPath))
             {
-                log.Error($"Aetheryte JSON file not found in plugin directory: {aetheryteJsonPath}");
+                log.Error($"Aetheryte JSON file not found: {aetheryteJsonPath}");
                 return;
             }
-            
-            log.Information($"Found aetheryte.json at: {aetheryteJsonPath}");
-            
+
             // Read the JSON file
             string jsonContent = File.ReadAllText(aetheryteJsonPath);
             log.Debug($"Read JSON content with length: {jsonContent.Length}");
-            
+
             // If the JSON content is empty, log an error and return
             if (string.IsNullOrWhiteSpace(jsonContent))
             {
                 log.Error("aetheryte.json file is empty");
                 return;
             }
-            
+
             // Try to deserialize JSON
             JsonSerializerOptions options = new JsonSerializerOptions
             {
@@ -353,64 +274,52 @@ public class AetheryteService : IDisposable
                 ReadCommentHandling = JsonCommentHandling.Skip,
                 PropertyNameCaseInsensitive = true
             };
-            
+
             var aetheryteData = JsonSerializer.Deserialize<AetheryteJsonData>(jsonContent, options);
-            
+
             if (aetheryteData == null)
             {
                 log.Error("Failed to deserialize aetheryte data from JSON: result was null");
                 return;
             }
-            
+
             if (aetheryteData.Aetherytes == null || aetheryteData.Aetherytes.Count == 0)
             {
                 log.Error("Deserialized aetheryte data contains no aetherytes");
                 return;
             }
-            
+
             log.Information($"Successfully loaded {aetheryteData.Aetherytes.Count} aetherytes from JSON file");
-            
-            // Update existing aetheryte data or add new aetherytes
-            int updatedCount = 0;
+
+            // Create aetheryte info objects from JSON data
+            var loadedAetherytes = new List<AetheryteInfo>();
             foreach (var jsonAetheryte in aetheryteData.Aetherytes)
             {
-                var existingAetheryte = aetherytes.FirstOrDefault(a => a.AetheryteId == jsonAetheryte.AetheryteRowId);
-                if (existingAetheryte != null)
+                var aetheryteInfo = new AetheryteInfo
                 {
-                    existingAetheryte.Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y);
-                    existingAetheryte.MapArea = jsonAetheryte.MapArea;
-                    updatedCount++;
-                    log.Debug($"Updated existing aetheryte: {existingAetheryte.Name} in {existingAetheryte.MapArea} at position ({existingAetheryte.Position.X}, {existingAetheryte.Position.Y})");
-                }
-                else
-                {
-                    // Create a new aetheryte if it doesn't exist in the previous list
-                    var newAetheryte = new AetheryteInfo
-                    {
-                        Id = jsonAetheryte.AetheryteRowId,
-                        AetheryteId = jsonAetheryte.AetheryteRowId,
-                        Name = jsonAetheryte.Name,
-                        MapArea = jsonAetheryte.MapArea,
-                        Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y),
-                        ActualTeleportFee = 0, // Update when needed
-                        TerritoryId = 0, // This information is not in the JSON
-                        MapId = 0 // This information is not in the JSON
-                    };
+                    Id = jsonAetheryte.AetheryteRowId,
+                    AetheryteId = jsonAetheryte.AetheryteRowId,
+                    Name = jsonAetheryte.Name,
+                    MapArea = jsonAetheryte.MapArea,
+                    Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y),
+                    ActualTeleportFee = 0 // Will be updated when needed
+                };
 
-                    aetherytes.Add(newAetheryte);
-                    updatedCount++;
-                    log.Debug($"Added new aetheryte: {newAetheryte.Name} in {newAetheryte.MapArea} at position ({newAetheryte.Position.X}, {newAetheryte.Position.Y})");
-                }
+                loadedAetherytes.Add(aetheryteInfo);
+                log.Debug($"Loaded aetheryte: {aetheryteInfo.Name} in {aetheryteInfo.MapArea} at position ({aetheryteInfo.Position.X}, {aetheryteInfo.Position.Y})");
             }
-            
-            log.Information($"Successfully updated or added {updatedCount} aetherytes from JSON file");
+
+            this.aetherytes = loadedAetherytes;
+            log.Information($"Successfully loaded {this.aetherytes.Count} aetherytes from JSON file");
         }
         catch (Exception ex)
         {
-            log.Error($"Error loading aetheryte positions from JSON: {ex.Message}");
+            log.Error($"Error loading aetherytes from JSON: {ex.Message}");
             log.Error(ex.StackTrace);
         }
     }
+
+
 
     /// <summary>
     /// Calculates the teleport price for a given aetheryte.
@@ -438,33 +347,22 @@ public class AetheryteService : IDisposable
 
         try
         {
-            // Format the command for teleporting using AetheryteId
-            // We use /tport which accepts IDs rather than names
-            string teleportCommand = $"/tport {aetheryte.AetheryteId}";
-
-            // Send the command through the chat system
-            commandManager.ProcessCommand(teleportCommand);
-
-            // Fallback: If /tport command doesn't work, also try the Telepo API directly
+            // Use Telepo API directly for reliable teleportation
             unsafe
             {
-                try
+                var telepo = FFXIVClientStructs.FFXIV.Client.Game.UI.Telepo.Instance();
+                if (telepo != null)
                 {
-                    var telepo = FFXIVClientStructs.FFXIV.Client.Game.UI.Telepo.Instance();
-                    if (telepo != null)
-                    {
-                        telepo->Teleport(aetheryte.AetheryteId, 0);
-                        log.Debug($"Used Telepo API to teleport to {aetheryte.Name} (ID: {aetheryte.AetheryteId})");
-                    }
+                    telepo->Teleport(aetheryte.AetheryteId, 0);
+                    log.Debug($"Teleported to {aetheryte.Name} (ID: {aetheryte.AetheryteId}) using Telepo API");
+                    return true;
                 }
-                catch (Exception innerEx)
+                else
                 {
-                    log.Error($"Error using Telepo API: {innerEx.Message}");
-                    // Continue with command-based approach
+                    log.Error("Telepo instance is null, cannot teleport");
+                    return false;
                 }
             }
-
-            return true;
         }
         catch (Exception ex)
         {

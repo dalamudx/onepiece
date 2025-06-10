@@ -113,7 +113,7 @@ public static class CoordinateDisplayHelper
             
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(LocalizationManager.GetString("ToggleCollected"));
+                ImGui.SetTooltip(Strings.Collected);
             }
             
             ImGui.SameLine();
@@ -122,7 +122,7 @@ public static class CoordinateDisplayHelper
         // Delete button
         if (onDelete != null)
         {
-            if (ImGui.Button($"{LocalizationManager.GetString("Delete")}##delete_{index}"))
+            if (ImGui.Button($"{Strings.Delete}##delete_{index}"))
             {
                 onDelete(index - 1); // Convert to 0-based index
             }
@@ -141,7 +141,7 @@ public static class CoordinateDisplayHelper
         }
         else
         {
-            ImGui.TextColored(MapAreaColor, LocalizationManager.GetString("UnknownArea"));
+            ImGui.TextColored(MapAreaColor, Strings.UnknownArea);
         }
     }
 
@@ -199,10 +199,10 @@ public static class CoordinateDisplayHelper
     {
         bool actionPerformed = false;
         
-        // Get button texts from localization
-        string teleportText = LocalizationManager.GetString("TeleportButton");
-        string chatText = LocalizationManager.GetString("SendToChat");
-        string collectedText = LocalizationManager.GetString("Collected");
+        // Get button texts from localization using strongly-typed strings
+        string teleportText = Strings.TeleportButton;
+        string chatText = Strings.SendToChat;
+        string collectedText = Strings.Collected;
 
         // Calculate button widths for consistent sizing using the unified method
         float teleportWidth = UIHelper.CalculateButtonWidth(teleportText, 80f);
@@ -261,7 +261,7 @@ public static class CoordinateDisplayHelper
     {
         if (coordinates.Count == 0)
         {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), $"{title}: {LocalizationManager.GetString("NoCoordinates")}");
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), $"{title}: {Strings.NoCoordinates}");
             return;
         }
 

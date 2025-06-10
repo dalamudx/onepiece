@@ -34,7 +34,7 @@ public class MainWindow : Window, IDisposable
     // since we'll use the one from Plugin instance
 
     public MainWindow(Plugin plugin)
-        : base(LocalizationManager.GetString("MainWindowTitle") + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base(Strings.MainWindowTitle + "##OnePiece", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -73,28 +73,28 @@ public class MainWindow : Window, IDisposable
         // Create localized chat channel names
         chatChannelNames = new[]
         {
-            LocalizationManager.GetString("Say"),
-            LocalizationManager.GetString("Yell"),
-            LocalizationManager.GetString("Shout"),
-            LocalizationManager.GetString("Party"),
-            LocalizationManager.GetString("Alliance"),
-            LocalizationManager.GetString("FreeCompany"),
-            LocalizationManager.GetString("LinkShell1"),
-            LocalizationManager.GetString("LinkShell2"),
-            LocalizationManager.GetString("LinkShell3"),
-            LocalizationManager.GetString("LinkShell4"),
-            LocalizationManager.GetString("LinkShell5"),
-            LocalizationManager.GetString("LinkShell6"),
-            LocalizationManager.GetString("LinkShell7"),
-            LocalizationManager.GetString("LinkShell8"),
-            LocalizationManager.GetString("CrossWorldLinkShell1"),
-            LocalizationManager.GetString("CrossWorldLinkShell2"),
-            LocalizationManager.GetString("CrossWorldLinkShell3"),
-            LocalizationManager.GetString("CrossWorldLinkShell4"),
-            LocalizationManager.GetString("CrossWorldLinkShell5"),
-            LocalizationManager.GetString("CrossWorldLinkShell6"),
-            LocalizationManager.GetString("CrossWorldLinkShell7"),
-            LocalizationManager.GetString("CrossWorldLinkShell8")
+            Strings.ChatChannels.Say,
+            Strings.ChatChannels.Yell,
+            Strings.ChatChannels.Shout,
+            Strings.ChatChannels.Party,
+            Strings.ChatChannels.Alliance,
+            Strings.ChatChannels.FreeCompany,
+            Strings.ChatChannels.LinkShell1,
+            Strings.ChatChannels.LinkShell2,
+            Strings.ChatChannels.LinkShell3,
+            Strings.ChatChannels.LinkShell4,
+            Strings.ChatChannels.LinkShell5,
+            Strings.ChatChannels.LinkShell6,
+            Strings.ChatChannels.LinkShell7,
+            Strings.ChatChannels.LinkShell8,
+            Strings.ChatChannels.CrossWorldLinkShell1,
+            Strings.ChatChannels.CrossWorldLinkShell2,
+            Strings.ChatChannels.CrossWorldLinkShell3,
+            Strings.ChatChannels.CrossWorldLinkShell4,
+            Strings.ChatChannels.CrossWorldLinkShell5,
+            Strings.ChatChannels.CrossWorldLinkShell6,
+            Strings.ChatChannels.CrossWorldLinkShell7,
+            Strings.ChatChannels.CrossWorldLinkShell8
         };
     }
 
@@ -123,7 +123,7 @@ public class MainWindow : Window, IDisposable
             // Cache the warning message and width calculation
             if (needsUIRecalculation || cachedNotLoggedInMessage == null)
             {
-                cachedNotLoggedInMessage = LocalizationManager.GetString("NotLoggedIn");
+                cachedNotLoggedInMessage = Strings.NotLoggedIn;
                 cachedNotLoggedInWidth = ImGui.CalcTextSize(cachedNotLoggedInMessage).X;
             }
 
@@ -143,45 +143,32 @@ public class MainWindow : Window, IDisposable
             ImGui.BeginDisabled();
         }
 
-        // Calculate optimal width for labels and controls dynamically based on content
-        float maxLabelWidth = 0;
-
-        // Calculate the width needed for the longest label
+        // Calculate optimal width for labels for consistent alignment
         string[] labelsToMeasure = new string[] {
-            LocalizationManager.GetString("Language"),
-            LocalizationManager.GetString("SelectChatChannel"),
-            LocalizationManager.GetString("MessageSettings")
+            Strings.Language,
+            Strings.SelectChatChannel,
+            Strings.MessageSettings
         };
 
-        foreach (var label in labelsToMeasure)
-        {
-            float width = ImGui.CalcTextSize(label).X;
-            maxLabelWidth = Math.Max(maxLabelWidth, width);
-        }
+        // Use UIHelper for consistent label width calculation with optimized parameters for tight layout
+        float labelWidth = UIHelper.CalculateLabelWidth(labelsToMeasure);
 
-        // Add padding to the calculated width
-        float labelWidth = maxLabelWidth + 40; // Add padding for comfortable spacing
-        // Ensure a minimum width
-        labelWidth = Math.Max(labelWidth, 180);
-        // Cap the maximum width to avoid taking too much space
-        labelWidth = Math.Min(labelWidth, 260);
-
-        // Calculate adaptive control widths based on content
-        float languageControlWidth = UIHelper.CalculateComboWidth(supportedLanguages) + 20; // Add padding
-        float channelControlWidth = UIHelper.CalculateComboWidth(chatChannelNames) + 20; // Add padding
-        float messageButtonWidth = UIHelper.CalculateButtonWidth(LocalizationManager.GetString("OpenSettingsWindow"), 120f, 30f);
+        // Calculate precise combo widths based on actual content using UIHelper with tight fit parameters
+        float languageComboWidth = UIHelper.CalculateComboWidth(supportedLanguages);
+        float channelComboWidth = UIHelper.CalculateComboWidth(chatChannelNames);
 
         // Get monitoring status once for use in multiple sections
         bool isMonitoring = plugin.ChatMonitorService.IsMonitoring;
 
         // General Settings section with collapsing header
-        if (ImGui.CollapsingHeader(LocalizationManager.GetString("GeneralSettings")))
+        if (ImGui.CollapsingHeader(Strings.GeneralSettings))
         {
             // Language selection
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(LocalizationManager.GetString("Language"));
+            ImGui.TextUnformatted(Strings.Language);
             ImGui.SameLine(labelWidth);
-            ImGui.SetNextItemWidth(languageControlWidth);
+            // Set reasonable max width for combo box to prevent it from being too wide
+            ImGui.SetNextItemWidth(languageComboWidth);
             if (ImGui.Combo("##LanguageSelector", ref selectedLanguageIndex, supportedLanguages, supportedLanguages.Length))
             {
                 plugin.Configuration.Language = supportedLanguages[selectedLanguageIndex];
@@ -199,9 +186,10 @@ public class MainWindow : Window, IDisposable
 
             // Chat channel selection - moved from ChannelSettings
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(LocalizationManager.GetString("SelectChatChannel"));
+            ImGui.TextUnformatted(Strings.SelectChatChannel);
             ImGui.SameLine(labelWidth);
-            ImGui.SetNextItemWidth(channelControlWidth);
+            // Set reasonable max width for combo box to prevent it from being too wide
+            ImGui.SetNextItemWidth(channelComboWidth);
 
             // Disable the combo box if monitoring is active
             if (isMonitoring)
@@ -225,10 +213,11 @@ public class MainWindow : Window, IDisposable
 
             // Message settings button (moved under General Settings)
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(LocalizationManager.GetString("MessageSettings"));
+            ImGui.TextUnformatted(Strings.MessageSettings);
             ImGui.SameLine(labelWidth);
 
-            if (ImGui.Button(LocalizationManager.GetString("OpenSettingsWindow"), new Vector2(messageButtonWidth, 0)))
+            // Remove fixed width - let button size itself based on content
+            if (ImGui.Button(Strings.Windows.OpenCustomMessageWindow))
             {
                 plugin.ShowCustomMessageWindow();
             }
@@ -242,23 +231,23 @@ public class MainWindow : Window, IDisposable
             plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
         {
             string templateName = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Name;
-            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), string.Format(LocalizationManager.GetString("CurrentActiveTemplate"), templateName));
+            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), Strings.Messages.CurrentActiveTemplate(templateName));
 
             // Preview of the active template
             ImGui.Spacing();
-            ImGui.Text(LocalizationManager.GetString("MessagePreview"));
+            ImGui.Text(Strings.MessagePreview);
             string previewMessage = GeneratePreviewMessage();
             ImGui.TextWrapped(previewMessage);
         }
         else
         {
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), LocalizationManager.GetString("NoActiveMessageTemplate"));
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.NoActiveMessageTemplate);
 
             // If there are components but no template, still show preview
             if (plugin.Configuration.SelectedMessageComponents.Count > 0)
             {
                 ImGui.Spacing();
-                ImGui.Text(LocalizationManager.GetString("MessagePreview"));
+                ImGui.Text(Strings.MessagePreview);
                 string previewMessage = GeneratePreviewMessage();
                 ImGui.TextWrapped(previewMessage);
             }
@@ -270,14 +259,14 @@ public class MainWindow : Window, IDisposable
         // Monitoring control button - moved to front of action buttons
         if (isMonitoring)
         {
-            if (ImGui.Button(LocalizationManager.GetString("StopMonitoring")))
+            if (ImGui.Button(Strings.StopMonitoring))
             {
                 plugin.ChatMonitorService.StopMonitoring();
             }
         }
         else
         {
-            if (ImGui.Button(LocalizationManager.GetString("StartMonitoring")))
+            if (ImGui.Button(Strings.StartMonitoring))
             {
                 plugin.ChatMonitorService.StartMonitoring();
             }
@@ -285,7 +274,7 @@ public class MainWindow : Window, IDisposable
 
         ImGui.SameLine();
 
-        if (ImGui.Button(LocalizationManager.GetString("ClearAll")))
+        if (ImGui.Button(Strings.ClearAll))
         {
             plugin.TreasureHuntService.ClearCoordinates();
 
@@ -302,7 +291,7 @@ public class MainWindow : Window, IDisposable
 
         if (plugin.TreasureHuntService.IsRouteOptimized)
         {
-            if (ImGui.Button(LocalizationManager.GetString("ResetOptimization")))
+            if (ImGui.Button(Strings.ResetOptimization))
             {
                 plugin.TreasureHuntService.ResetRouteOptimization();
                 ClearEditingStates(); // Clear editing states when optimization is reset
@@ -318,7 +307,7 @@ public class MainWindow : Window, IDisposable
                 ImGui.BeginDisabled();
             }
 
-            if (ImGui.Button(LocalizationManager.GetString("OptimizeRoute")))
+            if (ImGui.Button(Strings.OptimizeRoute))
             {
                 plugin.TreasureHuntService.OptimizeRoute();
             }
@@ -330,7 +319,7 @@ public class MainWindow : Window, IDisposable
                 // Show hover tooltip explaining why the button is disabled
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(LocalizationManager.GetString("NoCoordinatesToOptimize"));
+                    ImGui.SetTooltip(Strings.NoCoordinatesToOptimize);
                 }
             }
         }
@@ -338,20 +327,20 @@ public class MainWindow : Window, IDisposable
         ImGui.SameLine();
 
         // Export button
-        if (ImGui.Button(LocalizationManager.GetString("Export")))
+        if (ImGui.Button(Strings.Export))
         {
             var exportedData = plugin.TreasureHuntService.ExportCoordinates();
             if (!string.IsNullOrEmpty(exportedData))
             {
                 ImGui.SetClipboardText(exportedData);
-                Plugin.ChatGui.Print(LocalizationManager.GetString("CoordinatesExportedToClipboard"));
+                Plugin.ChatGui.Print(Strings.Status.CoordinatesExportedToClipboard);
             }
         }
 
         ImGui.SameLine();
 
         // Import button
-        if (ImGui.Button(LocalizationManager.GetString("Import")))
+        if (ImGui.Button(Strings.Import))
         {
             var clipboardText = ImGui.GetClipboardText();
             if (!string.IsNullOrEmpty(clipboardText))
@@ -359,16 +348,16 @@ public class MainWindow : Window, IDisposable
                 var importedCount = plugin.TreasureHuntService.ImportCoordinates(clipboardText);
                 if (importedCount > 0)
                 {
-                    Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("CoordinatesImportedFromClipboard"), importedCount));
+                    Plugin.ChatGui.Print(Strings.Messages.CoordinatesImportedFromClipboard(importedCount));
                 }
                 else
                 {
-                    Plugin.ChatGui.Print(LocalizationManager.GetString("NoCoordinatesImported"));
+                    Plugin.ChatGui.Print(Strings.Status.NoCoordinatesImported);
                 }
             }
             else
             {
-                Plugin.ChatGui.Print(LocalizationManager.GetString("ClipboardEmpty"));
+                Plugin.ChatGui.Print(Strings.ClipboardEmpty);
             }
         }
 
@@ -395,7 +384,7 @@ public class MainWindow : Window, IDisposable
                         int treasurePointCount = displayRoute.Count(c => c.Type == CoordinateType.TreasurePoint);
                         
                         // Display optimized route title with count (excluding teleport points)
-                        ImGui.TextUnformatted(string.Format(LocalizationManager.GetString("OptimizedRouteWithCount"), treasurePointCount));
+                        ImGui.TextUnformatted(Strings.Messages.OptimizedRouteWithCount(treasurePointCount));
 
                         // Group coordinates by map area - optimize by using a more efficient approach
                         // Pre-allocate the dictionary with expected capacity to avoid resizing
@@ -426,7 +415,7 @@ public class MainWindow : Window, IDisposable
                             }
                             else
                             {
-                                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), LocalizationManager.GetString("UnknownArea"));
+                                ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), Strings.UnknownArea);
                             }
 
                             // Get coordinates for this map area while preserving the original order
@@ -475,9 +464,9 @@ public class MainWindow : Window, IDisposable
 
 
                                 // Get current button texts from localization
-                                string teleportText = LocalizationManager.GetString("TeleportButton");
-                                string chatText = LocalizationManager.GetString("SendToChat");
-                                string collectedText = LocalizationManager.GetString("Collected");
+                                string teleportText = Strings.TeleportButton;
+                                string chatText = Strings.SendToChat;
+                                string collectedText = Strings.Collected;
 
                                 // Calculate button widths using the unified method
                                 float teleportButtonWidth = UIHelper.CalculateButtonWidth(teleportText, 80f);
@@ -509,7 +498,7 @@ public class MainWindow : Window, IDisposable
 
                                         // Add teleport button
                                         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.5f, 1.0f, 0.7f));
-                                        if (ImGui.SmallButton($"{LocalizationManager.GetString("TeleportButton")}##{optimizedRoute.IndexOf(coord)}"))
+                                        if (ImGui.SmallButton($"{Strings.TeleportButton}##{optimizedRoute.IndexOf(coord)}"))
                                         {
                                             // Teleport directly using the aetheryte info
                                             plugin.AetheryteService.TeleportToAetheryte(aetheryteInfo);
@@ -519,10 +508,10 @@ public class MainWindow : Window, IDisposable
                                         if (ImGui.IsItemHovered())
                                         {
                                             ImGui.BeginTooltip();
-                                            ImGui.Text(string.Format(LocalizationManager.GetString("TeleportTo"), aetheryteInfo.Name));
+                                            ImGui.Text(Strings.TeleportToLocation(aetheryteInfo.Name));
                                             if (teleportPrice > 0)
                                             {
-                                                ImGui.Text(string.Format(LocalizationManager.GetString("TeleportCost"), teleportPrice));
+                                                ImGui.Text(Strings.TeleportCostAmount(teleportPrice.ToString()));
                                             }
                                             ImGui.EndTooltip();
                                         }
@@ -556,7 +545,7 @@ public class MainWindow : Window, IDisposable
                                     ImGui.BeginDisabled();
                                 }
 
-                                if (ImGui.SmallButton(LocalizationManager.GetString("SendToChat") + $"##{optimizedRoute.IndexOf(coord)}"))
+                                if (ImGui.SmallButton(Strings.SendToChat + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
                                     plugin.ChatMonitorService.SendCoordinateToChat(coord);
                                 }
@@ -571,8 +560,8 @@ public class MainWindow : Window, IDisposable
 
                                 // Collected button - toggle between collected and not collected
                                 string collectedButtonText = coord.IsCollected ?
-                                    LocalizationManager.GetString("MarkAsNotCollected") :
-                                    LocalizationManager.GetString("Collected");
+                                    Strings.NotCollected :
+                                    Strings.Collected;
 
                                 if (ImGui.SmallButton(collectedButtonText + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
@@ -587,7 +576,7 @@ public class MainWindow : Window, IDisposable
                     else
                     {
                         // Display the raw coordinates if no optimized route
-                        ImGui.TextUnformatted(string.Format(LocalizationManager.GetString("CoordinatesWithCount"), coordinates.Count));
+                        ImGui.TextUnformatted(Strings.Messages.CoordinatesWithCount(coordinates.Count));
 
                         for (var i = 0; i < coordinates.Count; i++)
                         {
@@ -677,7 +666,7 @@ public class MainWindow : Window, IDisposable
                             if (isEditing)
                             {
                                 // Save button
-                                if (ImGui.SmallButton($"{LocalizationManager.GetString("Save")}##raw{coordIndex}"))
+                                if (ImGui.SmallButton($"{Strings.Save}##raw{coordIndex}"))
                                 {
                                     // Validate and save changes
                                     if (float.TryParse(editingXCoords.GetValueOrDefault(coordIndex, "0"), out float newX) &&
@@ -705,7 +694,7 @@ public class MainWindow : Window, IDisposable
                                 ImGui.SameLine();
 
                                 // Cancel button
-                                if (ImGui.SmallButton($"{LocalizationManager.GetString("Cancel")}##raw{coordIndex}"))
+                                if (ImGui.SmallButton($"{Strings.Cancel}##raw{coordIndex}"))
                                 {
                                     // Clear editing state without saving
                                     editingStates.Remove(coordIndex);
@@ -719,7 +708,7 @@ public class MainWindow : Window, IDisposable
                             else
                             {
                                 // Edit button
-                                if (ImGui.SmallButton($"{LocalizationManager.GetString("Edit")}##raw{coordIndex}"))
+                                if (ImGui.SmallButton($"{Strings.Edit}##raw{coordIndex}"))
                                 {
                                     // Enter editing mode
                                     editingStates[coordIndex] = true;
@@ -731,7 +720,7 @@ public class MainWindow : Window, IDisposable
                                 ImGui.SameLine();
                             }
 
-                            if (ImGui.SmallButton(LocalizationManager.GetString("Delete") + $"##raw{coordIndex}"))
+                            if (ImGui.SmallButton(Strings.Delete + $"##raw{coordIndex}"))
                             {
                                 plugin.TreasureHuntService.DeleteCoordinate(i);
 
@@ -746,7 +735,7 @@ public class MainWindow : Window, IDisposable
                 }
                 else
                 {
-                    ImGui.TextUnformatted(LocalizationManager.GetString("NoCoordinates"));
+                    ImGui.TextUnformatted(Strings.NoCoordinates);
                 }
 
                 // Display trash bin section if there are deleted coordinates
@@ -755,11 +744,11 @@ public class MainWindow : Window, IDisposable
                     ImGui.Separator();
 
                     // Display trash bin title with count and clear button on the same line
-                    ImGui.TextUnformatted(string.Format(LocalizationManager.GetString("TrashBinWithCount"), plugin.TreasureHuntService.DeletedCoordinates.Count));
+                    ImGui.TextUnformatted(Strings.Messages.TrashBinWithCount(plugin.TreasureHuntService.DeletedCoordinates.Count));
 
                     // Clear trash button - positioned to the right of the title with adequate spacing
                     ImGui.SameLine();
-                    if (ImGui.SmallButton(LocalizationManager.GetString("ClearTrash")))
+                    if (ImGui.SmallButton(Strings.ClearTrash))
                     {
                         plugin.TreasureHuntService.ClearTrash();
                     }
@@ -819,15 +808,15 @@ public class MainWindow : Window, IDisposable
                         ImGui.SameLine();
 
                         // Restore button
-                        if (ImGui.SmallButton(LocalizationManager.GetString("Restore") + $"##trash{i}"))
+                        if (ImGui.SmallButton(Strings.Restore + $"##trash{i}"))
                         {
                             plugin.TreasureHuntService.RestoreCoordinate(i);
                         }
                     }
                 }
-                else if (ImGui.CollapsingHeader(LocalizationManager.GetString("TrashBin")))
+                else if (ImGui.CollapsingHeader(Strings.TrashBin))
                 {
-                    ImGui.TextUnformatted(LocalizationManager.GetString("EmptyTrashBin"));
+                    ImGui.TextUnformatted(Strings.EmptyTrashBin);
                 }
             }
         }
@@ -841,13 +830,13 @@ public class MainWindow : Window, IDisposable
 
     private void OnCoordinatesImported(object? sender, int count)
     {
-        Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("CoordinatesImported"), count));
+        Plugin.ChatGui.Print(Strings.Messages.CoordinatesImported(count));
         ClearEditingStates(); // Clear editing states when coordinates are imported
     }
 
     private void OnRouteOptimized(object? sender, int count)
     {
-        Plugin.ChatGui.Print(string.Format(LocalizationManager.GetString("RouteOptimized"), count));
+        Plugin.ChatGui.Print(Strings.Messages.RouteOptimized(count));
         ClearEditingStates(); // Clear editing states when route is optimized
     }
 
@@ -886,7 +875,7 @@ public class MainWindow : Window, IDisposable
             // If the active template has no components, show only coordinate message
             if (componentsToPreview.Count == 0)
             {
-                return LocalizationManager.GetString("SendCoordinateOnly");
+                return Strings.Status.CoordinateOnlyMessage;
             }
         }
         else
@@ -897,7 +886,7 @@ public class MainWindow : Window, IDisposable
             // If no selected components, show only coordinate message
             if (componentsToPreview.Count == 0)
             {
-                return LocalizationManager.GetString("SendCoordinateOnly");
+                return Strings.Status.CoordinateOnlyMessage;
             }
         }
         
@@ -909,13 +898,14 @@ public class MainWindow : Window, IDisposable
             {
                 case MessageComponentType.PlayerName:
                     // Use a localized player name example for better preview
-                    previewParts.Add(LocalizationManager.GetString("PlayerNameExample"));
+                    previewParts.Add(Strings.PlayerNameExample);
                     break;
                 case MessageComponentType.Coordinates:
                     // Use a localized map location example with special LinkMarker character from SeIconChar
-                    // Use client language for LocationExample to match game client language
+                    // Use client language for LocationExample to match what will actually be sent to chat
                     string linkMarker = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.LinkMarker);
-                    previewParts.Add($"{linkMarker} {LocalizationManager.GetStringByClientLanguage("LocationExample")}");
+                    string clientLocationExample = LocalizationManager.GetClientLanguageLocationExample();
+                    previewParts.Add($"{linkMarker} {clientLocationExample}");
                     break;
                 case MessageComponentType.Number:
                     // Show specific Number1 special character using the actual Unicode value from SeIconChar
@@ -943,6 +933,5 @@ public class MainWindow : Window, IDisposable
         
         return string.Join(" ", previewParts);
     }
-
 
 }

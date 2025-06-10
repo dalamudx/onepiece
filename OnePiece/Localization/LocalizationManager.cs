@@ -1,23 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Text.Json;
-using Dalamud.Game;
 using Dalamud.Plugin.Services;
-using ECommons.DalamudServices;
+using Dalamud.Game;
 
 namespace OnePiece.Localization;
 
 /// <summary>
-/// Manages localization for the plugin using JSON-based language files.
+/// Manages localization for the plugin using strongly-typed C# classes.
+/// Provides compile-time safety and IntelliSense support for all localized strings.
 /// </summary>
 public static class LocalizationManager
 {
     private static readonly IPluginLog Log = Plugin.Log;
-    private static readonly Dictionary<string, Dictionary<string, string>> LoadedTranslations = new();
+    private static readonly Dictionary<string, ILocalizationData> LoadedLanguages = new();
     private static string CurrentLanguage = "en";
     private static readonly string[] SupportedLanguages = { "en", "ja", "de", "fr", "zh" };
+    private static ILocalizationData? CurrentLocalizationData;
+
+    /// <summary>
+    /// Gets the current localization data instance.
+    /// </summary>
+    public static ILocalizationData Current => CurrentLocalizationData ?? new EN();
     
     /// <summary>
     /// Initializes the localization system.
@@ -39,101 +43,12 @@ public static class LocalizationManager
         {
             Log.Error($"Error initializing localization: {ex.Message}");
             CurrentLanguage = "en"; // Fallback to English
-            LoadFallbackTranslations();
+            CurrentLocalizationData = new EN();
         }
     }
 
     /// <summary>
-    /// Gets a localized string.
-    /// </summary>
-    /// <param name="key">The string key.</param>
-    /// <returns>The localized string, or the key if not found.</returns>
-    public static string GetString(string key)
-    {
-        // Try current language first
-        if (LoadedTranslations.TryGetValue(CurrentLanguage, out var languageStrings) &&
-            languageStrings.TryGetValue(key, out var translation))
-        {
-            return translation;
-        }
-
-        // Fallback to English if not current language
-        if (CurrentLanguage != "en" &&
-            LoadedTranslations.TryGetValue("en", out var englishStrings) &&
-            englishStrings.TryGetValue(key, out var englishTranslation))
-        {
-            return englishTranslation;
-        }
-
-        // If all else fails, return the key itself
-        Log.Warning($"Missing translation for key: {key}");
-        return key;
-    }
-
-    /// <summary>
-    /// Gets a localized string based on the current game client language instead of plugin language setting.
-    /// This is useful for content that should match the game client language (like map area names).
-    /// </summary>
-    /// <param name="key">The string key.</param>
-    /// <returns>The localized string in client language, or fallback to plugin language if not found.</returns>
-    public static string GetStringByClientLanguage(string key)
-    {
-        var clientLanguageCode = GetClientLanguageCode();
-
-        // Try client language first
-        if (LoadedTranslations.TryGetValue(clientLanguageCode, out var clientLanguageStrings) &&
-            clientLanguageStrings.TryGetValue(key, out var clientTranslation))
-        {
-            return clientTranslation;
-        }
-
-        // Fallback to English if client language is not available
-        if (clientLanguageCode != "en" &&
-            LoadedTranslations.TryGetValue("en", out var englishStrings) &&
-            englishStrings.TryGetValue(key, out var englishTranslation))
-        {
-            return englishTranslation;
-        }
-
-        // Final fallback to regular GetString method (uses plugin language)
-        return GetString(key);
-    }
-
-    /// <summary>
-    /// Converts the current game client language to our supported language code.
-    /// </summary>
-    /// <returns>The language code corresponding to the client language.</returns>
-    private static string GetClientLanguageCode()
-    {
-        try
-        {
-            var clientLanguage = Svc.ClientState.ClientLanguage;
-            var languageCode = clientLanguage switch
-            {
-                ClientLanguage.Japanese => "ja",
-                ClientLanguage.German => "de",
-                ClientLanguage.French => "fr",
-                (ClientLanguage)4 => "zh", // Chinese
-                _ => "en" // Default to English for English and any other languages
-            };
-
-            // Ensure the language is loaded
-            if (!LoadedTranslations.ContainsKey(languageCode))
-            {
-                LoadLanguage(languageCode);
-            }
-
-            return languageCode;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"Error getting client language, falling back to English: {ex.Message}");
-            return "en";
-        }
-    }
-
-    /// <summary>
-    /// Sets the current language and loads its translations.
+    /// Sets the current language and loads its localization data.
     /// </summary>
     /// <param name="language">The language code (e.g., "en", "ja").</param>
     /// <returns>True if the language was set successfully, false otherwise.</returns>
@@ -146,12 +61,7 @@ public static class LocalizationManager
         }
 
         CurrentLanguage = language;
-        
-        // Load the new language if not already loaded
-        if (!LoadedTranslations.ContainsKey(language))
-        {
-            LoadLanguage(language);
-        }
+        LoadLanguage(language);
 
         Log.Information($"Language set to: {language}");
         return true;
@@ -178,124 +88,98 @@ public static class LocalizationManager
         Array.IndexOf(SupportedLanguages, language) >= 0;
 
     /// <summary>
-    /// Loads translations for a specific language from JSON file.
+    /// Gets the client language code from the game client.
+    /// </summary>
+    /// <returns>The client language code.</returns>
+    public static string GetClientLanguage()
+    {
+        try
+        {
+            // Get the client language from the game client
+            var clientLanguage = Plugin.ClientState.ClientLanguage;
+            return clientLanguage switch
+            {
+                ClientLanguage.Japanese => "ja",
+                ClientLanguage.English => "en",
+                ClientLanguage.German => "de",
+                ClientLanguage.French => "fr",
+                _ => "en" // Default to English
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting client language: {ex.Message}");
+            return "en"; // Fallback to English
+        }
+    }
+
+    /// <summary>
+    /// Gets the LocationExample string in the client's language for message preview.
+    /// This ensures the preview shows what will actually be sent to chat.
+    /// </summary>
+    /// <returns>The LocationExample string in client language.</returns>
+    public static string GetClientLanguageLocationExample()
+    {
+        try
+        {
+            var clientLanguage = GetClientLanguage();
+
+            // Get localization data for client language
+            ILocalizationData clientLocalizationData = clientLanguage switch
+            {
+                "en" => new EN(),
+                "ja" => new JA(),
+                "zh" => new ZH(),
+                "de" => new DE(),
+                "fr" => new FR(),
+                _ => new EN() // Fallback to English
+            };
+
+            return clientLocalizationData.LocationExample;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting client language location example: {ex.Message}");
+            return "Limsa Lominsa - Lower Decks ( 9.5 , 11.2 )"; // Fallback to English
+        }
+    }
+
+    /// <summary>
+    /// Loads localization data for a specific language.
     /// </summary>
     /// <param name="language">The language code to load.</param>
     private static void LoadLanguage(string language)
     {
         try
         {
-            var languageFilePath = GetLanguageFilePath(language);
-            
-            if (!File.Exists(languageFilePath))
+            // Check if already loaded
+            if (LoadedLanguages.TryGetValue(language, out var existingData))
             {
-                Log.Warning($"Language file not found: {languageFilePath}");
-                
-                // If it's not English, try to load English as fallback
-                if (language != "en")
-                {
-                    LoadLanguage("en");
-                }
-                else
-                {
-                    LoadFallbackTranslations();
-                }
+                CurrentLocalizationData = existingData;
                 return;
             }
 
-            var jsonContent = File.ReadAllText(languageFilePath);
-            var translations = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonContent);
-            
-            if (translations != null)
+            // Create localization data based on language
+            ILocalizationData localizationData = language switch
             {
-                LoadedTranslations[language] = translations;
-                Log.Information($"Loaded {translations.Count} translations for language: {language}");
-            }
-            else
-            {
-                Log.Error($"Failed to deserialize translations for language: {language}");
-                if (language == "en")
-                {
-                    LoadFallbackTranslations();
-                }
-            }
+                "en" => new EN(),
+                "ja" => new JA(),
+                "zh" => new ZH(),
+                "de" => new DE(),
+                "fr" => new FR(),
+                _ => new EN() // Fallback to English
+            };
+
+            LoadedLanguages[language] = localizationData;
+            CurrentLocalizationData = localizationData;
+
+            Log.Information($"Loaded localization data for language: {language}");
         }
         catch (Exception ex)
         {
-            Log.Error($"Error loading language file for {language}: {ex.Message}");
-            if (language == "en")
-            {
-                LoadFallbackTranslations();
-            }
+            Log.Error($"Error loading language {language}: {ex.Message}");
+            // Fallback to English
+            CurrentLocalizationData = new EN();
         }
-    }
-
-    /// <summary>
-    /// Gets the file path for a language file.
-    /// </summary>
-    /// <param name="language">The language code.</param>
-    /// <returns>The full path to the language file.</returns>
-    private static string GetLanguageFilePath(string language)
-    {
-        var pluginDir = Plugin.PluginInterface.AssemblyLocation.Directory?.FullName ?? "";
-        return Path.Combine(pluginDir, "Localization", "Languages", $"{language}.json");
-    }
-
-    /// <summary>
-    /// Loads minimal fallback translations when JSON files are not available.
-    /// </summary>
-    private static void LoadFallbackTranslations()
-    {
-        var fallback = new Dictionary<string, string>
-        {
-            { "MainWindowTitle", "One Piece" },
-            { "ClearAll", "Clear All" },
-            { "OptimizeRoute", "Optimize Route" },
-            { "ResetOptimization", "Reset Optimization" },
-            { "Export", "Export" },
-            { "Import", "Import" },
-            { "TeleportButton", "Teleport" },
-            { "SendToChat", "Send to Chat" },
-            { "Collected", "Collected" },
-            { "Delete", "Delete" },
-            { "Restore", "Restore" }
-        };
-        
-        LoadedTranslations["en"] = fallback;
-        Log.Information("Loaded fallback translations");
-    }
-
-    /// <summary>
-    /// Reloads all loaded languages from disk.
-    /// Useful for development and hot-reloading.
-    /// </summary>
-    public static void ReloadTranslations()
-    {
-        var loadedLanguages = new List<string>(LoadedTranslations.Keys);
-        LoadedTranslations.Clear();
-        
-        foreach (var language in loadedLanguages)
-        {
-            LoadLanguage(language);
-        }
-        
-        Log.Information("Reloaded all translations");
-    }
-
-    /// <summary>
-    /// Preloads all supported languages.
-    /// Useful for better performance if memory usage is not a concern.
-    /// </summary>
-    public static void PreloadAllLanguages()
-    {
-        foreach (var language in SupportedLanguages)
-        {
-            if (!LoadedTranslations.ContainsKey(language))
-            {
-                LoadLanguage(language);
-            }
-        }
-        
-        Log.Information("Preloaded all supported languages");
     }
 }

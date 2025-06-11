@@ -25,15 +25,19 @@
         <WarningsAsErrors>RS0030</WarningsAsErrors>
     </PropertyGroup>
 
-  <ItemGroup>
-    <Content Include="img\logo.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-  </ItemGroup>
+    <!-- Debug symbols configuration -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <DebugSymbols>false</DebugSymbols>
+        <DebugType>none</DebugType>
+    </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Localization\Languages\*.json">
+    <Content Include="img\logo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
@@ -49,4 +53,18 @@
   <ItemGroup>
     <ProjectReference Include="..\ECommons\ECommons\ECommons.csproj" />
   </ItemGroup>
+
+  <!-- Exclude debug and documentation files from Release builds -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Content Remove="$(OutputPath)ECommons.pdb" />
+    <Content Remove="$(OutputPath)ECommons.xml" />
+    <None Remove="$(OutputPath)ECommons.pdb" />
+    <None Remove="$(OutputPath)ECommons.xml" />
+  </ItemGroup>
+
+  <!-- Post-build cleanup for Release builds -->
+  <Target Name="CleanupReleaseFiles" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Delete Files="$(OutputPath)ECommons.pdb" ContinueOnError="true" />
+    <Delete Files="$(OutputPath)ECommons.xml" ContinueOnError="true" />
+  </Target>
 </Project>

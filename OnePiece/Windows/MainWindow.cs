@@ -477,6 +477,12 @@ public class MainWindow : Window, IDisposable
                                 float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
                                 ImGui.SetCursorPosY(nextLineY);
 
+                                // Pop style color if it was pushed for collected coordinates
+                                if (isCollected)
+                                {
+                                    ImGui.PopStyleColor();
+                                }
+
                                 // No Delete button for optimized route
                             }
                         }

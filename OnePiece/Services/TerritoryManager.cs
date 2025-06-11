@@ -13,18 +13,15 @@ namespace OnePiece.Services;
 public class TerritoryManager
 {
     private readonly IDataManager data;
-    private readonly IPluginLog log;
     private readonly IEnumerable<TerritoryDetail> territoryDetails;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TerritoryManager"/> class.
     /// </summary>
     /// <param name="data">The data manager.</param>
-    /// <param name="log">The plugin log.</param>
-    public TerritoryManager(IDataManager data, IPluginLog log)
+    public TerritoryManager(IDataManager data)
     {
         this.data = data;
-        this.log = log;
         territoryDetails = LoadTerritoryDetails();
     }
 
@@ -40,7 +37,7 @@ public class TerritoryManager
 
         if (!this.territoryDetails.Any())
         {
-            log.Warning("Territory details list is empty, reloading...");
+            Plugin.Log.Warning("Territory details list is empty, reloading...");
             LoadTerritoryDetails();
         }
 
@@ -53,11 +50,11 @@ public class TerritoryManager
 
         if (territoryDetail == null)
         {
-            log.Warning($"Could not find territory for zone: {zone}");
+            Plugin.Log.Warning($"Could not find territory for zone: {zone}");
         }
         else
         {
-            log.Information($"Found territory for zone: {zone} -> {territoryDetail.Name} (TerritoryId: {territoryDetail.TerritoryId}, MapId: {territoryDetail.MapId})");
+            Plugin.Log.Information($"Found territory for zone: {zone} -> {territoryDetail.Name} (TerritoryId: {territoryDetail.TerritoryId}, MapId: {territoryDetail.MapId})");
         }
 
         return territoryDetail;
@@ -72,7 +69,7 @@ public class TerritoryManager
     {
         if (!territoryDetails.Any())
         {
-            log.Warning("Territory details list is empty, reloading...");
+            Plugin.Log.Warning("Territory details list is empty, reloading...");
             LoadTerritoryDetails();
         }
 
@@ -80,11 +77,11 @@ public class TerritoryManager
 
         if (territoryDetail == null)
         {
-            log.Warning($"Could not find territory for type: {territoryType}");
+            Plugin.Log.Warning($"Could not find territory for type: {territoryType}");
         }
         else
         {
-            log.Information($"Found territory for type: {territoryType} -> {territoryDetail.Name} (MapId: {territoryDetail.MapId})");
+            Plugin.Log.Information($"Found territory for type: {territoryType} -> {territoryDetail.Name} (MapId: {territoryDetail.MapId})");
         }
 
         return territoryDetail;
@@ -133,16 +130,16 @@ public class TerritoryManager
                 }
                 catch (Exception ex)
                 {
-                    log.Error($"Error processing territory type {territoryType.RowId}: {ex.Message}");
+                    Plugin.Log.Error($"Error processing territory type {territoryType.RowId}: {ex.Message}");
                 }
             }
 
-            log.Information($"Loaded {details.Count} territory details");
+            Plugin.Log.Information($"Loaded {details.Count} territory details");
             return details;
         }
         catch (Exception ex)
         {
-            log.Error($"Error loading territory details: {ex.Message}");
+            Plugin.Log.Error($"Error loading territory details: {ex.Message}");
             return Enumerable.Empty<TerritoryDetail>();
         }
     }

@@ -4,12 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
-using Lumina.Excel.Sheets;
 using OnePiece.Models;
-using OnePiece.Localization;
 using OnePiece.Helpers;
 
 namespace OnePiece.Services;
@@ -21,26 +18,15 @@ namespace OnePiece.Services;
 public class AetheryteService : IDisposable
 {
     private readonly IClientState clientState;
-    private readonly IPluginLog log;
-    private readonly IChatGui chatGui;
-    private readonly ICommandManager commandManager;
     private List<AetheryteInfo> aetherytes = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AetheryteService"/> class.
     /// </summary>
     /// <param name="clientState">The client state.</param>
-    /// <param name="log">The plugin log.</param>
-    /// <param name="chatGui">The chat GUI service.</param>
-    /// <param name="commandManager">The command manager.</param>
-    public AetheryteService(IClientState clientState, IPluginLog log, IChatGui chatGui, ICommandManager commandManager)
+    public AetheryteService(IClientState clientState)
     {
         this.clientState = clientState;
-        this.log = log;
-        this.chatGui = chatGui;
-        this.commandManager = commandManager;
-
-        // Load aetherytes exclusively from JSON file
         LoadAetherytesFromJson();
     }
 
@@ -163,7 +149,7 @@ public class AetheryteService : IDisposable
             var telepo = Telepo.Instance();
             if (telepo == null)
             {
-                log.Warning("Cannot update teleport fees: Telepo instance is null");
+                Plugin.Log.Warning("Cannot update teleport fees: Telepo instance is null");
                 return;
             }
 
@@ -178,12 +164,12 @@ public class AetheryteService : IDisposable
                 }
                 else
                 {
-                    log.Debug($"Skipping territory check - not on main thread ({ThreadSafetyHelper.GetThreadInfo()}) or player not available");
+                    Plugin.Log.Debug($"Skipping territory check - not on main thread ({ThreadSafetyHelper.GetThreadInfo()}) or player not available");
                 }
             }
             catch (Exception ex)
             {
-                log.Error($"Error getting player territory: {ex.Message}");
+                Plugin.Log.Error($"Error getting player territory: {ex.Message}");
             }
 
             // Update the aetheryte list to ensure we have current data
@@ -208,7 +194,7 @@ public class AetheryteService : IDisposable
                         {
                             aetheryte.ActualTeleportFee = (int)info.GilCost;
                             foundCost = true;
-                            log.Debug($"Found teleport fee for {aetheryte.Name} from Telepo API: {aetheryte.ActualTeleportFee} gil");
+                            Plugin.Log.Debug($"Found teleport fee for {aetheryte.Name} from Telepo API: {aetheryte.ActualTeleportFee} gil");
                             break;
                         }
                     }
@@ -216,18 +202,18 @@ public class AetheryteService : IDisposable
                     // If we couldn't find the cost, leave ActualTeleportFee as 0
                     if (!foundCost)
                     {
-                        log.Debug($"Could not find teleport fee for {aetheryte.Name} in Telepo API");
+                        Plugin.Log.Debug($"Could not find teleport fee for {aetheryte.Name} in Telepo API");
                     }
                 }
                 catch (Exception ex)
                 {
-                    log.Error($"Error updating teleport fee for aetheryte {aetheryte.Id}: {ex.Message}");
+                    Plugin.Log.Error($"Error updating teleport fee for aetheryte {aetheryte.AetheryteId}: {ex.Message}");
                 }
             }
         }
         catch (Exception ex)
         {
-            log.Error($"Error updating teleport fees: {ex.Message}");
+            Plugin.Log.Error($"Error updating teleport fees: {ex.Message}");
         }
     }
 
@@ -240,30 +226,30 @@ public class AetheryteService : IDisposable
         {
             // Use PluginInterface to get the plugin directory
             string pluginDirectory = Path.GetDirectoryName(Plugin.PluginInterface.AssemblyLocation.FullName);
-            log.Information($"Plugin directory: {pluginDirectory}");
+            Plugin.Log.Information($"Plugin directory: {pluginDirectory}");
 
             // Define the file name to load
             const string fileName = "aetheryte.json";
 
             // Look for the file in the plugin directory
             string aetheryteJsonPath = Path.Combine(pluginDirectory, fileName);
-            log.Information($"Loading aetherytes from: {aetheryteJsonPath}");
+            Plugin.Log.Information($"Loading aetherytes from: {aetheryteJsonPath}");
 
             // Check if the file exists
             if (!File.Exists(aetheryteJsonPath))
             {
-                log.Error($"Aetheryte JSON file not found: {aetheryteJsonPath}");
+                Plugin.Log.Error($"Aetheryte JSON file not found: {aetheryteJsonPath}");
                 return;
             }
 
             // Read the JSON file
             string jsonContent = File.ReadAllText(aetheryteJsonPath);
-            log.Debug($"Read JSON content with length: {jsonContent.Length}");
+            Plugin.Log.Debug($"Read JSON content with length: {jsonContent.Length}");
 
             // If the JSON content is empty, log an error and return
             if (string.IsNullOrWhiteSpace(jsonContent))
             {
-                log.Error("aetheryte.json file is empty");
+                Plugin.Log.Error("aetheryte.json file is empty");
                 return;
             }
 
@@ -275,66 +261,45 @@ public class AetheryteService : IDisposable
                 PropertyNameCaseInsensitive = true
             };
 
-            var aetheryteData = JsonSerializer.Deserialize<AetheryteJsonData>(jsonContent, options);
+            var aetheryteData = JsonSerializer.Deserialize<AetheryteData>(jsonContent, options);
 
             if (aetheryteData == null)
             {
-                log.Error("Failed to deserialize aetheryte data from JSON: result was null");
+                Plugin.Log.Error("Failed to deserialize aetheryte data from JSON: result was null");
                 return;
             }
 
             if (aetheryteData.Aetherytes == null || aetheryteData.Aetherytes.Count == 0)
             {
-                log.Error("Deserialized aetheryte data contains no aetherytes");
+                Plugin.Log.Error("Deserialized aetheryte data contains no aetherytes");
                 return;
             }
 
-            log.Information($"Successfully loaded {aetheryteData.Aetherytes.Count} aetherytes from JSON file");
+            Plugin.Log.Information($"Successfully loaded {aetheryteData.Aetherytes.Count} aetherytes from JSON file");
 
-            // Create aetheryte info objects from JSON data
+            // Create aetheryte info objects from JSON data using the conversion method
             var loadedAetherytes = new List<AetheryteInfo>();
             foreach (var jsonAetheryte in aetheryteData.Aetherytes)
             {
-                var aetheryteInfo = new AetheryteInfo
-                {
-                    Id = jsonAetheryte.AetheryteRowId,
-                    AetheryteId = jsonAetheryte.AetheryteRowId,
-                    Name = jsonAetheryte.Name,
-                    MapArea = jsonAetheryte.MapArea,
-                    Position = new Vector2((float)jsonAetheryte.X, (float)jsonAetheryte.Y),
-                    ActualTeleportFee = 0 // Will be updated when needed
-                };
+                var aetheryteInfo = jsonAetheryte.ToAetheryteInfo();
+                aetheryteInfo.ActualTeleportFee = 0; // Initialize teleport fee
 
                 loadedAetherytes.Add(aetheryteInfo);
-                log.Debug($"Loaded aetheryte: {aetheryteInfo.Name} in {aetheryteInfo.MapArea} at position ({aetheryteInfo.Position.X}, {aetheryteInfo.Position.Y})");
+                Plugin.Log.Debug($"Loaded aetheryte: {aetheryteInfo.Name} in {aetheryteInfo.MapArea} at position ({aetheryteInfo.Position.X}, {aetheryteInfo.Position.Y})");
             }
 
             this.aetherytes = loadedAetherytes;
-            log.Information($"Successfully loaded {this.aetherytes.Count} aetherytes from JSON file");
+            Plugin.Log.Information($"Successfully loaded {this.aetherytes.Count} aetherytes from JSON file");
         }
         catch (Exception ex)
         {
-            log.Error($"Error loading aetherytes from JSON: {ex.Message}");
-            log.Error(ex.StackTrace);
+            Plugin.Log.Error($"Error loading aetherytes from JSON: {ex.Message}");
+            Plugin.Log.Error(ex.StackTrace);
         }
     }
 
 
 
-    /// <summary>
-    /// Calculates the teleport price for a given aetheryte.
-    /// </summary>
-    /// <param name="aetheryte">The aetheryte to calculate the teleport price for.</param>
-    /// <returns>The teleport price in gil, or 0 if no price data is available.</returns>
-    public int CalculateTeleportPrice(AetheryteInfo aetheryte)
-    {
-        if (aetheryte == null)
-            return 0;
-
-        // Only use actual teleport fee from game API
-        return aetheryte.ActualTeleportFee;
-    }
-    
     /// <summary>
     /// Teleports the player to the specified aetheryte.
     /// </summary>
@@ -354,19 +319,19 @@ public class AetheryteService : IDisposable
                 if (telepo != null)
                 {
                     telepo->Teleport(aetheryte.AetheryteId, 0);
-                    log.Debug($"Teleported to {aetheryte.Name} (ID: {aetheryte.AetheryteId}) using Telepo API");
+                    Plugin.Log.Debug($"Teleported to {aetheryte.Name} (ID: {aetheryte.AetheryteId}) using Telepo API");
                     return true;
                 }
                 else
                 {
-                    log.Error("Telepo instance is null, cannot teleport");
+                    Plugin.Log.Error("Telepo instance is null, cannot teleport");
                     return false;
                 }
             }
         }
         catch (Exception ex)
         {
-            log.Error($"Error teleporting to aetheryte {aetheryte.Name} (ID: {aetheryte.AetheryteId}): {ex.Message}");
+            Plugin.Log.Error($"Error teleporting to aetheryte {aetheryte.Name} (ID: {aetheryte.AetheryteId}): {ex.Message}");
             return false;
         }
     }
@@ -379,57 +344,4 @@ public class AetheryteService : IDisposable
         // Clear aetheryte list to free memory
         aetherytes.Clear();
     }
-}
-
-/// <summary>
-/// Class for deserializing aetheryte.json data.
-/// </summary>
-public class AetheryteJsonData
-{
-    /// <summary>
-    /// Gets or sets the timestamp when the data was generated.
-    /// </summary>
-    public string Timestamp { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Gets or sets the game version.
-    /// </summary>
-    public string GameVersion { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Gets or sets the list of aetherytes.
-    /// </summary>
-    public List<AetheryteJsonEntry> Aetherytes { get; set; } = new();
-}
-
-/// <summary>
-/// Class for deserializing individual aetheryte entries from JSON.
-/// </summary>
-public class AetheryteJsonEntry
-{
-    /// <summary>
-    /// Gets or sets the aetheryte ID.
-    /// </summary>
-    [JsonPropertyName("AetheryteRowId")] // Keep JSON compatibility
-    public uint AetheryteRowId { get; set; }
-    
-    /// <summary>
-    /// Gets or sets the aetheryte name.
-    /// </summary>
-    public string Name { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Gets or sets the map area name.
-    /// </summary>
-    public string MapArea { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the X coordinate.
-    /// </summary>
-    public double X { get; set; }
-    
-    /// <summary>
-    /// Gets or sets the Y coordinate.
-    /// </summary>
-    public double Y { get; set; }
 }

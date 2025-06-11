@@ -40,6 +40,7 @@ public sealed class Plugin : IDalamudPlugin
     public PlayerLocationService PlayerLocationService { get; init; }
     public AetheryteService AetheryteService { get; init; }
     public MapAreaTranslationService MapAreaTranslationService { get; init; }
+    public PlayerNameProcessingService PlayerNameProcessingService { get; init; }
 
     public readonly WindowSystem WindowSystem = new("OnePiece");
     private MainWindow MainWindow { get; init; }
@@ -54,7 +55,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         else
         {
-            Log.Error("CustomMessageWindow is null!");
+            Plugin.Log.Error("CustomMessageWindow is null!");
         }
     }
 
@@ -64,7 +65,7 @@ public sealed class Plugin : IDalamudPlugin
         ThreadSafetyHelper.InitializeMainThreadId();
         LocalizationManager.Initialize();
 
-        TerritoryManager = new TerritoryManager(DataManager, Log);
+        TerritoryManager = new TerritoryManager(DataManager);
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
         // Simple configuration validation and fix
@@ -75,12 +76,13 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to validate configuration: {ex}");
+            Plugin.Log.Error($"Failed to validate configuration: {ex}");
         }
 
-        PlayerLocationService = new PlayerLocationService(ClientState, Log, TerritoryManager, GameGui, DataManager);
-        AetheryteService = new AetheryteService(ClientState, Log, ChatGui, CommandManager);
-        MapAreaTranslationService = new MapAreaTranslationService(Log);
+        PlayerLocationService = new PlayerLocationService(ClientState, TerritoryManager, GameGui, DataManager);
+        AetheryteService = new AetheryteService(ClientState);
+        MapAreaTranslationService = new MapAreaTranslationService();
+        PlayerNameProcessingService = new PlayerNameProcessingService();
         TreasureHuntService = new TreasureHuntService(this);
         ChatMonitorService = new ChatMonitorService(this);
 
@@ -106,7 +108,7 @@ public sealed class Plugin : IDalamudPlugin
             ChatMonitorService.StartMonitoring();
         }
 
-        Log.Information("One Piece Treasure Hunt Plugin Loaded");
+        Plugin.Log.Information("One Piece Treasure Hunt Plugin Loaded");
     }
 
     public void Dispose()

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game;
-using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
 using Lumina.Excel.Sheets;
 
@@ -14,15 +13,13 @@ namespace OnePiece.Services
     /// </summary>
     public class MapAreaTranslationService
     {
-        private readonly IPluginLog log;
         private readonly Dictionary<string, string> translationCache;
         private readonly Dictionary<string, string> currentLanguageMapping;
         private readonly ClientLanguage currentClientLanguage;
         private bool isInitialized = false;
 
-        public MapAreaTranslationService(IPluginLog logger)
+        public MapAreaTranslationService()
         {
-            log = logger ?? throw new ArgumentNullException(nameof(logger));
             translationCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             currentLanguageMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             currentClientLanguage = Svc.ClientState.ClientLanguage;
@@ -38,18 +35,18 @@ namespace OnePiece.Services
 
             try
             {
-                log.Information($"Initializing MapAreaTranslationService for client language: {currentClientLanguage}...");
+                Plugin.Log.Information($"Initializing MapAreaTranslationService for client language: {currentClientLanguage}...");
                 var startTime = DateTime.UtcNow;
 
                 BuildCurrentLanguageMapping();
 
                 var initTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
                 isInitialized = true;
-                log.Information($"MapAreaTranslationService initialized in {initTime:F2}ms with {currentLanguageMapping.Count} mappings");
+                Plugin.Log.Information($"MapAreaTranslationService initialized in {initTime:F2}ms with {currentLanguageMapping.Count} mappings");
             }
             catch (Exception ex)
             {
-                log.Error($"Failed to initialize MapAreaTranslationService: {ex.Message}");
+                Plugin.Log.Error($"Failed to initialize MapAreaTranslationService: {ex.Message}");
                 throw;
             }
         }
@@ -71,7 +68,7 @@ namespace OnePiece.Services
             // Check cache first
             if (translationCache.TryGetValue(mapAreaName, out var cachedTranslation))
             {
-                log.Debug($"Found cached translation: '{mapAreaName}' -> '{cachedTranslation}'");
+                Plugin.Log.Debug($"Found cached translation: '{mapAreaName}' -> '{cachedTranslation}'");
                 return cachedTranslation;
             }
 
@@ -92,12 +89,12 @@ namespace OnePiece.Services
             // Search in current language mapping
             if (currentLanguageMapping.TryGetValue(mapAreaName, out var englishName))
             {
-                log.Information($"Translated map area: '{mapAreaName}' -> '{englishName}'");
+                Plugin.Log.Information($"Translated map area: '{mapAreaName}' -> '{englishName}'");
                 translationCache[mapAreaName] = englishName;
                 return englishName;
             }
 
-            log.Warning($"No translation found for map area: '{mapAreaName}' in language: {currentClientLanguage}");
+            Plugin.Log.Warning($"No translation found for map area: '{mapAreaName}' in language: {currentClientLanguage}");
             return mapAreaName; // Return original if no translation found
         }
 
@@ -119,7 +116,7 @@ namespace OnePiece.Services
             }
             catch (Exception ex)
             {
-                log.Warning($"Error checking if '{mapAreaName}' is English: {ex.Message}");
+                Plugin.Log.Warning($"Error checking if '{mapAreaName}' is English: {ex.Message}");
                 return false;
             }
         }
@@ -133,7 +130,7 @@ namespace OnePiece.Services
             // If client language is English, no mapping needed
             if (currentClientLanguage == ClientLanguage.English)
             {
-                log.Information("Client language is English, no translation mapping needed");
+                Plugin.Log.Information("Client language is English, no translation mapping needed");
                 return;
             }
 
@@ -147,7 +144,7 @@ namespace OnePiece.Services
 
             if (!supportedLanguages.Contains(currentClientLanguage))
             {
-                log.Warning($"Current client language {currentClientLanguage} is not supported for translation");
+                Plugin.Log.Warning($"Current client language {currentClientLanguage} is not supported for translation");
                 return;
             }
 
@@ -157,7 +154,7 @@ namespace OnePiece.Services
                 var englishPlaceNames = Svc.Data.GetExcelSheet<PlaceName>(ClientLanguage.English);
                 if (englishPlaceNames == null)
                 {
-                    log.Error("Failed to load English PlaceName data");
+                    Plugin.Log.Error("Failed to load English PlaceName data");
                     return;
                 }
 
@@ -165,7 +162,7 @@ namespace OnePiece.Services
                 var localizedPlaceNames = Svc.Data.GetExcelSheet<PlaceName>(currentClientLanguage);
                 if (localizedPlaceNames == null)
                 {
-                    log.Error($"Failed to load PlaceName data for current language: {currentClientLanguage}");
+                    Plugin.Log.Error($"Failed to load PlaceName data for current language: {currentClientLanguage}");
                     return;
                 }
 
@@ -191,15 +188,15 @@ namespace OnePiece.Services
                     {
                         currentLanguageMapping[localizedName] = englishName;
                         mappingCount++;
-                        log.Debug($"Added mapping: '{localizedName}' -> '{englishName}'");
+                        Plugin.Log.Debug($"Added mapping: '{localizedName}' -> '{englishName}'");
                     }
                 }
 
-                log.Information($"Built {currentClientLanguage} to English mapping with {mappingCount} entries");
+                Plugin.Log.Information($"Built {currentClientLanguage} to English mapping with {mappingCount} entries");
             }
             catch (Exception ex)
             {
-                log.Error($"Error building mapping for current language {currentClientLanguage}: {ex.Message}");
+                Plugin.Log.Error($"Error building mapping for current language {currentClientLanguage}: {ex.Message}");
                 throw;
             }
         }
@@ -215,7 +212,7 @@ namespace OnePiece.Services
         public void ClearCache()
         {
             translationCache.Clear();
-            log.Information("Translation cache cleared");
+            Plugin.Log.Information("Translation cache cleared");
         }
 
         /// <summary>

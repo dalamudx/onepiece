@@ -9,6 +9,7 @@ namespace OnePiece.Helpers;
 
 /// <summary>
 /// Helper class for displaying coordinates in UI with consistent formatting.
+/// Provides specialized coordinate display methods while leveraging UIHelper for general UI calculations.
 /// </summary>
 public static class CoordinateDisplayHelper
 {
@@ -68,64 +69,10 @@ public static class CoordinateDisplayHelper
             ImGui.TextUnformatted($"({coordinate.X:F1}, {coordinate.Y:F1})");
         }
 
-        // Add coordinate name if available
-        if (!string.IsNullOrEmpty(coordinate.Name))
-        {
-            ImGui.SameLine(0, 5);
-            ImGui.TextUnformatted($"- {coordinate.Name}");
-        }
-
         // Pop collected styling if applied
         if (actuallyCollected)
         {
             ImGui.PopStyleColor();
-        }
-    }
-
-    /// <summary>
-    /// Displays a coordinate with inline editing capabilities.
-    /// </summary>
-    /// <param name="coordinate">The coordinate to display.</param>
-    /// <param name="index">The display index (1-based).</param>
-    /// <param name="onEdit">Callback when coordinate is edited.</param>
-    /// <param name="onDelete">Callback when coordinate is deleted.</param>
-    /// <param name="onCollectedToggle">Callback when collected status is toggled.</param>
-    public static void DisplayEditableCoordinate(
-        TreasureCoordinate coordinate,
-        int index,
-        Action<TreasureCoordinate>? onEdit = null,
-        Action<int>? onDelete = null,
-        Action<int, bool>? onCollectedToggle = null)
-    {
-        DisplayCoordinate(coordinate, index);
-
-        // Add action buttons on the same line
-        ImGui.SameLine();
-
-        // Collected checkbox
-        if (onCollectedToggle != null)
-        {
-            var isCollected = coordinate.IsCollected;
-            if (ImGui.Checkbox($"##collected_{index}", ref isCollected))
-            {
-                onCollectedToggle(index - 1, isCollected); // Convert to 0-based index
-            }
-            
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(Strings.Collected);
-            }
-            
-            ImGui.SameLine();
-        }
-
-        // Delete button
-        if (onDelete != null)
-        {
-            if (ImGui.Button($"{Strings.Delete}##delete_{index}"))
-            {
-                onDelete(index - 1); // Convert to 0-based index
-            }
         }
     }
 
@@ -171,11 +118,6 @@ public static class CoordinateDisplayHelper
         else
         {
             displayText += $"({coordinate.X:F1}, {coordinate.Y:F1})";
-        }
-
-        if (!string.IsNullOrEmpty(coordinate.Name))
-        {
-            displayText += $" - {coordinate.Name}";
         }
 
         return displayText;
@@ -276,5 +218,70 @@ public static class CoordinateDisplayHelper
         ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.5f, 1.0f), $"({mapAreas} areas)");
     }
 
+    /// <summary>
+    /// Renders a complete coordinate entry with optimal layout using both coordinate-specific and general UI helpers.
+    /// This method combines the best of both CoordinateDisplayHelper and UIHelper.
+    /// </summary>
+    /// <param name="coordinate">The coordinate to display</param>
+    /// <param name="index">The display index (1-based)</param>
+    /// <param name="availableWidth">Available width for the entire row</param>
+    /// <param name="onTeleport">Callback for teleport action</param>
+    /// <param name="onSendToChat">Callback for send to chat action</param>
+    /// <param name="onToggleCollected">Callback for toggle collected action</param>
+    /// <param name="showPlayerName">Whether to show player name</param>
+    /// <returns>True if any action was performed</returns>
+    public static bool DisplayCoordinateWithOptimalLayout(
+        TreasureCoordinate coordinate,
+        int index,
+        float availableWidth,
+        Action<TreasureCoordinate>? onTeleport = null,
+        Action<TreasureCoordinate>? onSendToChat = null,
+        Action<int, bool>? onToggleCollected = null,
+        bool showPlayerName = true)
+    {
+        // Calculate optimal text area width using UIHelper
+        int buttonCount = (onTeleport != null && coordinate.AetheryteId > 0 ? 1 : 0) +
+                         (onSendToChat != null ? 1 : 0) +
+                         (onToggleCollected != null ? 1 : 0);
 
+        float textAreaWidth = UIHelper.CalculateTextAreaWidth(availableWidth, buttonCount);
+
+        // Get coordinate display text
+        string displayText = GetCoordinateDisplayText(coordinate, index, showPlayerName);
+
+        // Store starting position
+        float lineStartY = ImGui.GetCursorPosY();
+        float lineStartX = ImGui.GetCursorPosX();
+
+        // Render coordinate text with proper styling
+        if (coordinate.IsCollected)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, CollectedTextColor);
+        }
+
+        // Calculate text size for proper layout
+        var textSize = ImGui.CalcTextSize(displayText, textAreaWidth);
+
+        // Render text in a contained area
+        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + textAreaWidth);
+        ImGui.TextWrapped(displayText);
+        ImGui.PopTextWrapPos();
+
+        if (coordinate.IsCollected)
+        {
+            ImGui.PopStyleColor();
+        }
+
+        // Position cursor for buttons
+        float buttonStartX = lineStartX + textAreaWidth + 15f;
+        ImGui.SetCursorPos(new Vector2(buttonStartX, lineStartY));
+
+        // Display action buttons using our specialized method
+        bool actionPerformed = DisplayCoordinateActions(coordinate, index, onTeleport, onSendToChat, onToggleCollected);
+
+        // Ensure proper line spacing
+        ImGui.SetCursorPosY(Math.Max(ImGui.GetCursorPosY(), lineStartY + textSize.Y + 8f));
+
+        return actionPerformed;
+    }
 }

@@ -9,11 +9,6 @@ namespace OnePiece.Models;
 public class AetheryteInfo
 {
     /// <summary>
-    /// Gets or sets the ID of the aetheryte.
-    /// </summary>
-    public uint Id { get; set; }
-
-    /// <summary>
     /// Gets or sets the name of the aetheryte.
     /// </summary>
     public string Name { get; set; } = string.Empty;

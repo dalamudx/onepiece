@@ -9,6 +9,7 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
+
 using OnePiece.Helpers;
 using OnePiece.Models;
 using OnePiece.Localization;
@@ -22,14 +23,15 @@ namespace OnePiece.Services;
 public class ChatMonitorService : IDisposable
 {
     private readonly Plugin plugin;
-    private readonly IPluginLog log;
     private bool isMonitoring;
     private bool isImportingCoordinates = true; // Flag to control coordinate import
 
-    // Regular expression to match player names in copied chat messages like [21:50](Player Name) Text...
-    // Group 1: Timestamp (optional)
-    // Group 2: Player name
-    private static readonly Regex PlayerNameRegex = new(@"\[\d+:\d+\]\s*\(([^)]+)\)|\(([^)]+)\)", RegexOptions.IgnoreCase);
+    // Regular expression to match player names in various chat formats:
+    // [14:27][CWLS1]<Tataru T.> - with CrossWorldLinkShell channel
+    // [14:27][1]<Tataru T.> - with LinkShell channel
+    // [16:30](Tataru Taru) - with Party channel
+    // Named groups: time, channel (optional), player1 (angle brackets), player2 (parentheses)
+    private static readonly Regex PlayerNameRegex = new(@"\[(?<time>\d{1,2}:\d{2})\](?:\[(?<channel>[^\]]+)\])?(?:<(?<player1>[^>]+)>|\((?<player2>[^)]+)\))", RegexOptions.IgnoreCase);
 
     /// <summary>
     /// Event raised when a coordinate is detected in chat.
@@ -53,7 +55,6 @@ public class ChatMonitorService : IDisposable
     public ChatMonitorService(Plugin plugin)
     {
         this.plugin = plugin;
-        this.log = Plugin.Log;
         this.isMonitoring = false;
 
         // Subscribe to TreasureHuntService events
@@ -78,7 +79,7 @@ public class ChatMonitorService : IDisposable
         isImportingCoordinates = false;
 
         // Log the optimization completion for debugging purposes
-        log.Information($"Route optimization completed with {count} coordinates. Coordinate importing paused.");
+        Plugin.Log.Information($"Route optimization completed with {count} coordinates. Coordinate importing paused.");
     }
 
     /// <summary>
@@ -91,7 +92,7 @@ public class ChatMonitorService : IDisposable
         // Resume coordinate importing when route optimization is reset
         isImportingCoordinates = true;
 
-        log.Information("Route optimization reset. Coordinate importing resumed.");
+        Plugin.Log.Information("Route optimization reset. Coordinate importing resumed.");
     }
 
     /// <summary>
@@ -217,7 +218,7 @@ public class ChatMonitorService : IDisposable
         }
         catch (Exception ex)
         {
-            log.Error($"Error processing chat message: {ex.Message}");
+            Plugin.Log.Error($"Error processing chat message: {ex.Message}");
         }
     }
 
@@ -247,7 +248,7 @@ public class ChatMonitorService : IDisposable
         }
         
         // Remove special characters from the player name
-        return RemoveSpecialCharactersFromName(playerName);
+        return plugin.PlayerNameProcessingService.ProcessPlayerName(playerName);
     }
     
     /// <summary>
@@ -261,19 +262,12 @@ public class ChatMonitorService : IDisposable
             return messageText;
             
         // Use the same method as for player names, since we're looking for the same special characters
-        return RemoveSpecialCharactersFromName(messageText);
+        return plugin.PlayerNameProcessingService.ProcessPlayerName(messageText);
     }
     
-    /// <summary>
-    /// Removes special characters from player names like BoxedNumber and BoxedOutlinedNumber
-    /// </summary>
-    /// <param name="name">The name that might contain special characters</param>
-    /// <returns>The name with special characters removed</returns>
-    private string RemoveSpecialCharactersFromName(string name)
-    {
-        // Use the centralized GameIconHelper for consistent special character handling
-        return GameIconHelper.RemoveGameSpecialCharacters(name);
-    }
+
+
+
 
 /// <summary>
 /// Extracts coordinates from a message, handling any special characters.
@@ -285,7 +279,7 @@ private void ExtractCoordinates(string messageText, string playerName)
     // Check if we should import coordinates
     if (!isImportingCoordinates)
     {
-        log.Debug("Coordinate import is paused. Ignoring coordinates from chat.");
+        Plugin.Log.Debug("Coordinate import is paused. Ignoring coordinates from chat.");
         return;
     }
     
@@ -296,9 +290,9 @@ private void ExtractCoordinates(string messageText, string playerName)
     // Get language-specific coordinate regex
     var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
 
-    log.Debug($"Chat monitoring: Processing message from {playerName}");
+    Plugin.Log.Debug($"Chat monitoring: Processing message from {playerName}");
     var matches = coordinateRegex.Matches(cleanedText);
-    log.Debug($"Found {matches.Count} coordinate matches");
+    Plugin.Log.Debug($"Found {matches.Count} coordinate matches");
     foreach (Match match in matches)
     {
         if (match.Groups.Count >= 4 &&
@@ -315,20 +309,19 @@ private void ExtractCoordinates(string messageText, string playerName)
                     mapArea,
                     plugin.MapAreaTranslationService,
                     plugin.AetheryteService,
-                    log,
                     "- chat monitoring");
 
                 if (!isValid)
                 {
-                    log.Warning($"Chat monitoring: Skipping coordinate due to invalid map area");
+                    Plugin.Log.Warning($"Chat monitoring: Skipping coordinate due to invalid map area");
                     return; // Skip this coordinate
                 }
             }
 
             // Use the cleaned player name to create the coordinate with original map area name
-            var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", playerName);
+            var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, playerName);
 
-            log.Information($"Coordinate detected from {playerName}: {mapArea} ({x}, {y})");
+            Plugin.Log.Information($"Coordinate detected from {playerName}: {mapArea} ({x}, {y})");
 
             // Directly add the coordinate to preserve player name instead of re-importing
             plugin.TreasureHuntService.AddCoordinate(coordinate);
@@ -365,7 +358,7 @@ public bool ProcessChatMessage(string playerName, string message)
             // Look for coordinates in the segment using language-specific regex
             var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
             var matches = coordinateRegex.Matches(segment);
-            log.Debug($"Manual chat processing: Found {matches.Count} matches in segment");
+            Plugin.Log.Debug($"Manual chat processing: Found {matches.Count} matches in segment");
             foreach (Match match in matches)
             {
                 if (match.Groups.Count >= 4 &&
@@ -388,20 +381,19 @@ public bool ProcessChatMessage(string playerName, string message)
                             mapArea,
                             plugin.MapAreaTranslationService,
                             plugin.AetheryteService,
-                            log,
                             "- manual chat processing");
 
                         if (!isValid)
                         {
-                            log.Warning($"Manual chat processing: Skipping coordinate due to invalid map area");
+                            Plugin.Log.Warning($"Manual chat processing: Skipping coordinate due to invalid map area");
                             continue; // Skip this coordinate
                         }
                     }
 
                     // Create coordinate with original map area name for display
-                    var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", effectivePlayerName);
+                    var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, effectivePlayerName);
 
-                    log.Information($"Coordinate detected from {effectivePlayerName}: {mapArea} ({x}, {y})");
+                    Plugin.Log.Information($"Coordinate detected from {effectivePlayerName}: {mapArea} ({x}, {y})");
 
                     // Directly add the coordinate to preserve player name instead of re-importing
                     plugin.TreasureHuntService.AddCoordinate(coordinate);
@@ -418,7 +410,7 @@ public bool ProcessChatMessage(string playerName, string message)
     }
     catch (Exception ex)
     {
-        log.Error($"Error processing chat message: {ex.Message}");
+        Plugin.Log.Error($"Error processing chat message: {ex.Message}");
         return false;
     }
 }
@@ -430,17 +422,26 @@ public bool ProcessChatMessage(string playerName, string message)
 /// <returns>An array of message segments.</returns>
 private string[] SplitMessageIntoSegments(string message)
 {
-    // Try to split the message at timestamps like [21:50]
-    var timestampSegments = Regex.Split(message, @"(?=\[\d+:\d+\])");
-    
-    // If no timestamps found or only one segment, return the whole message
-    if (timestampSegments.Length <= 1)
+    // Try to split the message at various chat format patterns:
+    // [14:27][CWLS1]<Tataru T.> - with CrossWorldLinkShell channel
+    // [14:27][1]<Tataru T.> - with LinkShell channel
+    // [16:30](Tataru Taru) - with Party channel
+    var chatSegments = Regex.Split(message, @"(?=\[\d{1,2}:\d{2}\](?:\[[^\]]+\])?(?:<[^>]+>|\([^)]+\)))");
+
+    // If no new format found, try legacy timestamp splitting
+    if (chatSegments.Length <= 1)
+    {
+        chatSegments = Regex.Split(message, @"(?=\[\d+:\d+\])");
+    }
+
+    // If still no segments found, return the whole message
+    if (chatSegments.Length <= 1)
     {
         return new[] { message };
     }
-    
+
     // Filter out empty segments
-    return timestampSegments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+    return chatSegments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
 }
 
 /// <summary>
@@ -453,10 +454,9 @@ private string ExtractPlayerNameFromSegment(string segment)
     var match = PlayerNameRegex.Match(segment);
     if (match.Success)
     {
-        // Group 1 contains the player name if it matched the first pattern ([21:50](Player Name))
-        // Group 2 contains the player name if it matched the second pattern ((Player Name))
-        string playerName = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
-        return RemoveSpecialCharactersFromName(playerName.Trim());
+        // Extract player name from either capture group (angle brackets or parentheses)
+        string playerName = match.Groups["player1"].Success ? match.Groups["player1"].Value : match.Groups["player2"].Value;
+        return plugin.PlayerNameProcessingService.ProcessPlayerName(playerName.Trim());
     }
     return string.Empty;
 }
@@ -473,18 +473,6 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
     if (mapArea.StartsWith(playerName, StringComparison.OrdinalIgnoreCase))
     {
         mapArea = mapArea.Substring(playerName.Length).Trim();
-        
-        // If map area starts with common player name suffixes, remove them too
-        // These are common suffixes that might appear after player names in different languages
-        string[] suffixes = new[] { "さん", "san", "の", "no", "chan", "kun", "sama" };
-        foreach (var suffix in suffixes)
-        {
-            if (mapArea.StartsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                mapArea = mapArea.Substring(suffix.Length).Trim();
-                break;
-            }
-        }
     }
     
     return mapArea;
@@ -513,7 +501,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
         {
             if (string.IsNullOrEmpty(coordinate.MapArea))
             {
-                log.Error("Cannot create map link: Map area is empty");
+                Plugin.Log.Error("Cannot create map link: Map area is empty");
                 return null;
             }
 
@@ -521,12 +509,12 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
             var territoryDetail = plugin.TerritoryManager.GetByZoneName(coordinate.MapArea);
             if (territoryDetail == null)
             {
-                log.Error($"Cannot create map link: Map area '{coordinate.MapArea}' not found");
+                Plugin.Log.Error($"Cannot create map link: Map area '{coordinate.MapArea}' not found");
                 return null;
             }
 
             // Create map link using territory details
-            log.Information($"Creating map link for {coordinate.MapArea} ({coordinate.X}, {coordinate.Y}): " +
+            Plugin.Log.Information($"Creating map link for {coordinate.MapArea} ({coordinate.X}, {coordinate.Y}): " +
                            $"TerritoryId={territoryDetail.TerritoryId}, MapId={territoryDetail.MapId}, SizeFactor={territoryDetail.SizeFactor}");
 
             return new MapLinkPayload(
@@ -538,7 +526,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
         }
         catch (Exception ex)
         {
-            log.Error($"Error creating map link: {ex.Message}");
+            Plugin.Log.Error($"Error creating map link: {ex.Message}");
             return null;
         }
     }
@@ -591,14 +579,14 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                         string customCommand = $"{chatCommand} {customMessage}";
                         Chat.ExecuteCommand(customCommand);
                         
-                        log.Information($"Successfully sent message using template '{activeTemplate.Name}' to {channelName}: {customMessage}");
+                        Plugin.Log.Information($"Successfully sent message using template '{activeTemplate.Name}' to {channelName}: {customMessage}");
                     }
                     else
                     {
                         // If no active template, just send the flag
                         string mapLinkCommand = $"{chatCommand} <flag>";
                         Chat.ExecuteCommand(mapLinkCommand);
-                        log.Information($"Successfully sent map link to {channelName} (no active template)");
+                        Plugin.Log.Information($"Successfully sent map link to {channelName} (no active template)");
                     }
                     
                     return;
@@ -614,7 +602,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                         string customMessage = BuildCustomMessage(coordinate, false);
                         string customCommand = $"{chatCommand} {customMessage}";
                         Chat.ExecuteCommand(customCommand);
-                        log.Information($"Successfully sent custom message with text coordinates to {channelName}: {customMessage}");
+                        Plugin.Log.Information($"Successfully sent custom message with text coordinates to {channelName}: {customMessage}");
                     }
                     else
                     {
@@ -626,18 +614,18 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
 
                         string fullCommand = $"{chatCommand} {coordText}";
                         Chat.ExecuteCommand(fullCommand);
-                        log.Information($"Successfully sent coordinate text to {channelName}: {coordText}");
+                        Plugin.Log.Information($"Successfully sent coordinate text to {channelName}: {coordText}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                log.Error($"Error sending coordinate to chat: {ex.Message}");
+                Plugin.Log.Error($"Error sending coordinate to chat: {ex.Message}");
             }
         }
         catch (Exception ex)
         {
-            log.Error($"Error sending coordinate to chat: {ex.Message}");
+            Plugin.Log.Error($"Error sending coordinate to chat: {ex.Message}");
         }
     }
 
@@ -806,76 +794,87 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
         var route = plugin.TreasureHuntService.OptimizedRoute;
         if (route != null && route.Count > 0)
         {
-            // Filter out teleport points from the route
-            var nonTeleportCoordinates = new List<TreasureCoordinate>();
-            foreach (var coord in route)
+            // PRIORITY 1: Try to find exact reference match first
+            for (int i = 0; i < route.Count; i++)
             {
-                // Skip teleport points (teleport point name contains "[Teleport]")
-                if (coord.Name == null || !coord.Name.Contains("[Teleport]"))
+                var routeCoord = route[i];
+                if (ReferenceEquals(routeCoord, coordinate))
                 {
-                    nonTeleportCoordinates.Add(coord);
+                    return Math.Min(i, 7); // Use route position directly as display index
                 }
-            }
-            
-            // Count how many times this coordinate appears before the current instance
-            int currentInstance = 0;
-            int index = 0;
-            
-            // First pass: count instances of the same coordinate
-            for (int i = 0; i < nonTeleportCoordinates.Count && i < 8; i++)
-            {
-                var routeCoord = nonTeleportCoordinates[i];
-                
-                // If this is the same coordinate (within tolerance)
-                if (Math.Abs(routeCoord.X - coordinate.X) < 0.1f && Math.Abs(routeCoord.Y - coordinate.Y) < 0.1f)
-                {
-                    // If this is our coordinate, use the current index
-                    if (ReferenceEquals(routeCoord, coordinate))
-                    {
-                        return index;
-                    }
-                    // Otherwise increment the instance count for duplicates
-                    currentInstance++;
-                }
-                
-                // Always increment the index for each non-teleport coordinate
-                index++;
-            }
-            
-            // Second pass: if we didn't find an exact reference match, use the instance count
-            index = 0;
-            int instanceFound = 0;
-            for (int i = 0; i < nonTeleportCoordinates.Count && i < 8; i++)
-            {
-                var routeCoord = nonTeleportCoordinates[i];
-                
-                // If this is the same coordinate (within tolerance)
-                if (Math.Abs(routeCoord.X - coordinate.X) < 0.1f && Math.Abs(routeCoord.Y - coordinate.Y) < 0.1f)
-                {
-                    // If this is the instance we're looking for
-                    if (instanceFound == currentInstance)
-                    {
-                        return index;
-                    }
-                    instanceFound++;
-                }
-                
-                // Always increment the index for each non-teleport coordinate
-                index++;
             }
 
-            // If the coordinate was not found in the filtered route, check if it's a teleport point
-            if (coordinate.Name != null && coordinate.Name.Contains("[Teleport]"))
+            // PRIORITY 2: If no exact reference match, find coordinate by position and use a unique identifier
+            // For duplicate coordinates, we need to distinguish them somehow
+            var matchingCoordinates = new List<(int index, TreasureCoordinate coord)>();
+
+            for (int i = 0; i < route.Count; i++)
             {
-                // Don't assign an index to teleport points
-                return -1;
+                var routeCoord = route[i];
+
+                // Check coordinates within tolerance
+                if (Math.Abs(routeCoord.X - coordinate.X) < 0.1f &&
+                    Math.Abs(routeCoord.Y - coordinate.Y) < 0.1f &&
+                    string.Equals(routeCoord.MapArea, coordinate.MapArea, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchingCoordinates.Add((i, routeCoord));
+                }
+            }
+
+            if (matchingCoordinates.Count == 1)
+            {
+                // Only one match, use it
+                var match = matchingCoordinates[0];
+                return Math.Min(match.index, 7);
+            }
+            else if (matchingCoordinates.Count > 1)
+            {
+                // Multiple matches - try to distinguish by additional properties
+                foreach (var (index, routeCoord) in matchingCoordinates)
+                {
+                    // Try to match by Type and other properties
+                    if (routeCoord.Type == coordinate.Type &&
+                        string.Equals(routeCoord.PlayerName, coordinate.PlayerName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Math.Min(index, 7);
+                    }
+                }
+
+                // If still no unique match, use the first one
+                var firstMatch = matchingCoordinates[0];
+                return Math.Min(firstMatch.index, 7);
             }
         }
-        
+
         // If we couldn't find the coordinate in the route or there is no active route,
-        // use the total count of coordinates sent so far as the index
-        // This ensures sequential numbering even for duplicate coordinates
-        return plugin.TreasureHuntService.Coordinates.Count(c => !c.IsCollected) % 8;
+        // use a simple sequential numbering based on all coordinates
+        var allCoordinates = plugin.TreasureHuntService.Coordinates;
+
+        // Find the position of this coordinate in the all coordinates list
+        for (int i = 0; i < allCoordinates.Count && i < 8; i++)
+        {
+            var coord = allCoordinates[i];
+            if (ReferenceEquals(coord, coordinate))
+            {
+                return i;
+            }
+        }
+
+        // Final fallback with coordinate matching
+        for (int i = 0; i < allCoordinates.Count && i < 8; i++)
+        {
+            var coord = allCoordinates[i];
+            if (Math.Abs(coord.X - coordinate.X) < 0.1f &&
+                Math.Abs(coord.Y - coordinate.Y) < 0.1f &&
+                string.Equals(coord.MapArea, coordinate.MapArea, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        // Fallback: return the count modulo 8 to ensure we stay within valid range
+        int fallbackIndex = allCoordinates.Count % 8;
+        return fallbackIndex;
     }
     
     /// <summary>
@@ -922,7 +921,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
     private Regex GetCoordinateRegexForCurrentLanguage()
     {
         var currentLanguage = Svc.ClientState.ClientLanguage;
-        log.Information($"Creating coordinate regex for chat monitoring, language: {currentLanguage}");
+        Plugin.Log.Information($"Creating coordinate regex for chat monitoring, language: {currentLanguage}");
 
         var regex = currentLanguage switch
         {
@@ -932,7 +931,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
             _ => GetEnglishCoordinateRegex() // Default to English for English and any other languages
         };
 
-        log.Information($"Selected chat monitoring regex pattern: {regex}");
+        Plugin.Log.Information($"Selected chat monitoring regex pattern: {regex}");
         return regex;
     }
 

@@ -104,7 +104,6 @@ public class RouteOptimizationService
         {
             coord.AetheryteId = 0;
             coord.Type = CoordinateType.TreasurePoint;
-            coord.NavigationInstruction = string.Empty;
         }
 
         // Remove the early return for single coordinates - they still need teleport optimization
@@ -318,17 +317,9 @@ public class RouteOptimizationService
                 {
                     // If this is a teleport point but AetheryteId is not set
                     // This is a safety check to ensure teleport buttons will display properly
-                    if (coord.Type == CoordinateType.TeleportPoint && coord.AetheryteId == 0)
-                    {
-                        // Try to find the aetheryte by name (removing the [Teleport] prefix)
-                        string aetheryteName = coord.Name.Replace("[Teleport] ", "");
-                        var aetheryteInfo = plugin.AetheryteService.GetAetheryteByName(aetheryteName);
-                        
-                        if (aetheryteInfo != null)
-                        {
-                            coord.AetheryteId = aetheryteInfo.AetheryteId;
-                        }
-                    }
+                    // Note: This logic was for legacy teleport points that used Name field
+                    // Since we removed the Name field, teleport points should already have AetheryteId set
+                    // by the path optimization logic. If AetheryteId is 0, we can't determine the teleport target.
                 }
                 
                 route.AddRange(mapRoute);
@@ -400,7 +391,6 @@ public class RouteOptimizationService
                 // Clear teleport-related settings that were assigned during optimization
                 coordinate.AetheryteId = 0;
                 coordinate.Type = CoordinateType.TreasurePoint;
-                coordinate.NavigationInstruction = string.Empty;
             }
 
             OptimizedRoute.Clear();

@@ -12,7 +12,6 @@ namespace OnePiece.Localization;
 /// </summary>
 public static class LocalizationManager
 {
-    private static readonly IPluginLog Log = Plugin.Log;
     private static readonly Dictionary<string, ILocalizationData> LoadedLanguages = new();
     private static string CurrentLanguage = "en";
     private static readonly string[] SupportedLanguages = { "en", "ja", "de", "fr", "zh" };
@@ -37,11 +36,11 @@ public static class LocalizationManager
             // Load the current language
             LoadLanguage(CurrentLanguage);
 
-            Log.Information($"Localization initialized with language: {CurrentLanguage}");
+            Plugin.Log.Information($"Localization initialized with language: {CurrentLanguage}");
         }
         catch (Exception ex)
         {
-            Log.Error($"Error initializing localization: {ex.Message}");
+            Plugin.Log.Error($"Error initializing localization: {ex.Message}");
             CurrentLanguage = "en"; // Fallback to English
             CurrentLocalizationData = new EN();
         }
@@ -56,14 +55,14 @@ public static class LocalizationManager
     {
         if (!IsLanguageSupported(language))
         {
-            Log.Error($"Language not supported: {language}");
+            Plugin.Log.Error($"Language not supported: {language}");
             return false;
         }
 
         CurrentLanguage = language;
         LoadLanguage(language);
 
-        Log.Information($"Language set to: {language}");
+        Plugin.Log.Information($"Language set to: {language}");
         return true;
     }
 
@@ -108,7 +107,7 @@ public static class LocalizationManager
         }
         catch (Exception ex)
         {
-            Log.Error($"Error getting client language: {ex.Message}");
+            Plugin.Log.Error($"Error getting client language: {ex.Message}");
             return "en"; // Fallback to English
         }
     }
@@ -139,7 +138,7 @@ public static class LocalizationManager
         }
         catch (Exception ex)
         {
-            Log.Error($"Error getting client language location example: {ex.Message}");
+            Plugin.Log.Error($"Error getting client language location example: {ex.Message}");
             return "Limsa Lominsa - Lower Decks ( 9.5 , 11.2 )"; // Fallback to English
         }
     }
@@ -173,11 +172,11 @@ public static class LocalizationManager
             LoadedLanguages[language] = localizationData;
             CurrentLocalizationData = localizationData;
 
-            Log.Information($"Loaded localization data for language: {language}");
+            Plugin.Log.Information($"Loaded localization data for language: {language}");
         }
         catch (Exception ex)
         {
-            Log.Error($"Error loading language {language}: {ex.Message}");
+            Plugin.Log.Error($"Error loading language {language}: {ex.Message}");
             // Fallback to English
             CurrentLocalizationData = new EN();
         }

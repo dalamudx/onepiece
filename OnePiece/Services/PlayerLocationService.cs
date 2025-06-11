@@ -13,7 +13,6 @@ namespace OnePiece.Services;
 public class PlayerLocationService
 {
     private readonly IClientState clientState;
-    private readonly IPluginLog log;
     private readonly TerritoryManager territoryManager;
     private readonly IGameGui gameGui;
     private readonly IDataManager dataManager;
@@ -22,12 +21,10 @@ public class PlayerLocationService
     /// Initializes a new instance of the <see cref="PlayerLocationService"/> class.
     /// </summary>
     /// <param name="clientState">The client state.</param>
-    /// <param name="log">The plugin log.</param>
     /// <param name="territoryManager">The territory manager.</param>
-    public PlayerLocationService(IClientState clientState, IPluginLog log, TerritoryManager territoryManager, IGameGui gameGui, IDataManager dataManager)
+    public PlayerLocationService(IClientState clientState, TerritoryManager territoryManager, IGameGui gameGui, IDataManager dataManager)
     {
         this.clientState = clientState;
-        this.log = log;
         this.territoryManager = territoryManager;
         this.gameGui = gameGui;
         this.dataManager = dataManager;
@@ -45,28 +42,28 @@ public class PlayerLocationService
             // Check if we're on the main thread
             if (!ThreadSafetyHelper.IsMainThread())
             {
-                log.Warning($"GetCurrentLocation called from non-main thread ({ThreadSafetyHelper.GetThreadInfo()}), returning null");
+                Plugin.Log.Warning($"GetCurrentLocation called from non-main thread ({ThreadSafetyHelper.GetThreadInfo()}), returning null");
                 return null;
             }
 
             // Check if client state is valid
             if (clientState == null)
             {
-                log.Error("Cannot get player location: ClientState is null");
+                Plugin.Log.Error("Cannot get player location: ClientState is null");
                 return null;
             }
 
             // Check if player is logged in
             if (!clientState.IsLoggedIn)
             {
-                log.Warning("Cannot get player location: Player is not logged in");
+                Plugin.Log.Warning("Cannot get player location: Player is not logged in");
                 return null;
             }
 
             var localPlayer = clientState.LocalPlayer;
             if (localPlayer == null)
             {
-                log.Warning("Cannot get player location: LocalPlayer is null");
+                Plugin.Log.Warning("Cannot get player location: LocalPlayer is null");
                 return null;
             }
 
@@ -74,14 +71,14 @@ public class PlayerLocationService
             // Vector3 is a value type and cannot be null, but we can check for invalid coordinates
             if (float.IsNaN(position.X) || float.IsNaN(position.Y) || float.IsNaN(position.Z))
             {
-                log.Warning("Cannot get player location: Player position contains invalid coordinates");
+                Plugin.Log.Warning("Cannot get player location: Player position contains invalid coordinates");
                 return null;
             }
 
             var territoryId = clientState.TerritoryType;
             if (territoryId == 0)
             {
-                log.Warning("Cannot get player location: Territory ID is 0");
+                Plugin.Log.Warning("Cannot get player location: Territory ID is 0");
                 return null;
             }
 
@@ -89,7 +86,7 @@ public class PlayerLocationService
             var territory = territoryManager.GetByTerritoryType(territoryId);
             if (territory == null)
             {
-                log.Warning($"Cannot get player location: Unknown territory {territoryId}");
+                Plugin.Log.Warning($"Cannot get player location: Unknown territory {territoryId}");
                 return null;
             }
 
@@ -101,7 +98,7 @@ public class PlayerLocationService
             var mapY = ConvertWorldToMapCoordinate(position.Z, scale, offsetY);
             
 #if DEBUG
-            log.Debug($"Converting player position from world ({position.X:F1}, {position.Z:F1}) to map ({mapX:F1}, {mapY:F1}) in {territory.Name}");
+            Plugin.Log.Debug($"Converting player position from world ({position.X:F1}, {position.Z:F1}) to map ({mapX:F1}, {mapY:F1}) in {territory.Name}");
 #endif
 
             // Explicitly set coordinate system type to Map since we've converted from world coordinates
@@ -109,7 +106,7 @@ public class PlayerLocationService
         }
         catch (Exception ex)
         {
-            log.Error($"Error getting player location: {ex.Message}");
+            Plugin.Log.Error($"Error getting player location: {ex.Message}");
             return null;
         }
     }
@@ -130,7 +127,7 @@ public class PlayerLocationService
             // Check if we're on the main thread before accessing AgentMap
             if (!ThreadSafetyHelper.IsMainThread())
             {
-                log.Debug($"GetMapOffsets called from non-main thread ({ThreadSafetyHelper.GetThreadInfo()}), using zero offsets");
+                Plugin.Log.Debug($"GetMapOffsets called from non-main thread ({ThreadSafetyHelper.GetThreadInfo()}), using zero offsets");
                 offsetX = 0;
                 offsetY = 0;
                 return (offsetX, offsetY, scale);
@@ -149,12 +146,12 @@ public class PlayerLocationService
                     scale = (uint)agentMap->CurrentMapSizeFactor;
 
 #if DEBUG
-                    log.Debug($"Got dynamic map offsets from AgentMap: X={offsetX}, Y={offsetY}, Scale={scale} (territory.Scale={territory.Scale})");
+                    Plugin.Log.Debug($"Got dynamic map offsets from AgentMap: X={offsetX}, Y={offsetY}, Scale={scale} (territory.Scale={territory.Scale})");
 #endif
                 }
                 else
                 {
-                    log.Warning("Could not get map offsets from AgentMap, using zero offsets");
+                    Plugin.Log.Warning("Could not get map offsets from AgentMap, using zero offsets");
                     // No fallback, just use zeros
                     offsetX = 0;
                     offsetY = 0;
@@ -163,7 +160,7 @@ public class PlayerLocationService
         }
         catch (Exception ex)
         {
-            log.Error($"Error getting map offsets: {ex.Message}. Using fallback values.");
+            Plugin.Log.Error($"Error getting map offsets: {ex.Message}. Using fallback values.");
 
             // No fallback, just use zeros
             offsetX = 0;
@@ -185,12 +182,12 @@ public class PlayerLocationService
         // Validate scale to avoid division by zero or very small values
         if (scale == 0)
         {
-            log.Warning("Map scale factor is zero, using default value of 100");
+            Plugin.Log.Warning("Map scale factor is zero, using default value of 100");
             scale = 100;
         }
         else if (scale > 10000)
         {
-            log.Warning($"Map scale factor {scale} seems unusually high, using default value of 100");
+            Plugin.Log.Warning($"Map scale factor {scale} seems unusually high, using default value of 100");
             scale = 100;
         }
         
@@ -203,13 +200,13 @@ public class PlayerLocationService
         
 #if DEBUG
         // Log detailed calculation for debugging
-        log.Debug($"Map coordinate calculation: {offsetComponent} (offset) + {scaleComponent} (scale) + {coordComponent} (coord) + 1 = {result}");
+        Plugin.Log.Debug($"Map coordinate calculation: {offsetComponent} (offset) + {scaleComponent} (scale) + {coordComponent} (coord) + 1 = {result}");
 #endif
-        
+
         // Sanity check - map coordinates should typically be between 0 and 100
         if (result < 0 || result > 100)
         {
-            log.Warning($"Calculated map coordinate {result} is outside typical range (0-100) for world coordinate {worldCoord}, scale {scale}, offset {offset}");
+            Plugin.Log.Warning($"Calculated map coordinate {result} is outside typical range (0-100) for world coordinate {worldCoord}, scale {scale}, offset {offset}");
         }
         
         return result;

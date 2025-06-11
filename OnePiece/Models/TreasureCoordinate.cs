@@ -68,11 +68,6 @@ public class TreasureCoordinate
     public float Y { get; set; }
 
     /// <summary>
-    /// Gets or sets the name or description of this treasure point.
-    /// </summary>
-    public string Name { get; set; } = string.Empty;
-
-    /// <summary>
     /// Gets or sets whether this treasure has been collected.
     /// </summary>
     public bool IsCollected { get; set; }
@@ -99,20 +94,7 @@ public class TreasureCoordinate
         return MapAreaHelper.GetEnglishMapAreaFromCoordinate(this, translationService);
     }
 
-    /// <summary>
-    /// Gets or sets a general purpose tag to store additional information.
-    /// </summary>
-    public string Tag { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets the navigation instruction for reaching this coordinate from the previous point.
-    /// </summary>
-    public string NavigationInstruction { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Gets or sets additional notes about this coordinate.
-    /// </summary>
-    public string Notes { get; set; } = string.Empty;
     
     /// <summary>
     /// Gets or sets the type of this coordinate point.
@@ -156,15 +138,13 @@ public class TreasureCoordinate
     /// <param name="y">The Y coordinate.</param>
     /// <param name="mapArea">The map area.</param>
     /// <param name="coordinateSystem">The coordinate system type.</param>
-    /// <param name="name">The name or description of this treasure point.</param>
     /// <param name="playerName">The player name who shared this coordinate.</param>
-    public TreasureCoordinate(float x, float y, string mapArea = "", CoordinateSystemType coordinateSystem = CoordinateSystemType.Map, string name = "", string playerName = "")
+    public TreasureCoordinate(float x, float y, string mapArea = "", CoordinateSystemType coordinateSystem = CoordinateSystemType.Map, string playerName = "")
     {
         X = x;
         Y = y;
         MapArea = mapArea;
         CoordinateSystem = coordinateSystem;
-        Name = name;
         PlayerName = playerName;
     }
 
@@ -207,12 +187,6 @@ public class TreasureCoordinate
             result = $"{MapArea} ({result})";
         }
 
-        // Add name if available
-        if (!string.IsNullOrEmpty(Name))
-        {
-            result += $" - {Name}";
-        }
-        
         // Add coordinate system type for debugging
 #if DEBUG
         result += $" [{CoordinateSystem}]";
@@ -249,12 +223,8 @@ public class TreasureCoordinate
             X = this.X,
             Y = this.Y,
             MapArea = this.MapArea,
-            Name = this.Name,
             PlayerName = this.PlayerName,
             IsCollected = this.IsCollected,
-            Tag = this.Tag,
-            NavigationInstruction = this.NavigationInstruction,
-            Notes = this.Notes,
             CoordinateSystem = this.CoordinateSystem,
             Type = this.Type,
             AetheryteId = this.AetheryteId
@@ -277,12 +247,8 @@ public class TreasureCoordinate
         var result = new TreasureCoordinate
         {
             MapArea = this.MapArea,
-            Name = this.Name,
             PlayerName = this.PlayerName, // Ensure player name is preserved
             IsCollected = this.IsCollected,
-            Tag = this.Tag,
-            NavigationInstruction = this.NavigationInstruction,
-            Notes = this.Notes,
             CoordinateSystem = targetSystem,
             Type = this.Type,
             AetheryteId = this.AetheryteId

@@ -90,7 +90,7 @@ public class TreasureHuntService : IDisposable
     public TreasureHuntService(Plugin plugin)
     {
         this.plugin = plugin;
-        this.importExportService = new CoordinateImportExportService(plugin, plugin.AetheryteService, plugin.MapAreaTranslationService);
+        this.importExportService = new CoordinateImportExportService(plugin, plugin.AetheryteService, plugin.MapAreaTranslationService, plugin.PlayerNameProcessingService);
         this.routeOptimizer = new RouteOptimizationService(plugin);
 
         // Wire up event handlers
@@ -107,7 +107,7 @@ public class TreasureHuntService : IDisposable
         // Clean player name from special characters if it's not empty
         if (!string.IsNullOrEmpty(coordinate.PlayerName))
         {
-            coordinate.PlayerName = RemoveSpecialCharactersFromName(coordinate.PlayerName);
+            coordinate.PlayerName = plugin.PlayerNameProcessingService.ProcessPlayerName(coordinate.PlayerName);
         }
 
         // Add the coordinate
@@ -327,42 +327,5 @@ public class TreasureHuntService : IDisposable
         OnRouteOptimizationReset = null;
     }
 
-    /// <summary>
-    /// Removes special characters from player names like BoxedNumber and BoxedOutlinedNumber
-    /// </summary>
-    /// <param name="name">The name that might contain special characters</param>
-    /// <returns>The name with special characters removed</returns>
-    private string RemoveSpecialCharactersFromName(string name)
-    {
-        if (string.IsNullOrEmpty(name))
-            return name;
 
-        // Create a StringBuilder to build the cleaned name
-        var cleanedName = new StringBuilder(name.Length);
-
-        // Process each character in the name
-        foreach (var c in name)
-        {
-            // Check for BoxedNumber character range (0xE090 to 0xE097)
-            // These are game-specific number icons
-            if ((int)c >= 0xE090 && (int)c <= 0xE097)
-                continue;
-
-            // Check for BoxedOutlinedNumber character range (0xE0E1 to 0xE0E9)
-            // These are game-specific outlined number icons
-            if ((int)c >= 0xE0E1 && (int)c <= 0xE0E9)
-                continue;
-
-            // Remove star character (★) often used in player names
-            if (c == '★')
-                continue;
-
-            // Any other special characters that need to be filtered can be added here
-
-            // Add the character to the cleaned name if it passed all filters
-            cleanedName.Append(c);
-        }
-
-        return cleanedName.ToString().Trim();
-    }
 }

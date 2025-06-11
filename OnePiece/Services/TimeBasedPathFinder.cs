@@ -205,8 +205,7 @@ namespace OnePiece.Services
                         aetheryte.Position.X,
                         aetheryte.Position.Y,
                         aetheryte.MapArea,
-                        CoordinateSystemType.Map,
-                        aetheryte.Name);
+                        CoordinateSystemType.Map);
 
                     // Calculate time: teleport cost + route time from aetheryte
                     float teleportCost = TELEPORT_CAST_TIME + TELEPORT_LOADING_TIME;
@@ -261,8 +260,7 @@ namespace OnePiece.Services
                     aetheryte.Position.X,
                     aetheryte.Position.Y,
                     aetheryte.MapArea,
-                    CoordinateSystemType.Map,
-                    aetheryte.Name);
+                    CoordinateSystemType.Map);
 
                 // Calculate time: teleport cost + route time from aetheryte
                 float teleportCost = TELEPORT_CAST_TIME + TELEPORT_LOADING_TIME;
@@ -285,8 +283,7 @@ namespace OnePiece.Services
                     bestAetheryteForComparison.Position.X,
                     bestAetheryteForComparison.Position.Y,
                     bestAetheryteForComparison.MapArea,
-                    CoordinateSystemType.Map,
-                    bestAetheryteForComparison.Name);
+                    CoordinateSystemType.Map);
 
                 Plugin.Log.Information($"Teleport to {bestAetheryteForComparison.Name} is optimal (saves {directTotalTime - bestTeleportTimeForComparison:F2}s)");
                 return (aetheryteStartPoint, bestAetheryteForComparison);
@@ -355,7 +352,6 @@ namespace OnePiece.Services
                 {
                     coordCopy.AetheryteId = usedAetheryte.AetheryteId;
                     coordCopy.Type = CoordinateType.TeleportPoint; // Mark as teleport point for UI display
-                    coordCopy.NavigationInstruction = $"Teleport to {usedAetheryte.Name}, then travel to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
 
                     Plugin.Log.Information($"SUCCESS: Assigned AetheryteId {usedAetheryte.AetheryteId} and TeleportPoint type to first coordinate ({coordCopy.X:F1}, {coordCopy.Y:F1})");
                 }
@@ -363,8 +359,6 @@ namespace OnePiece.Services
                 {
                     // All other coordinates use ground travel and remain as treasure points
                     coordCopy.Type = CoordinateType.TreasurePoint;
-                    var prevCoord = finalRoute.Count > 0 ? finalRoute[finalRoute.Count - 1] : startPoint;
-                    coordCopy.NavigationInstruction = $"Ground travel from ({prevCoord.X:F1}, {prevCoord.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
 
                     Plugin.Log.Debug($"Set coordinate ({coordCopy.X:F1}, {coordCopy.Y:F1}) as TreasurePoint with AetheryteId: {coordCopy.AetheryteId}");
                 }
@@ -440,31 +434,28 @@ namespace OnePiece.Services
 
                 if (bestAetheryte != null && bestTime < directTime)
                 {
-                    // Find the corresponding AetheryteInfo using English map area name
+                    // Find the corresponding AetheryteInfo by position matching
                     var englishMapAreaForLookup = MapAreaHelper.GetEnglishMapAreaFromCollection(route, bestAetheryte.MapArea, plugin.MapAreaTranslationService);
                     var aetheryteInfo = plugin.AetheryteService.GetAetherytesInMapArea(englishMapAreaForLookup)
-                        ?.FirstOrDefault(a => a.Name == bestAetheryte.Name);
+                        ?.FirstOrDefault(a => Math.Abs(a.Position.X - bestAetheryte.X) < 0.1f && Math.Abs(a.Position.Y - bestAetheryte.Y) < 0.1f);
 
                     if (aetheryteInfo != null)
                     {
                         coordCopy.AetheryteId = aetheryteInfo.AetheryteId;
                         coordCopy.Type = CoordinateType.TeleportPoint;
-                        coordCopy.NavigationInstruction = $"Teleport to {bestAetheryte.Name}, then travel to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
 
-                        Plugin.Log.Information($"Optimized segment {i}: Teleport to {bestAetheryte.Name} saves {directTime - bestTime:F2}s for coordinate ({coordCopy.X:F1}, {coordCopy.Y:F1})");
+                        Plugin.Log.Information($"Optimized segment {i}: Teleport to {aetheryteInfo.Name} saves {directTime - bestTime:F2}s for coordinate ({coordCopy.X:F1}, {coordCopy.Y:F1})");
                     }
                     else
                     {
                         // Fallback to direct travel
                         coordCopy.Type = CoordinateType.TreasurePoint;
-                        coordCopy.NavigationInstruction = $"Ground travel from ({prevCoord.X:F1}, {prevCoord.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
                     }
                 }
                 else
                 {
                     // Direct travel is optimal
                     coordCopy.Type = CoordinateType.TreasurePoint;
-                    coordCopy.NavigationInstruction = $"Ground travel from ({prevCoord.X:F1}, {prevCoord.Y:F1}) to ({coordCopy.X:F1}, {coordCopy.Y:F1})";
                 }
 
                 optimizedRoute.Add(coordCopy);
@@ -504,8 +495,7 @@ namespace OnePiece.Services
                             aetheryte.Position.X,
                             aetheryte.Position.Y,
                             aetheryte.MapArea,
-                            CoordinateSystemType.Map,
-                            aetheryte.Name));
+                            CoordinateSystemType.Map));
                     }
                 }
             }

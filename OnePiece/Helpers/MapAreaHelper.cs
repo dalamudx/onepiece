@@ -42,14 +42,12 @@ namespace OnePiece.Helpers
         /// <param name="mapAreaName">The map area name to translate and validate.</param>
         /// <param name="translationService">The translation service to use.</param>
         /// <param name="aetheryteService">The aetheryte service for validation.</param>
-        /// <param name="log">The logger for recording translation and validation results.</param>
         /// <param name="contextInfo">Additional context information for logging (e.g., coordinate info).</param>
         /// <returns>A tuple containing (isValid, englishMapArea, originalMapArea).</returns>
         public static (bool isValid, string englishMapArea, string originalMapArea) TranslateAndValidateMapArea(
-            string mapAreaName, 
-            MapAreaTranslationService? translationService, 
-            AetheryteService aetheryteService, 
-            IPluginLog log, 
+            string mapAreaName,
+            MapAreaTranslationService? translationService,
+            AetheryteService aetheryteService,
             string contextInfo = "")
         {
             if (string.IsNullOrEmpty(mapAreaName))
@@ -61,21 +59,21 @@ namespace OnePiece.Helpers
             // Log translation if it occurred
             if (!originalMapArea.Equals(englishMapArea, StringComparison.OrdinalIgnoreCase))
             {
-                var logMessage = string.IsNullOrEmpty(contextInfo) 
+                var logMessage = string.IsNullOrEmpty(contextInfo)
                     ? $"Translated map area for validation: '{originalMapArea}' -> '{englishMapArea}'"
                     : $"Translated map area for validation {contextInfo}: '{originalMapArea}' -> '{englishMapArea}'";
-                log.Information(logMessage);
+                Plugin.Log.Information(logMessage);
             }
 
             // Validate using English map area name
             bool isValid = aetheryteService.IsValidMapArea(englishMapArea);
-            
+
             if (!isValid)
             {
                 var logMessage = string.IsNullOrEmpty(contextInfo)
                     ? $"Invalid map area '{englishMapArea}' (original: '{originalMapArea}')"
                     : $"Invalid map area '{englishMapArea}' (original: '{originalMapArea}') {contextInfo}";
-                log.Warning(logMessage);
+                Plugin.Log.Warning(logMessage);
             }
 
             return (isValid, englishMapArea, originalMapArea);

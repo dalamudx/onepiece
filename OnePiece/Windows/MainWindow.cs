@@ -357,11 +357,6 @@ public class MainWindow : Window, IDisposable
 
                                 displayText += $"({coord.X:F1}, {coord.Y:F1})";
 
-                                if (!string.IsNullOrEmpty(coord.Name))
-                                {
-                                    displayText += $" - {coord.Name}";
-                                }
-
                                 // Use unified coordinate rendering with proper button alignment
                                 // Always reserve space for 3 buttons to ensure consistent alignment
                                 float availableWidth = ImGui.GetContentRegionAvail().X;
@@ -406,7 +401,7 @@ public class MainWindow : Window, IDisposable
                                     if (aetheryteInfo != null)
                                     {
                                         // Calculate teleport price using aetheryte info
-                                        teleportPrice = plugin.AetheryteService.CalculateTeleportPrice(aetheryteInfo);
+                                        teleportPrice = aetheryteInfo.CalculateTeleportFee();
 
                                         // Disable teleport button if coordinate is collected
                                         if (isCollected)
@@ -577,12 +572,6 @@ public class MainWindow : Window, IDisposable
 
                                 displayText += $"({coord.X:F1}, {coord.Y:F1})";
 
-                                // Add name if available
-                                if (!string.IsNullOrEmpty(coord.Name))
-                                {
-                                    displayText += $" - {coord.Name}";
-                                }
-
                                 // Use unified coordinate rendering with proper button alignment
                                 float availableWidth = ImGui.GetContentRegionAvail().X;
                                 int buttonCount = 2; // Edit + Delete
@@ -747,12 +736,6 @@ public class MainWindow : Window, IDisposable
                         }
 
                         displayText += $"({coord.X:F1}, {coord.Y:F1})";
-
-                        // Add name if available
-                        if (!string.IsNullOrEmpty(coord.Name))
-                        {
-                            displayText += $" - {coord.Name}";
-                        }
 
                         // Use unified coordinate rendering with grayed out style for deleted items
                         float availableWidth = ImGui.GetContentRegionAvail().X;

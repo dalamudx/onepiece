@@ -38,7 +38,7 @@ public class AetheryteDataEntry
     /// Gets or sets the aetheryte ID
     /// </summary>
     [JsonPropertyName("AetheryteRowId")] // Keep JSON compatibility
-    public uint AetheryteId { get; set; }
+    public uint AetheryteRowId { get; set; }
 
     /// <summary>
     /// Gets or sets the name of the aetheryte
@@ -72,31 +72,10 @@ public class AetheryteDataEntry
     {
         return new AetheryteInfo
         {
-            AetheryteId = this.AetheryteId,
+            AetheryteId = this.AetheryteRowId,
             Name = this.Name,
             MapArea = this.MapArea,
             Position = new Vector2(this.X, this.Y)
         };
-    }
-    
-    /// <summary>
-    /// Calculates the distance from this aetheryte to a coordinate
-    /// </summary>
-    /// <param name="coordinate">The target coordinate</param>
-    /// <returns>The distance value</returns>
-    public float DistanceTo(TreasureCoordinate coordinate)
-    {
-        // Check coordinate system consistency
-        // We assume aetheryte coordinates are always in Map coordinate system
-        if (coordinate.CoordinateSystem != CoordinateSystemType.Map)
-        {
-            // Log warning about mismatched coordinate systems
-            Plugin.Log.Warning($"Comparing aetheryte with coordinate using different coordinate systems: Map vs {coordinate.CoordinateSystem}");
-        }
-        
-        // Calculate Euclidean distance
-        float dx = X - coordinate.X;
-        float dy = Y - coordinate.Y;
-        return (float)Math.Sqrt(dx * dx + dy * dy);
     }
 }

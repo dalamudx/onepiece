@@ -126,49 +126,9 @@ public static class UIHelper
         return calculatedWidth;
     }
 
-    /// <summary>
-    /// Renders a coordinate entry with aligned buttons for consistent layout.
-    /// </summary>
-    /// <param name="displayText">The coordinate text to display</param>
-    /// <param name="isCollected">Whether the coordinate is collected (affects styling)</param>
-    /// <param name="textAreaWidth">Fixed width for the text area (default: 400f)</param>
-    /// <returns>The X position where buttons should start</returns>
-    public static float RenderCoordinateText(string displayText, bool isCollected, float textAreaWidth = 400f)
-    {
-        // Apply collected styling if needed
-        if (isCollected)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
-        }
 
-        // Get current cursor position
-        var startPos = ImGui.GetCursorPos();
 
-        // Render text in a fixed-width area
-        ImGui.SetNextItemWidth(textAreaWidth);
-        ImGui.TextUnformatted(displayText);
 
-        // Calculate button start position
-        float buttonStartX = startPos.X + textAreaWidth + 10f; // 10f spacing between text and buttons
-
-        // Restore color if it was changed
-        if (isCollected)
-        {
-            ImGui.PopStyleColor();
-        }
-
-        return buttonStartX;
-    }
-
-    /// <summary>
-    /// Positions cursor at the button area for aligned button layout.
-    /// </summary>
-    /// <param name="buttonStartX">X position where buttons should start</param>
-    /// <param name="lineStartY">Y position of the current line</param>
-    public static void PositionForButtons(float buttonStartX, float lineStartY)
-    {
-        ImGui.SetCursorPos(new System.Numerics.Vector2(buttonStartX, lineStartY));
-    }
 
     /// <summary>
     /// Calculates optimal text area width based on available space and button requirements.
@@ -215,6 +175,7 @@ public static class UIHelper
     /// Renders a complete coordinate entry with aligned text and buttons.
     /// This provides a unified layout for both optimized and raw coordinate lists.
     /// Properly handles text wrapping to prevent overlap with next line.
+    /// Note: For new coordinate-specific code, consider using CoordinateDisplayHelper.DisplayCoordinateWithOptimalLayout.
     /// </summary>
     /// <param name="displayText">The coordinate text to display</param>
     /// <param name="isCollected">Whether the coordinate is collected</param>
@@ -283,6 +244,4 @@ public static class UIHelper
         public bool IsCollected;
         public float TextHeight;
     }
-
-
 }

@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Dalamud.Game;
 using ECommons.DalamudServices;
+
 using OnePiece.Helpers;
 using OnePiece.Models;
 
@@ -18,6 +21,7 @@ public class CoordinateImportExportService
     private readonly Plugin plugin;
     private readonly AetheryteService aetheryteService;
     private readonly MapAreaTranslationService mapAreaTranslationService;
+    private readonly PlayerNameProcessingService playerNameProcessingService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CoordinateImportExportService"/> class.
@@ -25,11 +29,13 @@ public class CoordinateImportExportService
     /// <param name="plugin">The plugin instance.</param>
     /// <param name="aetheryteService">The aetheryte service.</param>
     /// <param name="mapAreaTranslationService">The map area translation service.</param>
-    public CoordinateImportExportService(Plugin plugin, AetheryteService aetheryteService, MapAreaTranslationService mapAreaTranslationService)
+    /// <param name="playerNameProcessingService">The player name processing service.</param>
+    public CoordinateImportExportService(Plugin plugin, AetheryteService aetheryteService, MapAreaTranslationService mapAreaTranslationService, PlayerNameProcessingService playerNameProcessingService)
     {
         this.plugin = plugin;
         this.aetheryteService = aetheryteService;
         this.mapAreaTranslationService = mapAreaTranslationService;
+        this.playerNameProcessingService = playerNameProcessingService;
     }
 
     /// <summary>
@@ -54,8 +60,32 @@ public class CoordinateImportExportService
                 var decodedBytes = Convert.FromBase64String(text);
                 var decodedText = System.Text.Encoding.UTF8.GetString(decodedBytes);
 
-                // Parse the decoded text as JSON
-                var coordinates = System.Text.Json.JsonSerializer.Deserialize<List<TreasureCoordinate>>(decodedText);
+                // Parse the decoded text as JSON - try optimized format first, then fall back to full format
+                List<TreasureCoordinate>? coordinates = null;
+
+                try
+                {
+                    // Try to deserialize as optimized format (Dictionary-based)
+                    var optimizedData = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(decodedText);
+                    if (optimizedData != null)
+                    {
+                        coordinates = optimizedData.Select(CreateCoordinateFromOptimizedData).ToList();
+                        Plugin.Log.Debug("Successfully imported optimized format coordinates");
+                    }
+                }
+                catch
+                {
+                    // Fall back to full format
+                    try
+                    {
+                        coordinates = System.Text.Json.JsonSerializer.Deserialize<List<TreasureCoordinate>>(decodedText);
+                        Plugin.Log.Debug("Successfully imported full format coordinates");
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        Plugin.Log.Error($"Failed to deserialize both optimized and full format: {fallbackEx.Message}");
+                    }
+                }
 
                 if (coordinates != null)
                 {
@@ -74,7 +104,6 @@ public class CoordinateImportExportService
                             coordinate.MapArea,
                             mapAreaTranslationService,
                             aetheryteService,
-                            Plugin.Log,
                             $"({coordinate.X:F1}, {coordinate.Y:F1})");
 
                         if (!isValid)
@@ -89,7 +118,7 @@ public class CoordinateImportExportService
                         // Clean player name from special characters
                         if (!string.IsNullOrEmpty(coordinate.PlayerName))
                         {
-                            coordinate.PlayerName = RemoveSpecialCharactersFromName(coordinate.PlayerName);
+                            coordinate.PlayerName = playerNameProcessingService.ProcessPlayerName(coordinate.PlayerName);
                         }
 
                         addCoordinateAction(coordinate);
@@ -134,8 +163,11 @@ public class CoordinateImportExportService
     /// <returns>The number of coordinates imported.</returns>
     private int ImportCoordinatesFromText(string text, Action<TreasureCoordinate> addCoordinateAction)
     {
-        // Regular expression to match player names in copied chat messages like [21:50](Player Name) Text...
-        var playerNameRegex = new Regex(@"\[\d+:\d+\]\s*\(([^)]+)\)|\(([^)]+)\)", RegexOptions.IgnoreCase);
+        // Regular expression to match player names in various chat formats:
+        // [14:27][CWLS1]<Tataru T.> - with CrossWorldLinkShell channel
+        // [14:27][1]<Tataru T.> - with LinkShell channel
+        // [16:30](Tataru Taru) - with Party channel
+        var playerNameRegex = new Regex(@"\[(?<time>\d{1,2}:\d{2})\](?:\[(?<channel>[^\]]+)\])?(?:<(?<player1>[^>]+)>|\((?<player2>[^)]+)\))", RegexOptions.IgnoreCase);
         
         // Get language-specific coordinate regex based on current game client language
         var coordinateRegex = GetCoordinateRegexForCurrentLanguage();
@@ -204,7 +236,6 @@ public class CoordinateImportExportService
                         mapArea,
                         mapAreaTranslationService,
                         aetheryteService,
-                        Plugin.Log,
                         $"({x:F1}, {y:F1})");
 
                     if (!isValid)
@@ -214,7 +245,7 @@ public class CoordinateImportExportService
                     }
 
                     // Create coordinate with original map area name for display
-                    var coordinate = new TreasureCoordinate(x, y, originalMapArea, CoordinateSystemType.Map, "", playerName);
+                    var coordinate = new TreasureCoordinate(x, y, originalMapArea, CoordinateSystemType.Map, playerName);
 
                     addCoordinateAction(coordinate);
                     importedCount++;
@@ -249,7 +280,8 @@ public class CoordinateImportExportService
     }
 
     /// <summary>
-    /// Exports coordinates to a Base64 encoded string.
+    /// Exports coordinates to a Base64 encoded string with optimized data size.
+    /// Only includes non-default values to reduce export size.
     /// </summary>
     /// <param name="coordinates">The coordinates to export.</param>
     /// <returns>A Base64 encoded string containing the coordinates.</returns>
@@ -257,12 +289,24 @@ public class CoordinateImportExportService
     {
         try
         {
-            // Serialize the coordinates to JSON
-            var json = System.Text.Json.JsonSerializer.Serialize(coordinates);
+            // Convert to optimized export format to reduce data size
+            var optimizedCoordinates = coordinates.Select(coord => CreateOptimizedExportData(coord)).ToList();
+
+            // Configure JSON serializer to ignore null values and default values
+            var options = new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+                WriteIndented = false // Compact format for smaller size
+            };
+
+            // Serialize the optimized coordinates to JSON
+            var json = System.Text.Json.JsonSerializer.Serialize(optimizedCoordinates, options);
 
             // Encode the JSON as Base64
             var bytes = System.Text.Encoding.UTF8.GetBytes(json);
             var base64 = Convert.ToBase64String(bytes);
+
+            Plugin.Log.Debug($"Exported {coordinates.Count} coordinates. Original size estimate: {EstimateFullSize(coordinates)} chars, Optimized size: {json.Length} chars");
 
             return base64;
         }
@@ -271,6 +315,137 @@ public class CoordinateImportExportService
             Plugin.Log.Error($"Error exporting coordinates: {ex.Message}");
             return string.Empty;
         }
+    }
+
+    /// <summary>
+    /// Creates an optimized export data object that only includes non-default values.
+    /// </summary>
+    /// <param name="coordinate">The coordinate to optimize.</param>
+    /// <returns>An object containing only the necessary data for export.</returns>
+    private object CreateOptimizedExportData(TreasureCoordinate coordinate)
+    {
+        var exportData = new Dictionary<string, object>();
+
+        // Always include essential coordinate data
+        exportData["X"] = coordinate.X;
+        exportData["Y"] = coordinate.Y;
+
+        // Include MapArea if not empty (this is usually required)
+        if (!string.IsNullOrEmpty(coordinate.MapArea))
+        {
+            exportData["MapArea"] = coordinate.MapArea;
+        }
+
+        // Include PlayerName if not empty
+        if (!string.IsNullOrEmpty(coordinate.PlayerName))
+        {
+            exportData["PlayerName"] = coordinate.PlayerName;
+        }
+
+        // Only include non-default values for optional fields
+        if (coordinate.CoordinateSystem != CoordinateSystemType.Map)
+        {
+            exportData["CoordinateSystem"] = (int)coordinate.CoordinateSystem;
+        }
+
+        if (coordinate.IsCollected)
+        {
+            exportData["IsCollected"] = coordinate.IsCollected;
+        }
+
+        if (coordinate.Type != CoordinateType.TreasurePoint)
+        {
+            exportData["Type"] = (int)coordinate.Type;
+        }
+
+        if (coordinate.IsTeleportPoint)
+        {
+            exportData["IsTeleportPoint"] = coordinate.IsTeleportPoint;
+        }
+
+        if (coordinate.AetheryteId > 0)
+        {
+            exportData["AetheryteId"] = coordinate.AetheryteId;
+        }
+
+        return exportData;
+    }
+
+    /// <summary>
+    /// Estimates the size of the full coordinate data for comparison.
+    /// </summary>
+    /// <param name="coordinates">The coordinates to estimate size for.</param>
+    /// <returns>Estimated character count of full serialization.</returns>
+    private int EstimateFullSize(List<TreasureCoordinate> coordinates)
+    {
+        try
+        {
+            var fullJson = System.Text.Json.JsonSerializer.Serialize(coordinates);
+            return fullJson.Length;
+        }
+        catch
+        {
+            return 0; // Return 0 if estimation fails
+        }
+    }
+
+    /// <summary>
+    /// Creates a TreasureCoordinate from optimized export data.
+    /// </summary>
+    /// <param name="data">The optimized data dictionary.</param>
+    /// <returns>A TreasureCoordinate with default values for missing fields.</returns>
+    private TreasureCoordinate CreateCoordinateFromOptimizedData(Dictionary<string, JsonElement> data)
+    {
+        var coordinate = new TreasureCoordinate();
+
+        // Required fields
+        if (data.TryGetValue("X", out var xElement) && xElement.ValueKind == JsonValueKind.Number)
+        {
+            coordinate.X = xElement.GetSingle();
+        }
+
+        if (data.TryGetValue("Y", out var yElement) && yElement.ValueKind == JsonValueKind.Number)
+        {
+            coordinate.Y = yElement.GetSingle();
+        }
+
+        // Optional fields with defaults
+        if (data.TryGetValue("MapArea", out var mapAreaElement) && mapAreaElement.ValueKind == JsonValueKind.String)
+        {
+            coordinate.MapArea = mapAreaElement.GetString() ?? string.Empty;
+        }
+
+        if (data.TryGetValue("PlayerName", out var playerNameElement) && playerNameElement.ValueKind == JsonValueKind.String)
+        {
+            coordinate.PlayerName = playerNameElement.GetString() ?? string.Empty;
+        }
+
+        if (data.TryGetValue("CoordinateSystem", out var coordSystemElement) && coordSystemElement.ValueKind == JsonValueKind.Number)
+        {
+            coordinate.CoordinateSystem = (CoordinateSystemType)coordSystemElement.GetInt32();
+        }
+
+        if (data.TryGetValue("IsCollected", out var collectedElement) && collectedElement.ValueKind == JsonValueKind.True)
+        {
+            coordinate.IsCollected = true;
+        }
+
+        if (data.TryGetValue("Type", out var typeElement) && typeElement.ValueKind == JsonValueKind.Number)
+        {
+            coordinate.Type = (CoordinateType)typeElement.GetInt32();
+        }
+
+        if (data.TryGetValue("IsTeleportPoint", out var teleportElement) && teleportElement.ValueKind == JsonValueKind.True)
+        {
+            coordinate.IsTeleportPoint = true;
+        }
+
+        if (data.TryGetValue("AetheryteId", out var aetheryteElement) && aetheryteElement.ValueKind == JsonValueKind.Number)
+        {
+            coordinate.AetheryteId = aetheryteElement.GetUInt32();
+        }
+
+        return coordinate;
     }
 
 
@@ -373,17 +548,26 @@ public class CoordinateImportExportService
     /// <returns>An array of text segments.</returns>
     private string[] SplitTextIntoSegments(string text)
     {
-        // Try to split the text at timestamps like [21:50]
-        var timestampSegments = Regex.Split(text, @"(?=\[\d+:\d+\])");
+        // Try to split the text at various chat format patterns:
+        // [14:27][CWLS1]<Tataru T.> - with CrossWorldLinkShell channel
+        // [14:27][1]<Tataru T.> - with LinkShell channel
+        // [16:30](Tataru Taru) - with Party channel
+        var chatSegments = Regex.Split(text, @"(?=\[\d{1,2}:\d{2}\](?:\[[^\]]+\])?(?:<[^>]+>|\([^)]+\)))");
 
-        // If no timestamps found or only one segment, return the whole text
-        if (timestampSegments.Length <= 1)
+        // If no new format found, try legacy timestamp splitting
+        if (chatSegments.Length <= 1)
+        {
+            chatSegments = Regex.Split(text, @"(?=\[\d+:\d+\])");
+        }
+
+        // If still no segments found, return the whole text
+        if (chatSegments.Length <= 1)
         {
             return new[] { text };
         }
 
         // Filter out empty segments
-        return timestampSegments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        return chatSegments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
     }
 
     /// <summary>
@@ -397,52 +581,14 @@ public class CoordinateImportExportService
         var match = playerNameRegex.Match(segment);
         if (match.Success)
         {
-            // Group 1 contains the player name if it matched the first pattern ([21:50](Player Name))
-            // Group 2 contains the player name if it matched the second pattern ((Player Name))
-            string playerName = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
-            return RemoveSpecialCharactersFromName(playerName.Trim());
+            // Extract player name from either capture group (angle brackets or parentheses)
+            string playerName = match.Groups["player1"].Success ? match.Groups["player1"].Value : match.Groups["player2"].Value;
+            return playerNameProcessingService.ProcessPlayerName(playerName.Trim());
         }
         return string.Empty;
     }
 
-    /// <summary>
-    /// Removes special characters from player names like BoxedNumber and BoxedOutlinedNumber
-    /// </summary>
-    /// <param name="name">The name that might contain special characters</param>
-    /// <returns>The name with special characters removed</returns>
-    private string RemoveSpecialCharactersFromName(string name)
-    {
-        if (string.IsNullOrEmpty(name))
-            return name;
 
-        // Create a StringBuilder to build the cleaned name
-        var cleanedName = new StringBuilder(name.Length);
-
-        // Process each character in the name
-        foreach (var c in name)
-        {
-            // Check for BoxedNumber character range (0xE090 to 0xE097)
-            // These are game-specific number icons
-            if ((int)c >= 0xE090 && (int)c <= 0xE097)
-                continue;
-
-            // Check for BoxedOutlinedNumber character range (0xE0E1 to 0xE0E9)
-            // These are game-specific outlined number icons
-            if ((int)c >= 0xE0E1 && (int)c <= 0xE0E9)
-                continue;
-
-            // Remove star character (★) often used in player names
-            if (c == '★')
-                continue;
-
-            // Any other special characters that need to be filtered can be added here
-
-            // Add the character to the cleaned name if it passed all filters
-            cleanedName.Append(c);
-        }
-
-        return cleanedName.ToString().Trim();
-    }
 
     /// <summary>
     /// Removes player name from map area if it was incorrectly captured.

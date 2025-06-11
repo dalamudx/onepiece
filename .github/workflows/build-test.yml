@@ -1,0 +1,131 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore OnePiece.sln
+
+    - name: Build solution
+      run: dotnet build OnePiece.sln -c Release --no-restore
+
+    - name: Validate repo.json format
+      shell: pwsh
+      run: |
+        try {
+          $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
+          Write-Output "✓ repo.json is valid JSON"
+          
+          $plugin = $repoJson[0]
+          $requiredFields = @('Author', 'Name', 'InternalName', 'AssemblyVersion', 'RepoUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate')
+          
+          foreach ($field in $requiredFields) {
+            if (-not $plugin.$field) {
+              Write-Error "Missing required field: $field"
+              exit 1
+            }
+          }
+          
+          Write-Output "✓ All required fields present in repo.json"
+          Write-Output "Current version: $($plugin.AssemblyVersion)"
+        } catch {
+          Write-Error "Invalid repo.json format: $_"
+          exit 1
+        }
+
+    - name: Check version consistency
+      shell: pwsh
+      run: |
+        # Get version from csproj
+        $csprojContent = Get-Content "OnePiece/OnePiece.csproj" -Raw
+        if ($csprojContent -match '<Version>([\d\.]+)</Version>') {
+          $csprojVersion = $matches[1]
+        } else {
+          Write-Error "Could not find version in OnePiece.csproj"
+          exit 1
+        }
+        
+        # Get version from repo.json
+        $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
+        $repoVersion = $repoJson[0].AssemblyVersion
+        
+        Write-Output "OnePiece.csproj version: $csprojVersion"
+        Write-Output "repo.json version: $repoVersion"
+        
+        if ($csprojVersion -ne $repoVersion) {
+          Write-Warning "Version mismatch between OnePiece.csproj ($csprojVersion) and repo.json ($repoVersion)"
+          Write-Output "This is expected if you're preparing a new release"
+        } else {
+          Write-Output "✓ Versions are consistent"
+        }
+
+    - name: Test package creation
+      shell: pwsh
+      run: |
+        $releaseDir = "OnePiece/bin/Release"
+        $packageDir = "test-package"
+        
+        # Create test package directory
+        New-Item -ItemType Directory -Path $packageDir -Force
+        
+        # Check required files exist
+        $requiredFiles = @(
+          "$releaseDir/OnePiece.dll",
+          "$releaseDir/OnePiece.json",
+          "$releaseDir/ECommons.dll",
+          "$releaseDir/aetheryte.json"
+        )
+        
+        foreach ($file in $requiredFiles) {
+          if (Test-Path $file) {
+            Write-Output "✓ Found: $file"
+            Copy-Item $file $packageDir
+          } else {
+            Write-Error "Missing required file: $file"
+            exit 1
+          }
+        }
+        
+        # Check optional directories
+        $optionalDirs = @(
+          "$releaseDir/img",
+          "$releaseDir/Localization"
+        )
+        
+        foreach ($dir in $optionalDirs) {
+          if (Test-Path $dir) {
+            Write-Output "✓ Found: $dir"
+            Copy-Item $dir $packageDir -Recurse
+          } else {
+            Write-Warning "Optional directory not found: $dir"
+          }
+        }
+        
+        # Create test zip
+        Compress-Archive -Path "$packageDir/*" -DestinationPath "test-package.zip" -Force
+        Write-Output "✓ Test package created successfully"
+
+    - name: Upload test package
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-package
+        path: test-package.zip
+        retention-days: 7

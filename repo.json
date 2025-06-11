@@ -3,7 +3,7 @@
       "Author": "dalamudx",
       "Name": "One Piece",
       "Punchline": "Plan and optimize your treasure hunt route.",
-      "Description": "Import coordinates from selected channels and enjoy your treasure hunt. Automatically optimize routes considering player location, aetheryte costs, and distances.",
+      "Description": "Import coordinates from selected channels and enjoy your treasure hunt. Optimize routes considering player location, aetheryte costs, and distances.",
       "InternalName": "OnePiece",
       "RepoUrl": "https://github.com/dalamudx/onepiece",
       "DownloadCount": 0,

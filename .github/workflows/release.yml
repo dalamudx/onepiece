@@ -1,0 +1,248 @@
+name: Build and Release OnePiece Plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.1.0)'
+        required: true
+        type: string
+      changelog:
+        description: 'Changelog for this release'
+        required: true
+        type: string
+        default: '- Bug fixes and improvements'
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Validate version format
+      shell: pwsh
+      run: |
+        $version = "${{ github.event.inputs.version }}"
+        if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+          Write-Error "Version must be in format X.Y.Z.W (e.g., 1.0.1.0)"
+          exit 1
+        }
+        Write-Output "Version format is valid: $version"
+
+    - name: Update project version
+      shell: pwsh
+      run: |
+        $version = "${{ github.event.inputs.version }}"
+        $csprojPath = "OnePiece/OnePiece.csproj"
+        
+        # Read and update csproj file
+        $content = Get-Content $csprojPath -Raw
+        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        Set-Content $csprojPath $content -NoNewline
+        
+        Write-Output "Updated OnePiece.csproj version to: $version"
+
+    - name: Restore dependencies
+      run: dotnet restore OnePiece.sln
+
+    - name: Build solution
+      run: dotnet build OnePiece.sln -c Release --no-restore
+
+    - name: Verify build output
+      shell: pwsh
+      run: |
+        $releaseDir = "OnePiece/bin/Release"
+        $requiredFiles = @(
+          "$releaseDir/OnePiece.dll",
+          "$releaseDir/OnePiece.json",
+          "$releaseDir/ECommons.dll",
+          "$releaseDir/aetheryte.json"
+        )
+
+        foreach ($file in $requiredFiles) {
+          if (-not (Test-Path $file)) {
+            Write-Error "Required file missing: $file"
+            exit 1
+          }
+          Write-Output "✓ Found: $file"
+        }
+
+        # Verify no debug files in release
+        $debugFiles = @(
+          "$releaseDir/ECommons.pdb",
+          "$releaseDir/ECommons.xml"
+        )
+
+        foreach ($file in $debugFiles) {
+          if (Test-Path $file) {
+            Write-Warning "Debug file found in release: $file"
+          }
+        }
+
+    - name: Create release package
+      shell: pwsh
+      run: |
+        $version = "${{ github.event.inputs.version }}"
+        $releaseDir = "OnePiece/bin/Release"
+        $packageDir = "release-package"
+        
+        # Create package directory
+        New-Item -ItemType Directory -Path $packageDir -Force
+        
+        # Copy required files
+        Copy-Item "$releaseDir/OnePiece.dll" $packageDir
+        Copy-Item "$releaseDir/OnePiece.json" $packageDir
+        Copy-Item "$releaseDir/ECommons.dll" $packageDir
+        Copy-Item "$releaseDir/aetheryte.json" $packageDir
+        Copy-Item "$releaseDir/img" $packageDir -Recurse
+        Copy-Item "$releaseDir/Localization" $packageDir -Recurse
+        
+        # Create zip file
+        Compress-Archive -Path "$packageDir/*" -DestinationPath "latest.zip" -Force
+        
+        Write-Output "Created release package: latest.zip"
+
+    - name: Get current download count from GitHub API
+      id: download-count
+      shell: pwsh
+      run: |
+        try {
+          $headers = @{
+            'Authorization' = 'Bearer ${{ secrets.GITHUB_TOKEN }}'
+            'Accept' = 'application/vnd.github.v3+json'
+          }
+          
+          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases" -Headers $headers
+          $totalDownloads = 0
+          
+          foreach ($release in $releases) {
+            foreach ($asset in $release.assets) {
+              $totalDownloads += $asset.download_count
+            }
+          }
+          
+          Write-Output "Total download count: $totalDownloads"
+          echo "count=$totalDownloads" >> $env:GITHUB_OUTPUT
+        } catch {
+          Write-Warning "Failed to get download count, using 0"
+          echo "count=0" >> $env:GITHUB_OUTPUT
+        }
+
+    - name: Update repo.json
+      shell: pwsh
+      run: |
+        $version = "${{ github.event.inputs.version }}"
+        $changelog = "${{ github.event.inputs.changelog }}"
+        $downloadCount = "${{ steps.download-count.outputs.count }}"
+        $timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        
+        # Read current repo.json
+        $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
+        
+        # Update the plugin entry
+        $plugin = $repoJson[0]
+        $plugin.AssemblyVersion = $version
+        $plugin.LastUpdate = $timestamp
+        $plugin.DownloadCount = [int]$downloadCount
+        $plugin.Changelog = $changelog
+        
+        # Write updated repo.json
+        $repoJson | ConvertTo-Json -Depth 10 | Set-Content "repo.json" -NoNewline
+        
+        Write-Output "Updated repo.json:"
+        Write-Output "- AssemblyVersion: $version"
+        Write-Output "- LastUpdate: $timestamp"
+        Write-Output "- DownloadCount: $downloadCount"
+        Write-Output "- Changelog: $changelog"
+
+    - name: Commit and push changes
+      shell: pwsh
+      run: |
+        $version = "${{ github.event.inputs.version }}"
+        
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add OnePiece/OnePiece.csproj
+        git add repo.json
+        
+        git commit -m "Release version $version"
+        git push
+
+    - name: Create GitHub Release
+      id: create-release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        name: OnePiece v${{ github.event.inputs.version }}
+        body: |
+          ## OnePiece Plugin v${{ github.event.inputs.version }}
+
+          ### Changes
+          ${{ github.event.inputs.changelog }}
+
+          ### Installation
+          1. Add the repository URL to your Dalamud plugin repositories:
+             ```
+             https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/repo.json
+             ```
+          2. Install "One Piece" from the plugin installer
+
+          ### Manual Installation
+          Download `latest.zip` and extract to your Dalamud plugins directory.
+
+          ### System Requirements
+          - Final Fantasy XIV with Dalamud
+          - .NET 9.0 Runtime
+          - Dalamud API Level 12
+        files: latest.zip
+        draft: false
+        prerelease: false
+
+    - name: Update repo.json with final download count
+      shell: pwsh
+      run: |
+        # Wait a moment for the release to be processed
+        Start-Sleep -Seconds 10
+        
+        try {
+          $headers = @{
+            'Authorization' = 'Bearer ${{ secrets.GITHUB_TOKEN }}'
+            'Accept' = 'application/vnd.github.v3+json'
+          }
+          
+          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases" -Headers $headers
+          $totalDownloads = 0
+          
+          foreach ($release in $releases) {
+            foreach ($asset in $release.assets) {
+              $totalDownloads += $asset.download_count
+            }
+          }
+          
+          # Update repo.json with final count
+          $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
+          $repoJson[0].DownloadCount = [int]$totalDownloads
+          $repoJson | ConvertTo-Json -Depth 10 | Set-Content "repo.json" -NoNewline
+          
+          # Commit the final update
+          git add repo.json
+          git commit -m "Update download count after release" || echo "No changes to commit"
+          git push || echo "No changes to push"
+          
+          Write-Output "Final download count: $totalDownloads"
+        } catch {
+          Write-Warning "Failed to update final download count"
+        }

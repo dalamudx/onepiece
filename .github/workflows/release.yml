@@ -1,22 +1,24 @@
-name: Build and Release OnePiece Plugin
+name: OnePiece Build and Release
 
 on:
+  push:
+    branches: [ "master", "main" ]
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (e.g., 1.0.1.0)'
-        required: true
-        type: string
       changelog:
-        description: 'Changelog for this release'
-        required: true
+        description: 'Changelog for this release (optional)'
+        required: false
         type: string
         default: '- Bug fixes and improvements'
 
 jobs:
-  build-and-release:
-    runs-on: windows-latest
-    
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: '0.0.0.0'
+      DALAMUD_HOME: /tmp/dalamud
+      DOTNET_NOLOGO: true
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -29,289 +31,147 @@ jobs:
       with:
         dotnet-version: '9.0.x'
 
-    - name: Setup XIVLauncher and Dalamud Development Environment
+    - name: Download Dalamud
       shell: pwsh
       run: |
-        Write-Output "Setting up XIVLauncher and Dalamud development environment..."
+        Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -OutFile latest.zip
+        Expand-Archive -Force latest.zip /tmp/dalamud
 
-        # Download latest XIVLauncher Setup.exe
-        $setupUrl = "https://github.com/goatcorp/FFXIVQuickLauncher/releases/latest/download/Setup.exe"
-        $setupPath = "$env:TEMP\XIVLauncher-Setup.exe"
+    - name: Build
+      run: dotnet build -c Release
 
-        Write-Output "Downloading XIVLauncher Setup from: $setupUrl"
-        Invoke-WebRequest -Uri $setupUrl -OutFile $setupPath -UseBasicParsing
+    - name: Prepare Build Artifact
+      shell: pwsh
+      run: |
+        Copy-Item "OnePiece/bin/Release/OnePiece/latest.zip" -Destination "OnePiece.zip" -ErrorAction SilentlyContinue
+        if (-not (Test-Path "OnePiece.zip")) {
+          # If the expected path doesn't exist, create the package manually
+          $releaseDir = "OnePiece/bin/Release"
+          $packageDir = "Artifact"
 
-        Write-Output "Installing XIVLauncher silently..."
-        # Install XIVLauncher silently
-        Start-Process -FilePath $setupPath -ArgumentList "/S" -Wait -NoNewWindow
+          New-Item -ItemType Directory -Path $packageDir -Force
 
-        # Wait a moment for installation to complete
-        Start-Sleep -Seconds 5
+          # Copy required files
+          Copy-Item "$releaseDir/OnePiece.dll" $packageDir -ErrorAction SilentlyContinue
+          Copy-Item "$releaseDir/OnePiece.json" $packageDir -ErrorAction SilentlyContinue
+          Copy-Item "$releaseDir/ECommons.dll" $packageDir -ErrorAction SilentlyContinue
+          Copy-Item "$releaseDir/aetheryte.json" $packageDir -ErrorAction SilentlyContinue
+          Copy-Item "$releaseDir/img" $packageDir -Recurse -ErrorAction SilentlyContinue
+          Copy-Item "$releaseDir/Localization" $packageDir -Recurse -ErrorAction SilentlyContinue
 
-        # Check if XIVLauncher was installed
-        $xivLauncherPath = "$env:LOCALAPPDATA\XIVLauncher\XIVLauncher.exe"
-        if (Test-Path $xivLauncherPath) {
-            Write-Output "✓ XIVLauncher installed successfully"
+          Compress-Archive -Path "$packageDir/*" -DestinationPath "OnePiece.zip" -Force
         } else {
-            Write-Warning "XIVLauncher installation may have failed"
+          Expand-Archive -Force OnePiece.zip Artifact
         }
 
-        # Create Dalamud dev directory structure
-        $dalamudPath = "$env:APPDATA\XIVLauncher\addon\Hooks\dev"
-        New-Item -ItemType Directory -Path $dalamudPath -Force
-        Write-Output "✓ Created Dalamud dev directory: $dalamudPath"
+    - name: Upload OnePiece
+      uses: actions/upload-artifact@v4
+      with:
+        name: OnePiece
+        path: Artifact/*
 
-        # Download latest Dalamud development files
-        $dalamudUrl = "https://github.com/goatcorp/Dalamud/releases/latest/download/latest.zip"
-        $tempZip = "$env:TEMP\dalamud-latest.zip"
+    - name: Update repo.json if needed
+      shell: pwsh
+      run: |
+        $repoArray = Get-Content 'repo.json' -raw | ConvertFrom-Json
+        $repo = $repoArray[0]  # Get the first (and only) plugin entry
+        $build = Get-Content 'OnePiece/bin/Release/OnePiece.json' -raw | ConvertFrom-Json
 
-        Write-Output "Downloading Dalamud development files..."
-        Invoke-WebRequest -Uri $dalamudUrl -OutFile $tempZip -UseBasicParsing
-
-        Write-Output "Extracting Dalamud files to $dalamudPath..."
-        Expand-Archive -Path $tempZip -DestinationPath $dalamudPath -Force
-
-        # Verify key files exist
-        $requiredFiles = @(
-            "$dalamudPath\Dalamud.dll",
-            "$dalamudPath\ImGui.NET.dll",
-            "$dalamudPath\FFXIVClientStructs.dll",
-            "$dalamudPath\Lumina.dll",
-            "$dalamudPath\Newtonsoft.Json.dll"
-        )
-
-        $foundFiles = 0
-        foreach ($file in $requiredFiles) {
-            if (Test-Path $file) {
-                Write-Output "✓ Found: $(Split-Path $file -Leaf)"
-                $foundFiles++
-            } else {
-                Write-Warning "Missing: $(Split-Path $file -Leaf)"
-            }
+        if ($repo.AssemblyVersion -eq $build.AssemblyVersion) {
+          Write-Output "No version change detected. Current version: $($repo.AssemblyVersion)"
+          Exit
         }
 
-        Write-Output "Found $foundFiles of $($requiredFiles.Count) required Dalamud files"
+        Write-Output "Version change detected: $($repo.AssemblyVersion) -> $($build.AssemblyVersion)"
+        Write-Output "RELEASE_VERSION=$($build.AssemblyVersion)" >> $env:GITHUB_ENV
 
-        # Clean up temp files
-        Remove-Item $setupPath -Force -ErrorAction SilentlyContinue
-        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-
-        Write-Output "✓ Dalamud development environment setup complete"
-
-    - name: Validate version format
-      shell: pwsh
-      run: |
-        $version = "${{ github.event.inputs.version }}"
-        if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') {
-          Write-Error "Version must be in format X.Y.Z.W (e.g., 1.0.1.0)"
-          exit 1
-        }
-        Write-Output "Version format is valid: $version"
-
-    - name: Update project version
-      shell: pwsh
-      run: |
-        $version = "${{ github.event.inputs.version }}"
-        $csprojPath = "OnePiece/OnePiece.csproj"
-        
-        # Read and update csproj file
-        $content = Get-Content $csprojPath -Raw
-        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
-        Set-Content $csprojPath $content -NoNewline
-        
-        Write-Output "Updated OnePiece.csproj version to: $version"
-
-    - name: Restore dependencies
-      run: dotnet restore OnePiece.sln
-
-    - name: Build solution
-      run: dotnet build OnePiece.sln -c Release --no-restore
-
-    - name: Verify build output
-      shell: pwsh
-      run: |
-        $releaseDir = "OnePiece/bin/Release"
-        $requiredFiles = @(
-          "$releaseDir/OnePiece.dll",
-          "$releaseDir/OnePiece.json",
-          "$releaseDir/ECommons.dll",
-          "$releaseDir/aetheryte.json"
-        )
-
-        foreach ($file in $requiredFiles) {
-          if (-not (Test-Path $file)) {
-            Write-Error "Required file missing: $file"
-            exit 1
-          }
-          Write-Output "✓ Found: $file"
-        }
-
-        # Verify no debug files in release
-        $debugFiles = @(
-          "$releaseDir/ECommons.pdb",
-          "$releaseDir/ECommons.xml"
-        )
-
-        foreach ($file in $debugFiles) {
-          if (Test-Path $file) {
-            Write-Warning "Debug file found in release: $file"
-          }
-        }
-
-    - name: Create release package
-      shell: pwsh
-      run: |
-        $version = "${{ github.event.inputs.version }}"
-        $releaseDir = "OnePiece/bin/Release"
-        $packageDir = "release-package"
-        
-        # Create package directory
-        New-Item -ItemType Directory -Path $packageDir -Force
-        
-        # Copy required files
-        Copy-Item "$releaseDir/OnePiece.dll" $packageDir
-        Copy-Item "$releaseDir/OnePiece.json" $packageDir
-        Copy-Item "$releaseDir/ECommons.dll" $packageDir
-        Copy-Item "$releaseDir/aetheryte.json" $packageDir
-        Copy-Item "$releaseDir/img" $packageDir -Recurse
-        Copy-Item "$releaseDir/Localization" $packageDir -Recurse
-        
-        # Create zip file
-        Compress-Archive -Path "$packageDir/*" -DestinationPath "latest.zip" -Force
-        
-        Write-Output "Created release package: latest.zip"
-
-    - name: Get current download count from GitHub API
-      id: download-count
-      shell: pwsh
-      run: |
+        # Get current download count
+        $totalDownloads = 0
         try {
           $headers = @{
             'Authorization' = 'Bearer ${{ secrets.GITHUB_TOKEN }}'
             'Accept' = 'application/vnd.github.v3+json'
           }
-          
+
           $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases" -Headers $headers
-          $totalDownloads = 0
-          
+
           foreach ($release in $releases) {
             foreach ($asset in $release.assets) {
               $totalDownloads += $asset.download_count
             }
           }
-          
-          Write-Output "Total download count: $totalDownloads"
-          echo "count=$totalDownloads" >> $env:GITHUB_OUTPUT
+
+          Write-Output "Current total download count: $totalDownloads"
         } catch {
           Write-Warning "Failed to get download count, using 0"
-          echo "count=0" >> $env:GITHUB_OUTPUT
+          $totalDownloads = 0
         }
 
-    - name: Update repo.json
-      shell: pwsh
-      run: |
-        $version = "${{ github.event.inputs.version }}"
+        # Update repo.json
+        $repo.AssemblyVersion = $build.AssemblyVersion
+        $repo.LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        $repo.DownloadCount = [int]$totalDownloads
+
+        # Use provided changelog or default
         $changelog = "${{ github.event.inputs.changelog }}"
-        $downloadCount = "${{ steps.download-count.outputs.count }}"
-        $timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-        
-        # Read current repo.json
-        $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
-        
-        # Update the plugin entry
-        $plugin = $repoJson[0]
-        $plugin.AssemblyVersion = $version
-        $plugin.LastUpdate = $timestamp
-        $plugin.DownloadCount = [int]$downloadCount
-        $plugin.Changelog = $changelog
-        
-        # Write updated repo.json
-        $repoJson | ConvertTo-Json -Depth 10 | Set-Content "repo.json" -NoNewline
-        
+        if ([string]::IsNullOrWhiteSpace($changelog)) {
+          $changelog = "- Bug fixes and improvements"
+        }
+        $repo.Changelog = $changelog
+
+        # Update download links
+        $repo.DownloadLinkInstall = 'https://github.com/${{ github.repository }}/releases/download/v' + $repo.AssemblyVersion + '/OnePiece.zip'
+        $repo.DownloadLinkUpdate = $repo.DownloadLinkInstall
+
+        # Save back as array
+        $repoArray[0] = $repo
+        $repoArray | ConvertTo-Json -Depth 10 | Set-Content 'repo.json'
+
         Write-Output "Updated repo.json:"
-        Write-Output "- AssemblyVersion: $version"
-        Write-Output "- LastUpdate: $timestamp"
-        Write-Output "- DownloadCount: $downloadCount"
-        Write-Output "- Changelog: $changelog"
+        Write-Output "- AssemblyVersion: $($repo.AssemblyVersion)"
+        Write-Output "- LastUpdate: $($repo.LastUpdate)"
+        Write-Output "- DownloadCount: $($repo.DownloadCount)"
+        Write-Output "- Changelog: $($repo.Changelog)"
 
-    - name: Commit and push changes
-      shell: pwsh
-      run: |
-        $version = "${{ github.event.inputs.version }}"
-        
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        git add OnePiece/OnePiece.csproj
-        git add repo.json
-        
-        git commit -m "Release version $version"
-        git push
-
-    - name: Create GitHub Release
-      id: create-release
+    - name: Create Release
+      if: ${{ env.RELEASE_VERSION != '0.0.0.0' }}
       uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ github.event.inputs.version }}
-        name: OnePiece v${{ github.event.inputs.version }}
+        files: OnePiece.zip
+        name: OnePiece ${{ env.RELEASE_VERSION }}
+        tag_name: v${{ env.RELEASE_VERSION }}
+        prerelease: false
+        append_body: true
         body: |
-          ## OnePiece Plugin v${{ github.event.inputs.version }}
+          ## OnePiece Plugin v${{ env.RELEASE_VERSION }}
 
           ### Changes
-          ${{ github.event.inputs.changelog }}
+          ${{ github.event.inputs.changelog || '- Bug fixes and improvements' }}
 
           ### Installation
           1. Add the repository URL to your Dalamud plugin repositories:
              ```
-             https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/repo.json
+             https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/master/repo.json
              ```
           2. Install "One Piece" from the plugin installer
 
           ### Manual Installation
-          Download `latest.zip` and extract to your Dalamud plugins directory.
+          Download `OnePiece.zip` and extract to your Dalamud plugins directory.
 
           ### System Requirements
           - Final Fantasy XIV with Dalamud
           - .NET 9.0 Runtime
           - Dalamud API Level 12
-        files: latest.zip
-        draft: false
-        prerelease: false
+        generate_release_notes: true
+        fail_on_unmatched_files: true
 
-    - name: Update repo.json with final download count
-      shell: pwsh
+    - name: Commit repo.json
+      if: ${{ env.RELEASE_VERSION != '0.0.0.0' }}
       run: |
-        # Wait a moment for the release to be processed
-        Start-Sleep -Seconds 10
-        
-        try {
-          $headers = @{
-            'Authorization' = 'Bearer ${{ secrets.GITHUB_TOKEN }}'
-            'Accept' = 'application/vnd.github.v3+json'
-          }
-          
-          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases" -Headers $headers
-          $totalDownloads = 0
-          
-          foreach ($release in $releases) {
-            foreach ($asset in $release.assets) {
-              $totalDownloads += $asset.download_count
-            }
-          }
-          
-          # Update repo.json with final count
-          $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
-          $repoJson[0].DownloadCount = [int]$totalDownloads
-          $repoJson | ConvertTo-Json -Depth 10 | Set-Content "repo.json" -NoNewline
-          
-          # Commit the final update
-          git add repo.json
-          git commit -m "Update download count after release" || echo "No changes to commit"
-          git push || echo "No changes to push"
-          
-          Write-Output "Final download count: $totalDownloads"
-        } catch {
-          Write-Warning "Failed to update final download count"
-        }
+        git config --global user.name "Actions User"
+        git config --global user.email "actions@github.com"
+        git fetch origin master
+        git checkout master
+        git add repo.json
+        git commit -m "[CI] updating repo.json for ${{ env.RELEASE_VERSION }}" || true
+        git push origin master

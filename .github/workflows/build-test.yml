@@ -1,4 +1,4 @@
-name: Build and Test
+name: OnePiece Build Test
 
 on:
   push:
@@ -8,7 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
+    env:
+      DALAMUD_HOME: /tmp/dalamud
+      DOTNET_NOLOGO: true
 
     steps:
     - name: Checkout repository
@@ -21,98 +24,32 @@ jobs:
       with:
         dotnet-version: '9.0.x'
 
-    - name: Setup XIVLauncher and Dalamud Development Environment
+    - name: Download Dalamud
       shell: pwsh
       run: |
-        Write-Output "Setting up XIVLauncher and Dalamud development environment..."
+        Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -OutFile latest.zip
+        Expand-Archive -Force latest.zip /tmp/dalamud
 
-        # Download latest XIVLauncher Setup.exe
-        $setupUrl = "https://github.com/goatcorp/FFXIVQuickLauncher/releases/latest/download/Setup.exe"
-        $setupPath = "$env:TEMP\XIVLauncher-Setup.exe"
-
-        Write-Output "Downloading XIVLauncher Setup from: $setupUrl"
-        Invoke-WebRequest -Uri $setupUrl -OutFile $setupPath -UseBasicParsing
-
-        Write-Output "Installing XIVLauncher silently..."
-        # Install XIVLauncher silently
-        Start-Process -FilePath $setupPath -ArgumentList "/S" -Wait -NoNewWindow
-
-        # Wait a moment for installation to complete
-        Start-Sleep -Seconds 5
-
-        # Check if XIVLauncher was installed
-        $xivLauncherPath = "$env:LOCALAPPDATA\XIVLauncher\XIVLauncher.exe"
-        if (Test-Path $xivLauncherPath) {
-            Write-Output "✓ XIVLauncher installed successfully"
-        } else {
-            Write-Warning "XIVLauncher installation may have failed"
-        }
-
-        # Create Dalamud dev directory structure
-        $dalamudPath = "$env:APPDATA\XIVLauncher\addon\Hooks\dev"
-        New-Item -ItemType Directory -Path $dalamudPath -Force
-        Write-Output "✓ Created Dalamud dev directory: $dalamudPath"
-
-        # Download latest Dalamud development files
-        $dalamudUrl = "https://github.com/goatcorp/Dalamud/releases/latest/download/latest.zip"
-        $tempZip = "$env:TEMP\dalamud-latest.zip"
-
-        Write-Output "Downloading Dalamud development files..."
-        Invoke-WebRequest -Uri $dalamudUrl -OutFile $tempZip -UseBasicParsing
-
-        Write-Output "Extracting Dalamud files to $dalamudPath..."
-        Expand-Archive -Path $tempZip -DestinationPath $dalamudPath -Force
-
-        # Verify key files exist
-        $requiredFiles = @(
-            "$dalamudPath\Dalamud.dll",
-            "$dalamudPath\ImGui.NET.dll",
-            "$dalamudPath\FFXIVClientStructs.dll",
-            "$dalamudPath\Lumina.dll",
-            "$dalamudPath\Newtonsoft.Json.dll"
-        )
-
-        $foundFiles = 0
-        foreach ($file in $requiredFiles) {
-            if (Test-Path $file) {
-                Write-Output "✓ Found: $(Split-Path $file -Leaf)"
-                $foundFiles++
-            } else {
-                Write-Warning "Missing: $(Split-Path $file -Leaf)"
-            }
-        }
-
-        Write-Output "Found $foundFiles of $($requiredFiles.Count) required Dalamud files"
-
-        # Clean up temp files
-        Remove-Item $setupPath -Force -ErrorAction SilentlyContinue
-        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-
-        Write-Output "✓ Dalamud development environment setup complete"
-
-    - name: Restore dependencies
-      run: dotnet restore OnePiece.sln
-
-    - name: Build solution
-      run: dotnet build OnePiece.sln -c Release --no-restore
+    - name: Build
+      run: dotnet build -c Release
 
     - name: Validate repo.json format
       shell: pwsh
       run: |
         try {
-          $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
+          $repoArray = Get-Content "repo.json" -Raw | ConvertFrom-Json
           Write-Output "✓ repo.json is valid JSON"
-          
-          $plugin = $repoJson[0]
+
+          $plugin = $repoArray[0]  # Get the first plugin entry
           $requiredFields = @('Author', 'Name', 'InternalName', 'AssemblyVersion', 'RepoUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate')
-          
+
           foreach ($field in $requiredFields) {
             if (-not $plugin.$field) {
               Write-Error "Missing required field: $field"
               exit 1
             }
           }
-          
+
           Write-Output "✓ All required fields present in repo.json"
           Write-Output "Current version: $($plugin.AssemblyVersion)"
         } catch {
@@ -123,25 +60,20 @@ jobs:
     - name: Check version consistency
       shell: pwsh
       run: |
-        # Get version from csproj
-        $csprojContent = Get-Content "OnePiece/OnePiece.csproj" -Raw
-        if ($csprojContent -match '<Version>([\d\.]+)</Version>') {
-          $csprojVersion = $matches[1]
-        } else {
-          Write-Error "Could not find version in OnePiece.csproj"
-          exit 1
-        }
-        
+        # Get version from build output
+        $buildJson = Get-Content "OnePiece/bin/Release/OnePiece.json" -Raw | ConvertFrom-Json
+        $buildVersion = $buildJson.AssemblyVersion
+
         # Get version from repo.json
-        $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
-        $repoVersion = $repoJson[0].AssemblyVersion
-        
-        Write-Output "OnePiece.csproj version: $csprojVersion"
+        $repoArray = Get-Content "repo.json" -Raw | ConvertFrom-Json
+        $repoVersion = $repoArray[0].AssemblyVersion
+
+        Write-Output "Build output version: $buildVersion"
         Write-Output "repo.json version: $repoVersion"
-        
-        if ($csprojVersion -ne $repoVersion) {
-          Write-Warning "Version mismatch between OnePiece.csproj ($csprojVersion) and repo.json ($repoVersion)"
-          Write-Output "This is expected if you're preparing a new release"
+
+        if ($buildVersion -ne $repoVersion) {
+          Write-Output "Version difference detected: $repoVersion -> $buildVersion"
+          Write-Output "This will trigger a release when pushed to master"
         } else {
           Write-Output "✓ Versions are consistent"
         }
@@ -151,10 +83,10 @@ jobs:
       run: |
         $releaseDir = "OnePiece/bin/Release"
         $packageDir = "test-package"
-        
+
         # Create test package directory
         New-Item -ItemType Directory -Path $packageDir -Force
-        
+
         # Check required files exist
         $requiredFiles = @(
           "$releaseDir/OnePiece.dll",
@@ -162,7 +94,7 @@ jobs:
           "$releaseDir/ECommons.dll",
           "$releaseDir/aetheryte.json"
         )
-        
+
         foreach ($file in $requiredFiles) {
           if (Test-Path $file) {
             Write-Output "✓ Found: $file"
@@ -172,13 +104,13 @@ jobs:
             exit 1
           }
         }
-        
+
         # Check optional directories
         $optionalDirs = @(
           "$releaseDir/img",
           "$releaseDir/Localization"
         )
-        
+
         foreach ($dir in $optionalDirs) {
           if (Test-Path $dir) {
             Write-Output "✓ Found: $dir"
@@ -187,7 +119,7 @@ jobs:
             Write-Warning "Optional directory not found: $dir"
           }
         }
-        
+
         # Create test zip
         Compress-Archive -Path "$packageDir/*" -DestinationPath "test-package.zip" -Force
         Write-Output "✓ Test package created successfully"

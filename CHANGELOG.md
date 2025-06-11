@@ -8,12 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- GitHub Actions workflow for automated releases
+- GitHub Actions workflow for automated releases based on version changes
 - PowerShell scripts for version management and release preparation
-- Automated Dalamud development environment setup in CI/CD
+- Automated Dalamud development environment setup using goatcorp.github.io
+- Automatic repo.json synchronization with build output
 
 ### Changed
--
+- Switched to Ubuntu-based CI/CD for faster builds
+- Improved release workflow to detect version changes automatically
 
 ### Fixed
 - Fixed ImGui style color stack imbalance when clicking collected button
@@ -22,9 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -
 
 ### Technical
-- Added automated release workflow with version synchronization
-- Implemented download count tracking from GitHub API
-- Added build verification and package validation
+- Implemented automatic release creation when OnePiece.json version differs from repo.json
+- Added download count tracking from GitHub API
+- Streamlined build process using official Dalamud distribution
+- Added comprehensive build validation and package testing
 
 ## [1.0.0.0] - 2025-06-11
 

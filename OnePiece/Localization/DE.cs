@@ -41,6 +41,7 @@ public class DE : ILocalizationData
     // Chat and Communication
     public string SendToChat => "An Chat senden";
     public string SelectChatChannel => "Kanal auswählen";
+    public string CurrentChannel => "Aktueller Kanal";
     public string StartMonitoring => "Überwachung starten";
     public string StopMonitoring => "Überwachung stoppen";
 
@@ -86,7 +87,6 @@ public class DE : ILocalizationData
     // Examples and Previews
     public string PlayerNameExample => "Tataru Taru";
     public string LocationExample => "Limsa Lominsa - Untere Decks ( 9.5 , 11.2 )";
-    public string DeleteButtonShort => "X";
 
     // Chat Channels
     public string Say => "Sagen";

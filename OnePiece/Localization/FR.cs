@@ -41,6 +41,7 @@ public class FR : ILocalizationData
     // Chat and Communication
     public string SendToChat => "Envoyer au chat";
     public string SelectChatChannel => "Sélectionner le canal";
+    public string CurrentChannel => "Canal actuel";
     public string StartMonitoring => "Démarrer la surveillance";
     public string StopMonitoring => "Arrêter la surveillance";
 
@@ -86,7 +87,6 @@ public class FR : ILocalizationData
     // Examples and Previews
     public string PlayerNameExample => "Tataru Taru";
     public string LocationExample => "Limsa Lominsa - Pont inférieur ( 9.5 , 11.2 )";
-    public string DeleteButtonShort => "X";
 
     // Chat Channels
     public string Say => "Dire";

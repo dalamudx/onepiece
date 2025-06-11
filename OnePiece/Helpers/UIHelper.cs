@@ -1,5 +1,8 @@
 using System;
+using System.Numerics;
 using ImGuiNET;
+using Dalamud.Interface.Utility.Raii;
+using OnePiece.Localization;
 
 namespace OnePiece.Helpers;
 
@@ -121,6 +124,164 @@ public static class UIHelper
         calculatedWidth = Math.Min(calculatedWidth, maxWidth);
 
         return calculatedWidth;
+    }
+
+    /// <summary>
+    /// Renders a coordinate entry with aligned buttons for consistent layout.
+    /// </summary>
+    /// <param name="displayText">The coordinate text to display</param>
+    /// <param name="isCollected">Whether the coordinate is collected (affects styling)</param>
+    /// <param name="textAreaWidth">Fixed width for the text area (default: 400f)</param>
+    /// <returns>The X position where buttons should start</returns>
+    public static float RenderCoordinateText(string displayText, bool isCollected, float textAreaWidth = 400f)
+    {
+        // Apply collected styling if needed
+        if (isCollected)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
+        }
+
+        // Get current cursor position
+        var startPos = ImGui.GetCursorPos();
+
+        // Render text in a fixed-width area
+        ImGui.SetNextItemWidth(textAreaWidth);
+        ImGui.TextUnformatted(displayText);
+
+        // Calculate button start position
+        float buttonStartX = startPos.X + textAreaWidth + 10f; // 10f spacing between text and buttons
+
+        // Restore color if it was changed
+        if (isCollected)
+        {
+            ImGui.PopStyleColor();
+        }
+
+        return buttonStartX;
+    }
+
+    /// <summary>
+    /// Positions cursor at the button area for aligned button layout.
+    /// </summary>
+    /// <param name="buttonStartX">X position where buttons should start</param>
+    /// <param name="lineStartY">Y position of the current line</param>
+    public static void PositionForButtons(float buttonStartX, float lineStartY)
+    {
+        ImGui.SetCursorPos(new System.Numerics.Vector2(buttonStartX, lineStartY));
+    }
+
+    /// <summary>
+    /// Calculates optimal text area width based on available space and button requirements.
+    /// Optimized for different languages with varying button text lengths.
+    /// </summary>
+    /// <param name="availableWidth">Total available width</param>
+    /// <param name="buttonCount">Number of buttons to display</param>
+    /// <param name="buttonWidth">Average width per button (default: 130f, increased for German/French)</param>
+    /// <param name="spacing">Spacing between elements (default: 15f)</param>
+    /// <returns>Optimal text area width</returns>
+    public static float CalculateTextAreaWidth(float availableWidth, int buttonCount, float buttonWidth = 130f, float spacing = 15f)
+    {
+        // Calculate actual button widths for current language to be more precise
+        float actualButtonsWidth = 0f;
+
+        if (buttonCount == 3)
+        {
+            // Teleport + Chat + Collected buttons
+            actualButtonsWidth = CalculateButtonWidth(Strings.TeleportButton) +
+                               CalculateButtonWidth(Strings.SendToChat) +
+                               Math.Max(CalculateButtonWidth(Strings.Collected), CalculateButtonWidth(Strings.NotCollected)) +
+                               (2 * spacing); // spacing between buttons
+        }
+        else if (buttonCount == 2)
+        {
+            // Chat + Collected buttons (most common for raw coordinates)
+            actualButtonsWidth = CalculateButtonWidth(Strings.SendToChat) +
+                               Math.Max(CalculateButtonWidth(Strings.Collected), CalculateButtonWidth(Strings.NotCollected)) +
+                               spacing; // spacing between buttons
+        }
+        else
+        {
+            // Fallback to estimated calculation
+            actualButtonsWidth = (buttonCount * buttonWidth) + ((buttonCount - 1) * spacing);
+        }
+
+        float textAreaWidth = availableWidth - actualButtonsWidth - (spacing * 2); // Extra margin spacing
+
+        // Ensure minimum text area width, but allow it to be smaller if needed for long button text
+        return Math.Max(textAreaWidth, 120f);
+    }
+
+    /// <summary>
+    /// Renders a complete coordinate entry with aligned text and buttons.
+    /// This provides a unified layout for both optimized and raw coordinate lists.
+    /// Properly handles text wrapping to prevent overlap with next line.
+    /// </summary>
+    /// <param name="displayText">The coordinate text to display</param>
+    /// <param name="isCollected">Whether the coordinate is collected</param>
+    /// <param name="availableWidth">Available width for the entire row</param>
+    /// <param name="buttonCount">Number of buttons that will be displayed</param>
+    /// <param name="estimatedButtonWidth">Estimated average button width (default: 130f for German/French)</param>
+    /// <returns>Information about the rendered layout</returns>
+    public static CoordinateLayoutInfo RenderCoordinateEntry(string displayText, bool isCollected, float availableWidth, int buttonCount = 3, float estimatedButtonWidth = 130f)
+    {
+        // Calculate optimal text area width with more generous button space
+        float textAreaWidth = CalculateTextAreaWidth(availableWidth, buttonCount, estimatedButtonWidth, 15f);
+
+        // Store the starting position for proper layout
+        float lineStartY = ImGui.GetCursorPosY();
+        float lineStartX = ImGui.GetCursorPosX();
+
+        // Render the coordinate text with proper styling and wrapping
+        if (isCollected)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
+        }
+
+        // Calculate text size to determine if wrapping will occur
+        var textSize = ImGui.CalcTextSize(displayText, textAreaWidth);
+
+        // Use a child region to contain the text and prevent overlap
+        using (var child = ImRaii.Child($"##text_{displayText.GetHashCode()}",
+            new Vector2(textAreaWidth, textSize.Y + 4f), // Add small padding
+            false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoBackground))
+        {
+            if (child.Success)
+            {
+                ImGui.TextWrapped(displayText);
+            }
+        }
+
+        if (isCollected)
+        {
+            ImGui.PopStyleColor();
+        }
+
+        // Calculate button start position - position buttons at the top of the text area
+        float buttonStartX = lineStartX + textAreaWidth + 15f;
+
+        // Position cursor for buttons aligned with the top of the text
+        ImGui.SetCursorPos(new Vector2(buttonStartX, lineStartY));
+
+        return new CoordinateLayoutInfo
+        {
+            TextAreaWidth = textAreaWidth,
+            ButtonStartX = buttonStartX,
+            LineStartY = lineStartY,
+            IsCollected = isCollected,
+            TextHeight = textSize.Y + 4f // Include the actual text height
+        };
+    }
+
+    /// <summary>
+    /// Information about the coordinate layout for button positioning.
+    /// </summary>
+    public struct CoordinateLayoutInfo
+    {
+        public float TextAreaWidth;
+        public float ButtonStartX;
+        public float LineStartY;
+        public bool IsCollected;
+        public float TextHeight;
     }
 
 

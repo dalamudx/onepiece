@@ -41,6 +41,7 @@ public interface ILocalizationData
     // Chat and Communication
     string SendToChat { get; }
     string SelectChatChannel { get; }
+    string CurrentChannel { get; }
     string StartMonitoring { get; }
     string StopMonitoring { get; }
 
@@ -86,7 +87,6 @@ public interface ILocalizationData
     // Examples and Previews
     string PlayerNameExample { get; }
     string LocationExample { get; }
-    string DeleteButtonShort { get; }
 
     // Chat Channels
     string Say { get; }

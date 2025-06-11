@@ -226,6 +226,10 @@ public class MainWindow : Window, IDisposable
         ImGui.Separator();
 
         // Message settings section (no collapsing header, always visible)
+        // Show current monitoring channel information
+        string currentChannelName = chatChannelNames[selectedChatChannelIndex];
+        ImGui.TextColored(new Vector4(0.0f, 0.6f, 1.0f, 1.0f), $"{Strings.CurrentChannel}: {currentChannelName}");
+
         // Show active template information if there is one
         if (plugin.Configuration.ActiveTemplateIndex >= 0 &&
             plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
@@ -255,111 +259,8 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Separator();
 
-        // Action buttons
-        // Monitoring control button - moved to front of action buttons
-        if (isMonitoring)
-        {
-            if (ImGui.Button(Strings.StopMonitoring))
-            {
-                plugin.ChatMonitorService.StopMonitoring();
-            }
-        }
-        else
-        {
-            if (ImGui.Button(Strings.StartMonitoring))
-            {
-                plugin.ChatMonitorService.StartMonitoring();
-            }
-        }
-
-        ImGui.SameLine();
-
-        if (ImGui.Button(Strings.ClearAll))
-        {
-            plugin.TreasureHuntService.ClearCoordinates();
-
-            // Reset route optimization if it was active
-            if (plugin.TreasureHuntService.IsRouteOptimized)
-            {
-                plugin.TreasureHuntService.ResetRouteOptimization();
-            }
-
-            ClearEditingStates(); // Clear editing states when coordinates are cleared
-        }
-
-        ImGui.SameLine();
-
-        if (plugin.TreasureHuntService.IsRouteOptimized)
-        {
-            if (ImGui.Button(Strings.ResetOptimization))
-            {
-                plugin.TreasureHuntService.ResetRouteOptimization();
-                ClearEditingStates(); // Clear editing states when optimization is reset
-            }
-        }
-        else
-        {
-            // Check if coordinate list is empty, disable optimize route button if empty
-            bool hasCoordinates = plugin.TreasureHuntService.Coordinates.Count > 0;
-
-            if (!hasCoordinates)
-            {
-                ImGui.BeginDisabled();
-            }
-
-            if (ImGui.Button(Strings.OptimizeRoute))
-            {
-                plugin.TreasureHuntService.OptimizeRoute();
-            }
-
-            if (!hasCoordinates)
-            {
-                ImGui.EndDisabled();
-
-                // Show hover tooltip explaining why the button is disabled
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(Strings.NoCoordinatesToOptimize);
-                }
-            }
-        }
-
-        ImGui.SameLine();
-
-        // Export button
-        if (ImGui.Button(Strings.Export))
-        {
-            var exportedData = plugin.TreasureHuntService.ExportCoordinates();
-            if (!string.IsNullOrEmpty(exportedData))
-            {
-                ImGui.SetClipboardText(exportedData);
-                Plugin.ChatGui.Print(Strings.Status.CoordinatesExportedToClipboard);
-            }
-        }
-
-        ImGui.SameLine();
-
-        // Import button
-        if (ImGui.Button(Strings.Import))
-        {
-            var clipboardText = ImGui.GetClipboardText();
-            if (!string.IsNullOrEmpty(clipboardText))
-            {
-                var importedCount = plugin.TreasureHuntService.ImportCoordinates(clipboardText);
-                if (importedCount > 0)
-                {
-                    Plugin.ChatGui.Print(Strings.Messages.CoordinatesImportedFromClipboard(importedCount));
-                }
-                else
-                {
-                    Plugin.ChatGui.Print(Strings.Status.NoCoordinatesImported);
-                }
-            }
-            else
-            {
-                Plugin.ChatGui.Print(Strings.ClipboardEmpty);
-            }
-        }
+        // Action buttons with adaptive wrapping layout
+        RenderActionButtons(isMonitoring);
 
         ImGui.Separator();
 
@@ -441,11 +342,17 @@ public class MainWindow : Window, IDisposable
                                 // Both TreasurePoint and TeleportPoint types represent treasure coordinates that need to be visited
                                 int realIndex = optimizedRoute.IndexOf(coord) + 1; // +1 to start from 1 instead of 0
 
-                                // Display player name and coordinates with correct numbering
+                                // Build display text with map area information
                                 var displayText = $"{realIndex}. ";
                                 if (!string.IsNullOrEmpty(coord.PlayerName))
                                 {
                                     displayText += $"{coord.PlayerName}: ";
+                                }
+
+                                // Add map area with special formatting
+                                if (!string.IsNullOrEmpty(coord.MapArea))
+                                {
+                                    displayText += $"{coord.MapArea} ";
                                 }
 
                                 displayText += $"({coord.X:F1}, {coord.Y:F1})";
@@ -455,32 +362,43 @@ public class MainWindow : Window, IDisposable
                                     displayText += $" - {coord.Name}";
                                 }
 
-                                // Use inline layout with consistent spacing like top buttons
-                                ImGui.TextUnformatted(displayText);
+                                // Use unified coordinate rendering with proper button alignment
+                                // Always reserve space for 3 buttons to ensure consistent alignment
+                                float availableWidth = ImGui.GetContentRegionAvail().X;
+                                int buttonCount = 3; // Always reserve space for Teleport + Chat + Collected
+
+                                var layoutInfo = UIHelper.RenderCoordinateEntry(displayText, isCollected, availableWidth, buttonCount);
 
                                 // Check if this coordinate has AetheryteId for teleportation
                                 bool hasTeleportId = coord.AetheryteId > 0;
 
+                                // Calculate consistent button widths
+                                float teleportButtonWidth = UIHelper.CalculateButtonWidth(Strings.TeleportButton);
+                                float chatButtonWidth = UIHelper.CalculateButtonWidth(Strings.SendToChat);
+                                string collectedButtonText = coord.IsCollected ? Strings.NotCollected : Strings.Collected;
+                                float collectedButtonWidth = UIHelper.CalculateButtonWidth(collectedButtonText);
 
+                                float buttonSpacing = 8f;
+                                float rightMargin = 15f; // Consistent right margin for all languages
 
-                                // Get current button texts from localization
-                                string teleportText = Strings.TeleportButton;
-                                string chatText = Strings.SendToChat;
-                                string collectedText = Strings.Collected;
+                                // Calculate button positions from right to left to ensure consistent right margin
+                                float optimizedWindowWidth = ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX();
 
-                                // Calculate button widths using the unified method
-                                float teleportButtonWidth = UIHelper.CalculateButtonWidth(teleportText, 80f);
-                                float chatButtonWidth = UIHelper.CalculateButtonWidth(chatText, 100f);
-                                float collectedButtonWidth = UIHelper.CalculateButtonWidth(collectedText, 80f);
+                                // Position 3: Collected button (rightmost)
+                                float collectedButtonX = optimizedWindowWidth - rightMargin - collectedButtonWidth;
 
-                                // Add consistent spacing before buttons (same as top buttons)
-                                ImGui.SameLine();
+                                // Position 2: Send to Chat button
+                                float chatButtonX = collectedButtonX - buttonSpacing - chatButtonWidth;
 
-                                // Add minimal spacing to separate text from buttons (reduced from 10f to 5f for tighter layout)
-                                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 5f);
+                                // Position 1: Teleport button (leftmost, if exists)
+                                float teleportButtonX = chatButtonX - buttonSpacing - teleportButtonWidth;
 
+                                // Render buttons from left to right
                                 if (hasTeleportId)
                                 {
+                                    // Position and render teleport button
+                                    ImGui.SetCursorPos(new Vector2(teleportButtonX, layoutInfo.LineStartY));
+
                                     // Get aetheryte information directly using ID
                                     var aetheryteInfo = plugin.AetheryteService.GetAetheryteById(coord.AetheryteId);
                                     int teleportPrice = 0;
@@ -496,7 +414,7 @@ public class MainWindow : Window, IDisposable
                                             ImGui.BeginDisabled();
                                         }
 
-                                        // Add teleport button
+                                        // Add teleport button with consistent width
                                         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.5f, 1.0f, 0.7f));
                                         if (ImGui.SmallButton($"{Strings.TeleportButton}##{optimizedRoute.IndexOf(coord)}"))
                                         {
@@ -523,21 +441,11 @@ public class MainWindow : Window, IDisposable
                                         {
                                             ImGui.EndDisabled();
                                         }
-
-                                        // Add consistent spacing between buttons (same as top buttons)
-                                        ImGui.SameLine();
                                     }
                                 }
-                                else
-                                {
-                                    // If no teleport button, we don't need SameLine() here since we're already on the same line
-                                    // Just continue with the next button
-                                }
 
-                                if (isCollected)
-                                {
-                                    ImGui.PopStyleColor();
-                                }
+                                // Position and render Send to Chat button
+                                ImGui.SetCursorPos(new Vector2(chatButtonX, layoutInfo.LineStartY));
 
                                 // Send to Chat button - disable if the coordinate is already collected
                                 if (isCollected)
@@ -555,19 +463,19 @@ public class MainWindow : Window, IDisposable
                                     ImGui.EndDisabled();
                                 }
 
-                                // Add consistent spacing between buttons (same as top buttons)
-                                ImGui.SameLine();
+                                // Position and render Collected button
+                                ImGui.SetCursorPos(new Vector2(collectedButtonX, layoutInfo.LineStartY));
 
                                 // Collected button - toggle between collected and not collected
-                                string collectedButtonText = coord.IsCollected ?
-                                    Strings.NotCollected :
-                                    Strings.Collected;
-
                                 if (ImGui.SmallButton(collectedButtonText + $"##{optimizedRoute.IndexOf(coord)}"))
                                 {
                                     // Toggle the collected state
                                     coord.IsCollected = !coord.IsCollected;
                                 }
+
+                                // Move cursor to next line, accounting for text height
+                                float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
+                                ImGui.SetCursorPosY(nextLineY);
 
                                 // No Delete button for optimized route
                             }
@@ -585,6 +493,9 @@ public class MainWindow : Window, IDisposable
 
                             // Check if this coordinate is being edited
                             bool isEditing = editingStates.GetValueOrDefault(coordIndex, false);
+
+                            // Declare layoutInfo outside the conditional blocks
+                            UIHelper.CoordinateLayoutInfo layoutInfo = default;
 
                             if (isEditing)
                             {
@@ -633,10 +544,17 @@ public class MainWindow : Window, IDisposable
                                 }
                                 ImGui.SameLine();
                                 ImGui.TextUnformatted(")");
+
+                                // Set default layout info for editing mode
+                                layoutInfo = new UIHelper.CoordinateLayoutInfo
+                                {
+                                    LineStartY = ImGui.GetCursorPosY(),
+                                    TextHeight = ImGui.GetFrameHeight()
+                                };
                             }
                             else
                             {
-                                // Display normal text
+                                // Build complete display text for unified rendering
                                 string displayText = $"{coordIndex}. ";
 
                                 // Display player name if available
@@ -645,27 +563,46 @@ public class MainWindow : Window, IDisposable
                                     displayText += $"{coord.PlayerName}: ";
                                 }
 
-                                // Add map area with colored text if available
+                                // Add map area information
                                 if (!string.IsNullOrEmpty(coord.MapArea))
                                 {
-                                    ImGui.TextUnformatted(displayText);
-                                    ImGui.SameLine(0, 0);
-                                    ImGui.TextColored(new Vector4(0.5f, 0.8f, 1.0f, 1.0f), coord.MapArea);
-                                    ImGui.SameLine(0, 5);
-                                    ImGui.TextUnformatted($"({coord.X:F1}, {coord.Y:F1})");
+                                    displayText += $"{coord.MapArea} ";
                                 }
-                                else
+
+                                displayText += $"({coord.X:F1}, {coord.Y:F1})";
+
+                                // Add name if available
+                                if (!string.IsNullOrEmpty(coord.Name))
                                 {
-                                    ImGui.TextUnformatted($"{displayText}({coord.X:F1}, {coord.Y:F1})");
+                                    displayText += $" - {coord.Name}";
                                 }
+
+                                // Use unified coordinate rendering with proper button alignment
+                                float availableWidth = ImGui.GetContentRegionAvail().X;
+                                int buttonCount = 2; // Edit + Delete
+
+                                layoutInfo = UIHelper.RenderCoordinateEntry(displayText, false, availableWidth, buttonCount);
                             }
 
-                            ImGui.SameLine();
-
-                            // Edit/Save/Cancel buttons
+                            // Render buttons with right-aligned layout for consistent margins
                             if (isEditing)
                             {
-                                // Save button
+                                // Calculate button widths for editing mode
+                                float saveButtonWidth = UIHelper.CalculateButtonWidth(Strings.Save);
+                                float cancelButtonWidth = UIHelper.CalculateButtonWidth(Strings.Cancel);
+                                float deleteButtonWidth = UIHelper.CalculateButtonWidth(Strings.Delete);
+
+                                float buttonSpacing = 8f;
+                                float rightMargin = 15f;
+                                float editingWindowWidth = ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX();
+
+                                // Calculate positions from right to left
+                                float deleteButtonX = editingWindowWidth - rightMargin - deleteButtonWidth;
+                                float cancelButtonX = deleteButtonX - buttonSpacing - cancelButtonWidth;
+                                float saveButtonX = cancelButtonX - buttonSpacing - saveButtonWidth;
+
+                                // Position and render Save button
+                                ImGui.SetCursorPos(new Vector2(saveButtonX, layoutInfo.LineStartY));
                                 if (ImGui.SmallButton($"{Strings.Save}##raw{coordIndex}"))
                                 {
                                     // Validate and save changes
@@ -691,9 +628,8 @@ public class MainWindow : Window, IDisposable
                                     }
                                 }
 
-                                ImGui.SameLine();
-
-                                // Cancel button
+                                // Position and render Cancel button
+                                ImGui.SetCursorPos(new Vector2(cancelButtonX, layoutInfo.LineStartY));
                                 if (ImGui.SmallButton($"{Strings.Cancel}##raw{coordIndex}"))
                                 {
                                     // Clear editing state without saving
@@ -703,11 +639,35 @@ public class MainWindow : Window, IDisposable
                                     editingYCoords.Remove(coordIndex);
                                 }
 
-                                ImGui.SameLine();
+                                // Position and render Delete button
+                                ImGui.SetCursorPos(new Vector2(deleteButtonX, layoutInfo.LineStartY));
+                                if (ImGui.SmallButton(Strings.Delete + $"##raw{coordIndex}"))
+                                {
+                                    plugin.TreasureHuntService.DeleteCoordinate(i);
+
+                                    // Clear editing state if this coordinate was being edited
+                                    editingStates.Remove(coordIndex);
+                                    editingPlayerNames.Remove(coordIndex);
+                                    editingXCoords.Remove(coordIndex);
+                                    editingYCoords.Remove(coordIndex);
+                                }
                             }
                             else
                             {
-                                // Edit button
+                                // Calculate button widths for non-editing mode
+                                float editButtonWidth = UIHelper.CalculateButtonWidth(Strings.Edit);
+                                float deleteButtonWidth = UIHelper.CalculateButtonWidth(Strings.Delete);
+
+                                float buttonSpacing = 8f;
+                                float rightMargin = 15f;
+                                float rawWindowWidth = ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX();
+
+                                // Calculate positions from right to left
+                                float deleteButtonX = rawWindowWidth - rightMargin - deleteButtonWidth;
+                                float editButtonX = deleteButtonX - buttonSpacing - editButtonWidth;
+
+                                // Position and render Edit button
+                                ImGui.SetCursorPos(new Vector2(editButtonX, layoutInfo.LineStartY));
                                 if (ImGui.SmallButton($"{Strings.Edit}##raw{coordIndex}"))
                                 {
                                     // Enter editing mode
@@ -717,18 +677,25 @@ public class MainWindow : Window, IDisposable
                                     editingYCoords[coordIndex] = coord.Y.ToString("F1");
                                 }
 
-                                ImGui.SameLine();
+                                // Position and render Delete button
+                                ImGui.SetCursorPos(new Vector2(deleteButtonX, layoutInfo.LineStartY));
+                                if (ImGui.SmallButton(Strings.Delete + $"##raw{coordIndex}"))
+                                {
+                                    plugin.TreasureHuntService.DeleteCoordinate(i);
+
+                                    // Clear editing state if this coordinate was being edited
+                                    editingStates.Remove(coordIndex);
+                                    editingPlayerNames.Remove(coordIndex);
+                                    editingXCoords.Remove(coordIndex);
+                                    editingYCoords.Remove(coordIndex);
+                                }
                             }
 
-                            if (ImGui.SmallButton(Strings.Delete + $"##raw{coordIndex}"))
+                            // Move cursor to next line, accounting for text height if not in editing mode
+                            if (!isEditing)
                             {
-                                plugin.TreasureHuntService.DeleteCoordinate(i);
-
-                                // Clear editing state if this coordinate was being edited
-                                editingStates.Remove(coordIndex);
-                                editingPlayerNames.Remove(coordIndex);
-                                editingXCoords.Remove(coordIndex);
-                                editingYCoords.Remove(coordIndex);
+                                float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
+                                ImGui.SetCursorPosY(nextLineY);
                             }
                         }
                     }
@@ -753,15 +720,12 @@ public class MainWindow : Window, IDisposable
                         plugin.TreasureHuntService.ClearTrash();
                     }
 
-                    // Display deleted coordinates
+                    // Display deleted coordinates with unified layout
                     for (var i = 0; i < plugin.TreasureHuntService.DeletedCoordinates.Count; i++)
                     {
                         var coord = plugin.TreasureHuntService.DeletedCoordinates[i];
 
-                        // Display with grayed out style
-                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
-
-                        // Display coordinate info
+                        // Build complete display text for unified rendering
                         var displayText = $"{i + 1}. ";
 
                         // Display player name if available
@@ -770,48 +734,41 @@ public class MainWindow : Window, IDisposable
                             displayText += $"{coord.PlayerName}: ";
                         }
 
-                        ImGui.TextUnformatted(displayText);
-
-                        // Add map area with colored text if available
+                        // Add map area information
                         if (!string.IsNullOrEmpty(coord.MapArea))
                         {
-                            ImGui.SameLine(0, 0);
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 0.6f, 0.8f, 1.0f)); // Slightly darker blue for deleted items
-                            ImGui.TextUnformatted(coord.MapArea);
-                            ImGui.PopStyleColor();
-                            ImGui.SameLine(0, 5);
-                            ImGui.TextUnformatted($"({coord.X:F1}, {coord.Y:F1})");
-
-                            // Add name if available
-                            if (!string.IsNullOrEmpty(coord.Name))
-                            {
-                                ImGui.SameLine(0, 5);
-                                ImGui.TextUnformatted($"- {coord.Name}");
-                            }
+                            displayText += $"{coord.MapArea} ";
                         }
-                        else
+
+                        displayText += $"({coord.X:F1}, {coord.Y:F1})";
+
+                        // Add name if available
+                        if (!string.IsNullOrEmpty(coord.Name))
                         {
-                            // No map area, display coordinates and name directly
-                            ImGui.SameLine(0, 0);
-                            ImGui.TextUnformatted($"({coord.X:F1}, {coord.Y:F1})");
-
-                            // Add name if available
-                            if (!string.IsNullOrEmpty(coord.Name))
-                            {
-                                ImGui.SameLine(0, 5);
-                                ImGui.TextUnformatted($"- {coord.Name}");
-                            }
+                            displayText += $" - {coord.Name}";
                         }
 
-                        ImGui.PopStyleColor(); // Pop the gray style
+                        // Use unified coordinate rendering with grayed out style for deleted items
+                        float availableWidth = ImGui.GetContentRegionAvail().X;
+                        int buttonCount = 1; // Only restore button
 
-                        ImGui.SameLine();
+                        var layoutInfo = UIHelper.RenderCoordinateEntry(displayText, true, availableWidth, buttonCount);
 
-                        // Restore button
+                        // Position Restore button with consistent right margin
+                        float restoreButtonWidth = UIHelper.CalculateButtonWidth(Strings.Restore);
+                        float rightMargin = 15f;
+                        float trashWindowWidth = ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX();
+                        float restoreButtonX = trashWindowWidth - rightMargin - restoreButtonWidth;
+
+                        ImGui.SetCursorPos(new Vector2(restoreButtonX, layoutInfo.LineStartY));
                         if (ImGui.SmallButton(Strings.Restore + $"##trash{i}"))
                         {
                             plugin.TreasureHuntService.RestoreCoordinate(i);
                         }
+
+                        // Move cursor to next line, accounting for text height
+                        float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
+                        ImGui.SetCursorPosY(nextLineY);
                     }
                 }
                 else if (ImGui.CollapsingHeader(Strings.TrashBin))
@@ -826,6 +783,142 @@ public class MainWindow : Window, IDisposable
         {
             ImGui.EndDisabled();
         }
+    }
+
+    /// <summary>
+    /// Renders action buttons with adaptive wrapping layout to prevent button truncation in different languages.
+    /// </summary>
+    /// <param name="isMonitoring">Whether monitoring is currently active</param>
+    private void RenderActionButtons(bool isMonitoring)
+    {
+        float availableWidth = ImGui.GetContentRegionAvail().X;
+        float buttonSpacing = 8f;
+        float lineSpacing = 4f; // Compact line spacing
+        float currentLineWidth = 0f;
+        bool isFirstButton = true;
+        float startY = ImGui.GetCursorPosY();
+        float currentY = startY;
+
+        // Helper function to render a button and handle wrapping
+        void RenderButtonWithWrap(string buttonText, System.Action buttonAction, bool isDisabled = false, string? tooltip = null)
+        {
+            float buttonWidth = UIHelper.CalculateButtonWidth(buttonText);
+
+            // Check if button fits on current line (accounting for spacing)
+            float neededWidth = buttonWidth + (isFirstButton ? 0 : buttonSpacing);
+
+            if (!isFirstButton && currentLineWidth + neededWidth > availableWidth)
+            {
+                // Start new line with compact spacing
+                currentY += ImGui.GetFrameHeight() + lineSpacing;
+                ImGui.SetCursorPos(new Vector2(ImGui.GetCursorStartPos().X, currentY));
+                currentLineWidth = 0f;
+                isFirstButton = true;
+            }
+
+            // Add spacing if not first button on line
+            if (!isFirstButton)
+            {
+                ImGui.SameLine();
+            }
+
+            // Render button
+            if (isDisabled)
+            {
+                ImGui.BeginDisabled();
+            }
+
+            if (ImGui.Button(buttonText))
+            {
+                buttonAction();
+            }
+
+            if (isDisabled)
+            {
+                ImGui.EndDisabled();
+
+                // Show tooltip if provided
+                if (!string.IsNullOrEmpty(tooltip) && ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(tooltip);
+                }
+            }
+
+            // Update line width tracking
+            currentLineWidth += neededWidth;
+            isFirstButton = false;
+        }
+
+        // Render monitoring button
+        if (isMonitoring)
+        {
+            RenderButtonWithWrap(Strings.StopMonitoring, () => plugin.ChatMonitorService.StopMonitoring());
+        }
+        else
+        {
+            RenderButtonWithWrap(Strings.StartMonitoring, () => plugin.ChatMonitorService.StartMonitoring());
+        }
+
+        // Render clear all button
+        RenderButtonWithWrap(Strings.ClearAll, () => {
+            plugin.TreasureHuntService.ClearCoordinates();
+
+            // Reset route optimization if it was active
+            if (plugin.TreasureHuntService.IsRouteOptimized)
+            {
+                plugin.TreasureHuntService.ResetRouteOptimization();
+            }
+
+            ClearEditingStates(); // Clear editing states when coordinates are cleared
+        });
+
+        // Render optimize/reset button
+        if (plugin.TreasureHuntService.IsRouteOptimized)
+        {
+            RenderButtonWithWrap(Strings.ResetOptimization, () => {
+                plugin.TreasureHuntService.ResetRouteOptimization();
+                ClearEditingStates(); // Clear editing states when optimization is reset
+            });
+        }
+        else
+        {
+            bool hasCoordinates = plugin.TreasureHuntService.Coordinates.Count > 0;
+            RenderButtonWithWrap(Strings.OptimizeRoute,
+                () => plugin.TreasureHuntService.OptimizeRoute(),
+                !hasCoordinates,
+                Strings.NoCoordinatesToOptimize);
+        }
+
+        // Render export button
+        RenderButtonWithWrap(Strings.Export, () => {
+            var exportedData = plugin.TreasureHuntService.ExportCoordinates();
+            if (!string.IsNullOrEmpty(exportedData))
+            {
+                ImGui.SetClipboardText(exportedData);
+                Plugin.ChatGui.Print(Strings.Status.CoordinatesExportedToClipboard);
+            }
+        });
+
+        // Render import button
+        RenderButtonWithWrap(Strings.Import, () => {
+            var clipboardText = ImGui.GetClipboardText();
+            if (!string.IsNullOrEmpty(clipboardText))
+            {
+                var importedCount = plugin.TreasureHuntService.ImportCoordinates(clipboardText);
+                if (importedCount > 0)
+                {
+                    Plugin.ChatGui.Print(Strings.Messages.CoordinatesImportedFromClipboard(importedCount));
+                }
+                else
+                {
+                    Plugin.ChatGui.Print(Strings.Status.NoCoordinatesImported);
+                }
+            }
+            else
+            {
+                Plugin.ChatGui.Print(Strings.ClipboardEmpty);
+            }
+        });
     }
 
     private void OnCoordinatesImported(object? sender, int count)

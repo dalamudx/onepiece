@@ -41,8 +41,8 @@ public class CustomMessageWindow : Window, IDisposable
         
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(650, 450),
-            MaximumSize = new Vector2(1000, 800)
+            MinimumSize = new Vector2(900, 450), // Increased minimum width to accommodate German text
+            MaximumSize = new Vector2(1400, 800) // Increased maximum width for better flexibility
         };
 
         this.plugin = plugin;
@@ -59,9 +59,9 @@ public class CustomMessageWindow : Window, IDisposable
         // Get window width for centering
         float windowWidth = ImGui.GetWindowWidth();
         
-        // Left and right panels
-        float leftPanelWidth = windowWidth * 0.4f;
-        float rightPanelWidth = windowWidth * 0.58f;
+        // Left and right panels - further optimized for better button display in right panel
+        float leftPanelWidth = windowWidth * 0.35f; // Further reduced left panel width
+        float rightPanelWidth = windowWidth * 0.63f; // Significantly increased right panel width for optimal button layout
         
         // Left panel - Templates and Custom Messages
         DrawLeftPanel(leftPanelWidth);
@@ -166,9 +166,9 @@ public class CustomMessageWindow : Window, IDisposable
                     
                     ImGui.PopStyleColor(3);
                 }
-                
+
                 ImGui.SameLine();
-                
+
                 if (ImGui.Button(Strings.DeleteTemplate))
                 {
                     // Adjust active template index if needed
@@ -180,10 +180,10 @@ public class CustomMessageWindow : Window, IDisposable
                     {
                         plugin.Configuration.ActiveTemplateIndex--;
                     }
-                    
+
                     plugin.Configuration.MessageTemplates.RemoveAt(selectedTemplateIndex);
                     plugin.Configuration.Save();
-                    
+
                     selectedTemplateIndex = -1;
                     UpdateCurrentTemplate();
                 }
@@ -345,30 +345,53 @@ public class CustomMessageWindow : Window, IDisposable
         }
         else
         {
-            // Display components with simple list view (no drag and drop)
+            // Display components with unified layout and right-aligned buttons
             for (int i = 0; i < componentsToEdit.Count; i++)
             {
                 // Get component text for display
                 string componentText = GetComponentDisplayText(componentsToEdit[i]);
+                string displayText = $"{i + 1}. {componentText}";
 
                 ImGui.PushID($"component_{i}");
 
-                // Simple display without drag functionality
-                ImGui.Text($"{i + 1}. {componentText}");
+                // Use unified coordinate rendering for consistent layout
+                float availableWidth = ImGui.GetContentRegionAvail().X;
+                int buttonCount = canEdit ? 3 : 0; // MoveUp + MoveDown + Delete when editing is allowed
+
+                var layoutInfo = UIHelper.RenderCoordinateEntry(displayText, false, availableWidth, buttonCount);
 
                 // Only show edit buttons if editing is allowed
                 if (canEdit)
                 {
-                    // Up/Down buttons for reordering with fixed width and tooltips
-                    ImGui.SameLine();
-                    string moveUpText = Strings.MoveUp;
-                    // Check if window width is too small for full text
-                    if (ImGui.GetWindowWidth() < 550)
+                    // Calculate button widths
+                    float moveUpButtonWidth = UIHelper.CalculateButtonWidth(Strings.MoveUp);
+                    float moveDownButtonWidth = UIHelper.CalculateButtonWidth(Strings.MoveDown);
+                    float deleteButtonWidth = UIHelper.CalculateButtonWidth(Strings.Delete);
+
+                    float buttonSpacing = 8f;
+                    float rightMargin = 15f; // Consistent right margin for all languages
+                    float componentWindowWidth = ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX();
+
+                    // Calculate button positions from right to left to ensure consistent right margin
+                    // Position 3: Delete button (rightmost)
+                    float deleteButtonX = componentWindowWidth - rightMargin - deleteButtonWidth;
+
+                    // Position 2: Move Down button
+                    float moveDownButtonX = deleteButtonX - buttonSpacing - moveDownButtonWidth;
+
+                    // Position 1: Move Up button (leftmost)
+                    float moveUpButtonX = moveDownButtonX - buttonSpacing - moveUpButtonWidth;
+
+                    // Render Move Up button
+                    ImGui.SetCursorPos(new Vector2(moveUpButtonX, layoutInfo.LineStartY));
+
+                    // Disable move up button if this is the first item
+                    if (i == 0)
                     {
-                        moveUpText = "↑"; // Use just an up arrow symbol if window is small
+                        ImGui.BeginDisabled();
                     }
 
-                    if (i > 0 && ImGui.SmallButton(moveUpText + "##" + i))
+                    if (ImGui.SmallButton($"{Strings.MoveUp}##moveup{i}"))
                     {
                         // Move component up
                         var component = componentsToEdit[i];
@@ -383,15 +406,21 @@ public class CustomMessageWindow : Window, IDisposable
                         ImGui.SetTooltip(Strings.MoveUp);
                     }
 
-                    ImGui.SameLine();
-                    string moveDownText = Strings.MoveDown;
-                    // Check if window width is too small for full text
-                    if (ImGui.GetWindowWidth() < 550)
+                    if (i == 0)
                     {
-                        moveDownText = "↓"; // Use just a down arrow symbol if window is small
+                        ImGui.EndDisabled();
                     }
 
-                    if (i < componentsToEdit.Count - 1 && ImGui.SmallButton(moveDownText + "##" + i))
+                    // Render Move Down button
+                    ImGui.SetCursorPos(new Vector2(moveDownButtonX, layoutInfo.LineStartY));
+
+                    // Disable move down button if this is the last item
+                    if (i >= componentsToEdit.Count - 1)
+                    {
+                        ImGui.BeginDisabled();
+                    }
+
+                    if (ImGui.SmallButton($"{Strings.MoveDown}##movedown{i}"))
                     {
                         // Move component down
                         var component = componentsToEdit[i];
@@ -406,16 +435,15 @@ public class CustomMessageWindow : Window, IDisposable
                         ImGui.SetTooltip(Strings.MoveDown);
                     }
 
-                    // Remove button with adaptive text based on window width
-                    ImGui.SameLine();
-                    string deleteText = Strings.Delete;
-                    // Check if window width is too small for full text
-                    if (ImGui.GetWindowWidth() < 550)
+                    if (i >= componentsToEdit.Count - 1)
                     {
-                        deleteText = Strings.DeleteButtonShort; // Use localized short text if window is small
+                        ImGui.EndDisabled();
                     }
 
-                    if (ImGui.SmallButton(deleteText + "##" + i))
+                    // Render Delete button
+                    ImGui.SetCursorPos(new Vector2(deleteButtonX, layoutInfo.LineStartY));
+
+                    if (ImGui.SmallButton($"{Strings.Delete}##delete{i}"))
                     {
                         componentsToEdit.RemoveAt(i);
                         SaveComponentChanges();
@@ -428,6 +456,10 @@ public class CustomMessageWindow : Window, IDisposable
                         ImGui.SetTooltip(Strings.Delete);
                     }
                 }
+
+                // Move cursor to next line, accounting for text height
+                float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
+                ImGui.SetCursorPosY(nextLineY);
 
                 ImGui.PopID();
             }

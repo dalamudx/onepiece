@@ -46,6 +46,7 @@ public static class Strings
     // Chat and Communication
     public static string SendToChat => Current.SendToChat;
     public static string SelectChatChannel => Current.SelectChatChannel;
+    public static string CurrentChannel => Current.CurrentChannel;
     public static string StartMonitoring => Current.StartMonitoring;
     public static string StopMonitoring => Current.StopMonitoring;
 
@@ -91,7 +92,6 @@ public static class Strings
     // Examples and Previews
     public static string PlayerNameExample => Current.PlayerNameExample;
     public static string LocationExample => Current.LocationExample;
-    public static string DeleteButtonShort => Current.DeleteButtonShort;
 
     // Chat Channels
     public static class ChatChannels

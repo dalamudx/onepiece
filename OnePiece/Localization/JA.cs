@@ -41,6 +41,7 @@ public class JA : ILocalizationData
     // Chat and Communication
     public string SendToChat => "チャットに送信";
     public string SelectChatChannel => "チャンネルを選択";
+    public string CurrentChannel => "現在のチャンネル";
     public string StartMonitoring => "監視開始";
     public string StopMonitoring => "監視停止";
 
@@ -86,7 +87,6 @@ public class JA : ILocalizationData
     // Examples and Previews
     public string PlayerNameExample => "Tataru Taru";
     public string LocationExample => "リムサ・ロミンサ：下甲板層 ( 9.5 , 11.2 )";
-    public string DeleteButtonShort => "X";
 
     // Chat Channels
     public string Say => "会話";

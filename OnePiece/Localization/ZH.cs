@@ -41,6 +41,7 @@ public class ZH : ILocalizationData
     // Chat and Communication
     public string SendToChat => "发送到聊天";
     public string SelectChatChannel => "选择频道";
+    public string CurrentChannel => "当前频道";
     public string StartMonitoring => "开始监控";
     public string StopMonitoring => "停止监控";
 
@@ -86,7 +87,6 @@ public class ZH : ILocalizationData
     // Examples and Previews
     public string PlayerNameExample => "Tataru Taru";
     public string LocationExample => "利姆萨·罗敏萨下层甲板 ( 9.5 , 11.2 )";
-    public string DeleteButtonShort => "X";
 
     // Chat Channels
     public string Say => "说话";

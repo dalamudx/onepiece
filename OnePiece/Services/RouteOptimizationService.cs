@@ -169,6 +169,9 @@ public class RouteOptimizationService
         var currentEnglishMapArea = MapAreaHelper.GetEnglishMapArea(currentMapArea, plugin.MapAreaTranslationService);
         var mapAreaTeleportCosts = await GetAllMapAreaTeleportCostsAsync(currentEnglishMapArea, coordinatesByMap.Keys.ToList(), cancellationToken);
 
+        // Keep track of player's actual physical location (never changes unless player actually teleports)
+        var playerActualMapArea = currentEnglishMapArea;
+
         // Process all map areas until all coordinates are visited
         while (coordinatesByMap.Count > 0)
         {
@@ -178,13 +181,15 @@ public class RouteOptimizationService
             string nextMapArea;
 
             // If player is already in a map area with coordinates, prioritize that
-            if (coordinatesByMap.ContainsKey(currentEnglishMapArea))
+            if (coordinatesByMap.ContainsKey(playerActualMapArea))
             {
-                nextMapArea = currentEnglishMapArea;
+                nextMapArea = playerActualMapArea;
+                Plugin.Log.Information($"Player is in map area with coordinates: {playerActualMapArea}");
             }
             else
             {
-                nextMapArea = FindBestMapAreaToVisit(currentLocation, coordinatesByMap, mapAreaTeleportCosts);
+                // For cross-map routing, use player's actual location for cost calculation
+                nextMapArea = FindBestMapAreaToVisit(currentLocation, coordinatesByMap, mapAreaTeleportCosts, playerActualMapArea);
             }
 
             var mapCoordinates = coordinatesByMap[nextMapArea];
@@ -214,13 +219,16 @@ public class RouteOptimizationService
             // Check if player needs to teleport to the map area
             bool needsTeleport = false;
 
-            Plugin.Log.Information($"Teleport decision: currentMapArea='{currentMapArea}', currentEnglishMapArea='{currentEnglishMapArea}', nextMapArea='{nextMapArea}', mapCoordinates.Count={mapCoordinates.Count}");
+            Plugin.Log.Information($"Teleport decision: playerActualMapArea='{playerActualMapArea}', nextMapArea='{nextMapArea}', mapCoordinates.Count={mapCoordinates.Count}");
 
-            if (currentEnglishMapArea != nextMapArea)
+            if (playerActualMapArea != nextMapArea)
             {
                 // Different map - definitely need to teleport
                 needsTeleport = true;
-                Plugin.Log.Information($"Different map areas - teleport required");
+                Plugin.Log.Information($"Cross-map teleport required: {playerActualMapArea} -> {nextMapArea}");
+
+                // Update player's actual location after teleport
+                playerActualMapArea = nextMapArea;
             }
             else if (mapCoordinates.Count > 0)
             {
@@ -326,13 +334,12 @@ public class RouteOptimizationService
                 
                 // Update the current location to the last coordinate in this map area
                 currentLocation = mapRoute.Last();
-                // Translate the current map area to English for next iteration
-                currentEnglishMapArea = MapAreaHelper.GetEnglishMapAreaFromCoordinate(currentLocation, plugin.MapAreaTranslationService);
 
                 // Update teleport costs if there are more areas to visit
+                // Use player's actual location for cost calculation, not the logical route position
                 if (coordinatesByMap.Count > 1)
                 {
-                    mapAreaTeleportCosts = GetAllMapAreaTeleportCosts(currentEnglishMapArea, coordinatesByMap.Keys.ToList());
+                    mapAreaTeleportCosts = GetAllMapAreaTeleportCosts(playerActualMapArea, coordinatesByMap.Keys.ToList());
                 }
             }
 
@@ -414,36 +421,38 @@ public class RouteOptimizationService
 
     /// <summary>
     /// Finds the best map area to visit next based on teleport costs and distances.
+    /// For cross-map routing, prioritizes lower teleport cost over distance.
     /// </summary>
     /// <param name="currentLocation">The current location.</param>
     /// <param name="coordinatesByMap">The coordinates grouped by map area.</param>
     /// <param name="mapAreaTeleportCosts">Dictionary of map areas to their teleport costs.</param>
+    /// <param name="playerActualMapArea">Player's actual current map area for cost calculation.</param>
     /// <returns>The best map area to visit next.</returns>
     private string FindBestMapAreaToVisit(
-        TreasureCoordinate currentLocation, 
+        TreasureCoordinate currentLocation,
         Dictionary<string, List<TreasureCoordinate>> coordinatesByMap,
-        Dictionary<string, uint> mapAreaTeleportCosts)
+        Dictionary<string, uint> mapAreaTeleportCosts,
+        string playerActualMapArea = null)
     {
         // If no map areas, return empty string
         if (coordinatesByMap.Count == 0)
             return string.Empty;
             
+        // Use player's actual map area if provided, otherwise use current location
+        var actualMapArea = playerActualMapArea ?? MapAreaHelper.GetEnglishMapAreaFromCoordinate(currentLocation, plugin.MapAreaTranslationService);
+
         // If we're already in a map area with coordinates, prioritize that
-        // Translate current location's map area to English for comparison
-        var currentLocationEnglishMapArea = MapAreaHelper.GetEnglishMapAreaFromCoordinate(currentLocation, plugin.MapAreaTranslationService);
-        if (!string.IsNullOrEmpty(currentLocationEnglishMapArea) && coordinatesByMap.ContainsKey(currentLocationEnglishMapArea))
+        if (!string.IsNullOrEmpty(actualMapArea) && coordinatesByMap.ContainsKey(actualMapArea))
         {
-            return currentLocationEnglishMapArea;
+            Plugin.Log.Information($"Player is already in map area with coordinates: {actualMapArea}");
+            return actualMapArea;
         }
 
+        Plugin.Log.Information($"Cross-map routing: selecting best map area from player location: {actualMapArea}");
+
         // Calculate the score for each map area (lower is better)
+        // For cross-map routing, prioritize teleport cost heavily over distance
         var mapAreaScores = new Dictionary<string, float>();
-
-        // Calculate the number of coordinates in each map area
-        var coordinatesPerMap = coordinatesByMap.ToDictionary(kv => kv.Key, kv => kv.Value.Count);
-
-        // Get the total number of coordinates
-        var totalCoordinates = coordinatesPerMap.Values.Sum();
 
         foreach (var mapArea in coordinatesByMap.Keys)
         {
@@ -481,26 +490,26 @@ public class RouteOptimizationService
             }
 
             // Calculate the final score (lower is better)
-            // Primary factor: teleport cost (most important)
-            // Secondary factor: distance to nearest coordinate (minor consideration)
+            // For cross-map routing: teleport cost is PRIMARY factor, distance is minimal tiebreaker
+            // This ensures we always choose the cheapest teleport option first
 
-            // Use teleport cost directly as primary score, with distance as tiebreaker
-            float teleportCostScore = teleportCost; // Use actual cost, not normalized
-            float distanceScore = distanceToNearest * 10.0f; // Scale distance to be comparable but secondary
+            float teleportCostScore = teleportCost; // Primary factor: actual gil cost
+            float distanceScore = distanceToNearest * 1.0f; // Minimal tiebreaker: reduced from 10.0f to 1.0f
 
             float score = teleportCostScore + distanceScore;
 
             // Add debug logging to understand scoring decisions
-            Plugin.Log.Information($"Map area scoring - {mapArea}: teleportCost={teleportCost}, distance={distanceToNearest:F1}, teleportScore={teleportCostScore:F0}, distanceScore={distanceScore:F1}, finalScore={score:F1}");
+            Plugin.Log.Information($"Cross-map scoring - {mapArea}: teleportCost={teleportCost} gil, distance={distanceToNearest:F1}, teleportScore={teleportCostScore:F0}, distanceScore={distanceScore:F1}, finalScore={score:F1}");
 
             mapAreaScores[mapArea] = score;
         }
         
-        // Return the map area with the lowest score
+        // Return the map area with the lowest score (cheapest teleport cost)
         var bestMapArea = mapAreaScores.OrderBy(kv => kv.Value).First().Key;
         var bestScore = mapAreaScores[bestMapArea];
+        var bestTeleportCost = mapAreaTeleportCosts.TryGetValue(bestMapArea, out var bestCost) ? bestCost : uint.MaxValue;
 
-        Plugin.Log.Information($"Selected map area: {bestMapArea} with score {bestScore:F1} (lower is better)");
+        Plugin.Log.Information($"Cross-map selection: {bestMapArea} with score {bestScore:F1} (teleport cost: {bestTeleportCost} gil) - prioritizing lowest cost");
 
         return bestMapArea;
     }

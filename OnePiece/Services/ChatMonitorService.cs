@@ -328,12 +328,10 @@ private void ExtractCoordinates(string messageText, string playerName)
             // Use the cleaned player name to create the coordinate with original map area name
             var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", playerName);
 
-            log.Information($"Detected coordinate from {playerName}: {mapArea} ({x}, {y})");
+            log.Information($"Coordinate detected from {playerName}: {mapArea} ({x}, {y})");
 
             // Directly add the coordinate to preserve player name instead of re-importing
             plugin.TreasureHuntService.AddCoordinate(coordinate);
-
-            log.Information(Strings.Messages.CoordinateDetected(playerName, coordinate.ToString()));
 
             // Raise the event
             OnCoordinateDetected?.Invoke(this, coordinate);
@@ -403,12 +401,10 @@ public bool ProcessChatMessage(string playerName, string message)
                     // Create coordinate with original map area name for display
                     var coordinate = new TreasureCoordinate(x, y, mapArea, CoordinateSystemType.Map, "", effectivePlayerName);
 
-                    log.Information($"Manually processed coordinate from {effectivePlayerName}: {mapArea} ({x}, {y})");
+                    log.Information($"Coordinate detected from {effectivePlayerName}: {mapArea} ({x}, {y})");
 
                     // Directly add the coordinate to preserve player name instead of re-importing
                     plugin.TreasureHuntService.AddCoordinate(coordinate);
-
-                    log.Information(Strings.Messages.CoordinateDetected(effectivePlayerName, coordinate.ToString()));
 
                     // Raise the event
                     OnCoordinateDetected?.Invoke(this, coordinate);
@@ -605,8 +601,6 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                         log.Information($"Successfully sent map link to {channelName} (no active template)");
                     }
                     
-                    log.Information($"Successfully sent to {channelName}");
-                    
                     return;
                 }
                 else
@@ -635,8 +629,6 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                         log.Information($"Successfully sent coordinate text to {channelName}: {coordText}");
                     }
                 }
-                
-                log.Information($"Successfully sent to {channelName}");
             }
             catch (Exception ex)
             {

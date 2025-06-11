@@ -901,7 +901,7 @@ public class MainWindow : Window, IDisposable
             if (!string.IsNullOrEmpty(exportedData))
             {
                 ImGui.SetClipboardText(exportedData);
-                Plugin.ChatGui.Print(Strings.Status.CoordinatesExportedToClipboard);
+                Plugin.Log.Information(Strings.Status.CoordinatesExportedToClipboard);
             }
         });
 
@@ -913,29 +913,29 @@ public class MainWindow : Window, IDisposable
                 var importedCount = plugin.TreasureHuntService.ImportCoordinates(clipboardText);
                 if (importedCount > 0)
                 {
-                    Plugin.ChatGui.Print(Strings.Messages.CoordinatesImportedFromClipboard(importedCount));
+                    Plugin.Log.Information(Strings.Messages.CoordinatesImportedFromClipboard(importedCount));
                 }
                 else
                 {
-                    Plugin.ChatGui.Print(Strings.Status.NoCoordinatesImported);
+                    Plugin.Log.Information(Strings.Status.NoCoordinatesImported);
                 }
             }
             else
             {
-                Plugin.ChatGui.Print(Strings.ClipboardEmpty);
+                Plugin.Log.Information(Strings.ClipboardEmpty);
             }
         });
     }
 
     private void OnCoordinatesImported(object? sender, int count)
     {
-        Plugin.ChatGui.Print(Strings.Messages.CoordinatesImported(count));
+        Plugin.Log.Information(Strings.Messages.CoordinatesImported(count));
         ClearEditingStates(); // Clear editing states when coordinates are imported
     }
 
     private void OnRouteOptimized(object? sender, int count)
     {
-        Plugin.ChatGui.Print(Strings.Messages.RouteOptimized(count));
+        Plugin.Log.Information(Strings.Messages.RouteOptimized(count));
         ClearEditingStates(); // Clear editing states when route is optimized
     }
 

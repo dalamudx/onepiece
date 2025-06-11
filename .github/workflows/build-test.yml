@@ -107,8 +107,7 @@ jobs:
 
         # Check optional directories
         $optionalDirs = @(
-          "$releaseDir/img",
-          "$releaseDir/Localization"
+          "$releaseDir/img"
         )
 
         foreach ($dir in $optionalDirs) {

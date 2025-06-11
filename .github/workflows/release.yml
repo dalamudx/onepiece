@@ -57,7 +57,6 @@ jobs:
           Copy-Item "$releaseDir/ECommons.dll" $packageDir -ErrorAction SilentlyContinue
           Copy-Item "$releaseDir/aetheryte.json" $packageDir -ErrorAction SilentlyContinue
           Copy-Item "$releaseDir/img" $packageDir -Recurse -ErrorAction SilentlyContinue
-          Copy-Item "$releaseDir/Localization" $packageDir -Recurse -ErrorAction SilentlyContinue
 
           Compress-Archive -Path "$packageDir/*" -DestinationPath "OnePiece.zip" -Force
         } else {

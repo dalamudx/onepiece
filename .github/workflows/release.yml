@@ -1,4 +1,4 @@
-name: OnePiece Build and Release
+name: Build and Release
 
 on:
   push:
@@ -32,36 +32,39 @@ jobs:
         dotnet-version: '9.0.x'
 
     - name: Download Dalamud
-      shell: pwsh
       run: |
-        Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -OutFile latest.zip
-        Expand-Archive -Force latest.zip /tmp/dalamud
+        wget https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -O latest.zip
+        unzip -o latest.zip -d /tmp/dalamud
 
     - name: Build
       run: dotnet build -c Release
 
     - name: Prepare Build Artifact
-      shell: pwsh
       run: |
-        Copy-Item "OnePiece/bin/Release/OnePiece/latest.zip" -Destination "OnePiece.zip" -ErrorAction SilentlyContinue
-        if (-not (Test-Path "OnePiece.zip")) {
-          # If the expected path doesn't exist, create the package manually
-          $releaseDir = "OnePiece/bin/Release"
-          $packageDir = "Artifact"
+        # Check if the plugin build system created a zip
+        if [ -f "OnePiece/bin/Release/OnePiece/latest.zip" ]; then
+          cp "OnePiece/bin/Release/OnePiece/latest.zip" "OnePiece.zip"
+          mkdir -p Artifact
+          unzip -o OnePiece.zip -d Artifact
+        else
+          # Create the package manually
+          releaseDir="OnePiece/bin/Release"
+          packageDir="Artifact"
 
-          New-Item -ItemType Directory -Path $packageDir -Force
+          mkdir -p "$packageDir"
 
           # Copy required files
-          Copy-Item "$releaseDir/OnePiece.dll" $packageDir -ErrorAction SilentlyContinue
-          Copy-Item "$releaseDir/OnePiece.json" $packageDir -ErrorAction SilentlyContinue
-          Copy-Item "$releaseDir/ECommons.dll" $packageDir -ErrorAction SilentlyContinue
-          Copy-Item "$releaseDir/aetheryte.json" $packageDir -ErrorAction SilentlyContinue
-          Copy-Item "$releaseDir/img" $packageDir -Recurse -ErrorAction SilentlyContinue
+          cp "$releaseDir/OnePiece.dll" "$packageDir/" 2>/dev/null || true
+          cp "$releaseDir/OnePiece.json" "$packageDir/" 2>/dev/null || true
+          cp "$releaseDir/ECommons.dll" "$packageDir/" 2>/dev/null || true
+          cp "$releaseDir/aetheryte.json" "$packageDir/" 2>/dev/null || true
+          cp -r "$releaseDir/img" "$packageDir/" 2>/dev/null || true
 
-          Compress-Archive -Path "$packageDir/*" -DestinationPath "OnePiece.zip" -Force
-        } else {
-          Expand-Archive -Force OnePiece.zip Artifact
-        }
+          # Create zip
+          cd "$packageDir"
+          zip -r "../OnePiece.zip" .
+          cd ..
+        fi
 
     - name: Upload OnePiece
       uses: actions/upload-artifact@v4
@@ -70,67 +73,65 @@ jobs:
         path: Artifact/*
 
     - name: Update repo.json if needed
-      shell: pwsh
       run: |
-        $repoArray = Get-Content 'repo.json' -raw | ConvertFrom-Json
-        $repo = $repoArray[0]  # Get the first (and only) plugin entry
-        $build = Get-Content 'OnePiece/bin/Release/OnePiece.json' -raw | ConvertFrom-Json
+        # Install jq for JSON processing
+        sudo apt-get update && sudo apt-get install -y jq
 
-        if ($repo.AssemblyVersion -eq $build.AssemblyVersion) {
-          Write-Output "No version change detected. Current version: $($repo.AssemblyVersion)"
-          Exit
-        }
+        # Get versions
+        repo_version=$(jq -r '.[0].AssemblyVersion' repo.json)
+        build_version=$(jq -r '.AssemblyVersion' OnePiece/bin/Release/OnePiece.json)
 
-        Write-Output "Version change detected: $($repo.AssemblyVersion) -> $($build.AssemblyVersion)"
-        Write-Output "RELEASE_VERSION=$($build.AssemblyVersion)" >> $env:GITHUB_ENV
+        echo "Repository version: $repo_version"
+        echo "Build version: $build_version"
+
+        if [ "$repo_version" = "$build_version" ]; then
+          echo "No version change detected. Current version: $repo_version"
+          exit 0
+        fi
+
+        echo "Version change detected: $repo_version -> $build_version"
+        echo "RELEASE_VERSION=$build_version" >> $GITHUB_ENV
 
         # Get current download count
-        $totalDownloads = 0
-        try {
-          $headers = @{
-            'Authorization' = 'Bearer ${{ secrets.GITHUB_TOKEN }}'
-            'Accept' = 'application/vnd.github.v3+json'
-          }
+        total_downloads=0
+        if response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                          -H "Accept: application/vnd.github.v3+json" \
+                          "https://api.github.com/repos/${{ github.repository }}/releases"); then
+          total_downloads=$(echo "$response" | jq '[.[].assets[].download_count] | add // 0')
+          echo "Current total download count: $total_downloads"
+        else
+          echo "Failed to get download count, using 0"
+          total_downloads=0
+        fi
 
-          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases" -Headers $headers
-
-          foreach ($release in $releases) {
-            foreach ($asset in $release.assets) {
-              $totalDownloads += $asset.download_count
-            }
-          }
-
-          Write-Output "Current total download count: $totalDownloads"
-        } catch {
-          Write-Warning "Failed to get download count, using 0"
-          $totalDownloads = 0
-        }
-
-        # Update repo.json
-        $repo.AssemblyVersion = $build.AssemblyVersion
-        $repo.LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-        $repo.DownloadCount = [int]$totalDownloads
+        # Get current timestamp in milliseconds
+        timestamp=$(date +%s)000
 
         # Use provided changelog or default
-        $changelog = "${{ github.event.inputs.changelog }}"
-        if ([string]::IsNullOrWhiteSpace($changelog)) {
-          $changelog = "- Bug fixes and improvements"
-        }
-        $repo.Changelog = $changelog
+        changelog="${{ github.event.inputs.changelog }}"
+        if [ -z "$changelog" ]; then
+          changelog="- Bug fixes and improvements"
+        fi
 
-        # Update download links
-        $repo.DownloadLinkInstall = 'https://github.com/${{ github.repository }}/releases/download/v' + $repo.AssemblyVersion + '/OnePiece.zip'
-        $repo.DownloadLinkUpdate = $repo.DownloadLinkInstall
+        # Update repo.json using jq
+        jq --arg version "$build_version" \
+           --arg timestamp "$timestamp" \
+           --arg downloads "$total_downloads" \
+           --arg changelog "$changelog" \
+           --arg install_url "https://github.com/${{ github.repository }}/releases/download/v$build_version/OnePiece.zip" \
+           '.[0].AssemblyVersion = $version |
+            .[0].LastUpdate = ($timestamp | tonumber) |
+            .[0].DownloadCount = ($downloads | tonumber) |
+            .[0].Changelog = $changelog |
+            .[0].DownloadLinkInstall = $install_url |
+            .[0].DownloadLinkUpdate = $install_url' \
+           repo.json > repo.json.tmp && mv repo.json.tmp repo.json
 
-        # Save back as array
-        $repoArray[0] = $repo
-        $repoArray | ConvertTo-Json -Depth 10 | Set-Content 'repo.json'
-
-        Write-Output "Updated repo.json:"
-        Write-Output "- AssemblyVersion: $($repo.AssemblyVersion)"
-        Write-Output "- LastUpdate: $($repo.LastUpdate)"
-        Write-Output "- DownloadCount: $($repo.DownloadCount)"
-        Write-Output "- Changelog: $($repo.Changelog)"
+        echo "Updated repo.json:"
+        echo "- AssemblyVersion: $build_version"
+        echo "- LastUpdate: $timestamp"
+        echo "- DownloadCount: $total_downloads"
+        echo "- Changelog: $changelog"
 
     - name: Create Release
       if: ${{ env.RELEASE_VERSION != '0.0.0.0' }}

@@ -1,4 +1,4 @@
-name: OnePiece Build Test
+name: Build Test
 
 on:
   push:
@@ -25,103 +25,101 @@ jobs:
         dotnet-version: '9.0.x'
 
     - name: Download Dalamud
-      shell: pwsh
       run: |
-        Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -OutFile latest.zip
-        Expand-Archive -Force latest.zip /tmp/dalamud
+        wget https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -O latest.zip
+        unzip -o latest.zip -d /tmp/dalamud
 
     - name: Build
       run: dotnet build -c Release
 
     - name: Validate repo.json format
-      shell: pwsh
       run: |
-        try {
-          $repoArray = Get-Content "repo.json" -Raw | ConvertFrom-Json
-          Write-Output "✓ repo.json is valid JSON"
+        # Install jq for JSON processing
+        sudo apt-get update && sudo apt-get install -y jq
 
-          $plugin = $repoArray[0]  # Get the first plugin entry
-          $requiredFields = @('Author', 'Name', 'InternalName', 'AssemblyVersion', 'RepoUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate')
-
-          foreach ($field in $requiredFields) {
-            if (-not $plugin.$field) {
-              Write-Error "Missing required field: $field"
-              exit 1
-            }
-          }
-
-          Write-Output "✓ All required fields present in repo.json"
-          Write-Output "Current version: $($plugin.AssemblyVersion)"
-        } catch {
-          Write-Error "Invalid repo.json format: $_"
+        # Validate JSON format
+        if ! jq empty repo.json 2>/dev/null; then
+          echo "❌ repo.json is not valid JSON"
           exit 1
-        }
+        fi
+        echo "✅ repo.json is valid JSON"
+
+        # Check required fields
+        required_fields=("Author" "Name" "InternalName" "AssemblyVersion" "RepoUrl" "DownloadLinkInstall" "DownloadLinkUpdate")
+
+        for field in "${required_fields[@]}"; do
+          value=$(jq -r ".[0].$field // empty" repo.json)
+          if [ -z "$value" ] || [ "$value" = "null" ]; then
+            echo "❌ Missing required field: $field"
+            exit 1
+          fi
+          echo "✅ Found field: $field"
+        done
+
+        current_version=$(jq -r '.[0].AssemblyVersion' repo.json)
+        echo "Current version: $current_version"
 
     - name: Check version consistency
-      shell: pwsh
       run: |
-        # Get version from build output
-        $buildJson = Get-Content "OnePiece/bin/Release/OnePiece.json" -Raw | ConvertFrom-Json
-        $buildVersion = $buildJson.AssemblyVersion
+        # Get versions using jq
+        build_version=$(jq -r '.AssemblyVersion' OnePiece/bin/Release/OnePiece.json)
+        repo_version=$(jq -r '.[0].AssemblyVersion' repo.json)
 
-        # Get version from repo.json
-        $repoArray = Get-Content "repo.json" -Raw | ConvertFrom-Json
-        $repoVersion = $repoArray[0].AssemblyVersion
+        echo "Build output version: $build_version"
+        echo "repo.json version: $repo_version"
 
-        Write-Output "Build output version: $buildVersion"
-        Write-Output "repo.json version: $repoVersion"
-
-        if ($buildVersion -ne $repoVersion) {
-          Write-Output "Version difference detected: $repoVersion -> $buildVersion"
-          Write-Output "This will trigger a release when pushed to master"
-        } else {
-          Write-Output "✓ Versions are consistent"
-        }
+        if [ "$build_version" != "$repo_version" ]; then
+          echo "🔄 Version difference detected: $repo_version -> $build_version"
+          echo "This will trigger a release when pushed to master"
+        else
+          echo "✅ Versions are consistent"
+        fi
 
     - name: Test package creation
-      shell: pwsh
       run: |
-        $releaseDir = "OnePiece/bin/Release"
-        $packageDir = "test-package"
+        release_dir="OnePiece/bin/Release"
+        package_dir="test-package"
 
         # Create test package directory
-        New-Item -ItemType Directory -Path $packageDir -Force
+        mkdir -p "$package_dir"
 
         # Check required files exist
-        $requiredFiles = @(
-          "$releaseDir/OnePiece.dll",
-          "$releaseDir/OnePiece.json",
-          "$releaseDir/ECommons.dll",
-          "$releaseDir/aetheryte.json"
+        required_files=(
+          "$release_dir/OnePiece.dll"
+          "$release_dir/OnePiece.json"
+          "$release_dir/ECommons.dll"
+          "$release_dir/aetheryte.json"
         )
 
-        foreach ($file in $requiredFiles) {
-          if (Test-Path $file) {
-            Write-Output "✓ Found: $file"
-            Copy-Item $file $packageDir
-          } else {
-            Write-Error "Missing required file: $file"
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ Found: $file"
+            cp "$file" "$package_dir/"
+          else
+            echo "❌ Missing required file: $file"
             exit 1
-          }
-        }
+          fi
+        done
 
         # Check optional directories
-        $optionalDirs = @(
-          "$releaseDir/img"
+        optional_dirs=(
+          "$release_dir/img"
         )
 
-        foreach ($dir in $optionalDirs) {
-          if (Test-Path $dir) {
-            Write-Output "✓ Found: $dir"
-            Copy-Item $dir $packageDir -Recurse
-          } else {
-            Write-Warning "Optional directory not found: $dir"
-          }
-        }
+        for dir in "${optional_dirs[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "✅ Found: $dir"
+            cp -r "$dir" "$package_dir/"
+          else
+            echo "⚠️ Optional directory not found: $dir"
+          fi
+        done
 
         # Create test zip
-        Compress-Archive -Path "$packageDir/*" -DestinationPath "test-package.zip" -Force
-        Write-Output "✓ Test package created successfully"
+        cd "$package_dir"
+        zip -r "../test-package.zip" .
+        cd ..
+        echo "✅ Test package created successfully"
 
     - name: Upload test package
       uses: actions/upload-artifact@v4

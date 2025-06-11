@@ -1,19 +1,19 @@
 [
-    {
-      "Author": "dalamudx",
-      "Name": "One Piece",
-      "Punchline": "Plan and optimize your treasure hunt route.",
-      "Description": "Import coordinates from selected channels and enjoy your treasure hunt. Optimize routes considering player location, aetheryte costs, and distances.",
-      "InternalName": "OnePiece",
-      "RepoUrl": "https://github.com/dalamudx/onepiece",
-      "DownloadCount": 0,
-      "LastUpdate": 1716459767000,
-      "DownloadLinkInstall": "https://github.com/dalamudx/onepiece/releases/latest/download/latest.zip",
-      "DownloadLinkUpdate": "https://github.com/dalamudx/onepiece/releases/latest/download/latest.zip",
-      "AssemblyVersion": "1.0.0.0",
-      "ApplicableVersion": "any",
-      "DalamudApiLevel": "12",
-      "Changelog": "- Updated localization strings\n- Fixed Japanese log level text\n- Improved UI by removing colons from labels",
-      "IconUrl": "https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/logo.png"
-    }
+  {
+    "Author": "dalamudx",
+    "Name": "One Piece",
+    "Punchline": "Plan and optimize your treasure hunt route.",
+    "Description": "Import coordinates from selected channels and enjoy your treasure hunt. Optimize routes considering player location, aetheryte costs, and distances.",
+    "InternalName": "OnePiece",
+    "RepoUrl": "https://github.com/dalamudx/onepiece",
+    "DownloadCount": 0,
+    "LastUpdate": 1749628999000,
+    "DownloadLinkInstall": "https://github.com/dalamudx/onepiece/releases/download/v1.0.0.1/OnePiece.zip",
+    "DownloadLinkUpdate": "https://github.com/dalamudx/onepiece/releases/download/v1.0.0.1/OnePiece.zip",
+    "AssemblyVersion": "1.0.0.1",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": "12",
+    "Changelog": "- first release",
+    "IconUrl": "https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/logo.png"
+  }
 ]

@@ -8,16 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- 
+- GitHub Actions workflow for automated releases
+- PowerShell scripts for version management and release preparation
+- Automated Dalamud development environment setup in CI/CD
 
 ### Changed
-- 
+-
 
 ### Fixed
 - Fixed ImGui style color stack imbalance when clicking collected button
 
 ### Removed
-- 
+-
+
+### Technical
+- Added automated release workflow with version synchronization
+- Implemented download count tracking from GitHub API
+- Added build verification and package validation
 
 ## [1.0.0.0] - 2025-06-11
 

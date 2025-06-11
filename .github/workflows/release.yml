@@ -29,6 +29,75 @@ jobs:
       with:
         dotnet-version: '9.0.x'
 
+    - name: Setup XIVLauncher and Dalamud Development Environment
+      shell: pwsh
+      run: |
+        Write-Output "Setting up XIVLauncher and Dalamud development environment..."
+
+        # Download latest XIVLauncher Setup.exe
+        $setupUrl = "https://github.com/goatcorp/FFXIVQuickLauncher/releases/latest/download/Setup.exe"
+        $setupPath = "$env:TEMP\XIVLauncher-Setup.exe"
+
+        Write-Output "Downloading XIVLauncher Setup from: $setupUrl"
+        Invoke-WebRequest -Uri $setupUrl -OutFile $setupPath -UseBasicParsing
+
+        Write-Output "Installing XIVLauncher silently..."
+        # Install XIVLauncher silently
+        Start-Process -FilePath $setupPath -ArgumentList "/S" -Wait -NoNewWindow
+
+        # Wait a moment for installation to complete
+        Start-Sleep -Seconds 5
+
+        # Check if XIVLauncher was installed
+        $xivLauncherPath = "$env:LOCALAPPDATA\XIVLauncher\XIVLauncher.exe"
+        if (Test-Path $xivLauncherPath) {
+            Write-Output "✓ XIVLauncher installed successfully"
+        } else {
+            Write-Warning "XIVLauncher installation may have failed"
+        }
+
+        # Create Dalamud dev directory structure
+        $dalamudPath = "$env:APPDATA\XIVLauncher\addon\Hooks\dev"
+        New-Item -ItemType Directory -Path $dalamudPath -Force
+        Write-Output "✓ Created Dalamud dev directory: $dalamudPath"
+
+        # Download latest Dalamud development files
+        $dalamudUrl = "https://github.com/goatcorp/Dalamud/releases/latest/download/latest.zip"
+        $tempZip = "$env:TEMP\dalamud-latest.zip"
+
+        Write-Output "Downloading Dalamud development files..."
+        Invoke-WebRequest -Uri $dalamudUrl -OutFile $tempZip -UseBasicParsing
+
+        Write-Output "Extracting Dalamud files to $dalamudPath..."
+        Expand-Archive -Path $tempZip -DestinationPath $dalamudPath -Force
+
+        # Verify key files exist
+        $requiredFiles = @(
+            "$dalamudPath\Dalamud.dll",
+            "$dalamudPath\ImGui.NET.dll",
+            "$dalamudPath\FFXIVClientStructs.dll",
+            "$dalamudPath\Lumina.dll",
+            "$dalamudPath\Newtonsoft.Json.dll"
+        )
+
+        $foundFiles = 0
+        foreach ($file in $requiredFiles) {
+            if (Test-Path $file) {
+                Write-Output "✓ Found: $(Split-Path $file -Leaf)"
+                $foundFiles++
+            } else {
+                Write-Warning "Missing: $(Split-Path $file -Leaf)"
+            }
+        }
+
+        Write-Output "Found $foundFiles of $($requiredFiles.Count) required Dalamud files"
+
+        # Clean up temp files
+        Remove-Item $setupPath -Force -ErrorAction SilentlyContinue
+        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+
+        Write-Output "✓ Dalamud development environment setup complete"
+
     - name: Validate version format
       shell: pwsh
       run: |

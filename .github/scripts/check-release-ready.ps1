@@ -66,8 +66,47 @@ try {
     $errors += "Error checking versions: $_"
 }
 
+# Check XIVLauncher and Dalamud environment
+Write-Host "`n3. Checking XIVLauncher and Dalamud environment..." -ForegroundColor Yellow
+
+# Check XIVLauncher installation
+$xivLauncherPath = "$env:LOCALAPPDATA\XIVLauncher\XIVLauncher.exe"
+if (Test-Path $xivLauncherPath) {
+    Write-Host "   ✓ XIVLauncher installed: $xivLauncherPath" -ForegroundColor Green
+} else {
+    Write-Host "   ⚠ XIVLauncher not found" -ForegroundColor Yellow
+    $warnings += "XIVLauncher not installed. Run setup-dalamud-dev.ps1 to install it."
+}
+
+# Check Dalamud development environment
+$dalamudPath = "$env:APPDATA\XIVLauncher\addon\Hooks\dev"
+if (Test-Path $dalamudPath) {
+    Write-Host "   ✓ Dalamud dev path exists: $dalamudPath" -ForegroundColor Green
+
+    $dalamudFiles = @(
+        "$dalamudPath\Dalamud.dll",
+        "$dalamudPath\ImGui.NET.dll",
+        "$dalamudPath\FFXIVClientStructs.dll",
+        "$dalamudPath\Lumina.dll",
+        "$dalamudPath\Newtonsoft.Json.dll"
+    )
+
+    foreach ($file in $dalamudFiles) {
+        if (Test-Path $file) {
+            Write-Host "   ✓ Found: $(Split-Path $file -Leaf)" -ForegroundColor Green
+        } else {
+            Write-Host "   ✗ Missing: $(Split-Path $file -Leaf)" -ForegroundColor Red
+            $warnings += "Missing Dalamud file: $(Split-Path $file -Leaf)"
+        }
+    }
+} else {
+    Write-Host "   ⚠ Dalamud development environment not found" -ForegroundColor Yellow
+    $warnings += "Dalamud development environment not found at $dalamudPath"
+    Write-Host "   Run .\.github\scripts\setup-dalamud-dev.ps1 to set it up" -ForegroundColor Gray
+}
+
 # Check build
-Write-Host "`n3. Testing build..." -ForegroundColor Yellow
+Write-Host "`n4. Testing build..." -ForegroundColor Yellow
 try {
     $buildResult = dotnet build OnePiece.sln -c Release --verbosity quiet 2>&1
     if ($LASTEXITCODE -eq 0) {
@@ -81,7 +120,7 @@ try {
 }
 
 # Check release files
-Write-Host "`n4. Checking release output..." -ForegroundColor Yellow
+Write-Host "`n5. Checking release output..." -ForegroundColor Yellow
 $releaseDir = "OnePiece/bin/Release"
 $releaseFiles = @(
     "$releaseDir/OnePiece.dll",
@@ -113,7 +152,7 @@ foreach ($file in $debugFiles) {
 }
 
 # Check repo.json format
-Write-Host "`n5. Validating repo.json..." -ForegroundColor Yellow
+Write-Host "`n6. Validating repo.json..." -ForegroundColor Yellow
 try {
     $repoJson = Get-Content "repo.json" -Raw | ConvertFrom-Json
     $plugin = $repoJson[0]

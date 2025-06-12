@@ -48,7 +48,7 @@ public static class CoordinateDisplayHelper
         // Add player name if available and requested
         if (showPlayerName && !string.IsNullOrEmpty(coordinate.PlayerName))
         {
-            displayText += $"{coordinate.PlayerName}: ";
+            displayText += $"{coordinate.PlayerName} ";
         }
 
         // Display the base text
@@ -108,7 +108,7 @@ public static class CoordinateDisplayHelper
         
         if (showPlayerName && !string.IsNullOrEmpty(coordinate.PlayerName))
         {
-            displayText += $"{coordinate.PlayerName}: ";
+            displayText += $"{coordinate.PlayerName} ";
         }
 
         if (!string.IsNullOrEmpty(coordinate.MapArea))

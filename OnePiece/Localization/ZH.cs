@@ -137,4 +137,6 @@ public class ZH : ILocalizationData
     public string CustomMessagePrefix(string message) => $"自定义: {message}";
     public string TeleportToLocation(string location) => $"传送到: {location}";
     public string TeleportCostAmount(string cost) => $"费用: {cost} 金币";
+    public string PlayerNameAlreadyAdded => "玩家名称只能添加一次";
+    public string CoordinatesAlreadyAdded => "坐标只能添加一次";
 }

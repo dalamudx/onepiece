@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using ImGuiNET;
 using Dalamud.Interface.Utility.Raii;
 using OnePiece.Localization;
+using OnePiece.Models;
 
 namespace OnePiece.Helpers;
 
@@ -169,6 +172,163 @@ public static class UIHelper
 
         // Ensure minimum text area width, but allow it to be smaller if needed for long button text
         return Math.Max(textAreaWidth, 120f);
+    }
+
+    /// <summary>
+    /// Builds unified coordinate display text with consistent formatting.
+    /// This ensures both optimized and raw coordinate lists use the same text format.
+    /// </summary>
+    /// <param name="coordinate">The coordinate to display</param>
+    /// <param name="index">The display index (1-based)</param>
+    /// <param name="showPlayerName">Whether to show player name</param>
+    /// <param name="showMapArea">Whether to show map area</param>
+    /// <returns>Formatted display text</returns>
+    public static string BuildCoordinateDisplayText(TreasureCoordinate coordinate, int index, bool showPlayerName = true, bool showMapArea = true)
+    {
+        var displayText = $"{index}. ";
+
+        // Add player name if available and requested
+        if (showPlayerName && !string.IsNullOrEmpty(coordinate.PlayerName))
+        {
+            displayText += $"{coordinate.PlayerName} ";
+        }
+
+        // Add map area if available and requested
+        if (showMapArea && !string.IsNullOrEmpty(coordinate.MapArea))
+        {
+            displayText += $"{coordinate.MapArea} ";
+        }
+
+        displayText += $"({coordinate.X:F1}, {coordinate.Y:F1})";
+
+        return displayText;
+    }
+
+    /// <summary>
+    /// Calculates the maximum player name width from a collection of coordinates.
+    /// This is used to ensure consistent column alignment across all coordinate entries.
+    /// </summary>
+    /// <param name="coordinates">Collection of coordinates to analyze</param>
+    /// <param name="showPlayerName">Whether player names will be shown</param>
+    /// <param name="minWidth">Minimum width for the player name column</param>
+    /// <returns>Optimal width for the player name column</returns>
+    public static float CalculatePlayerNameColumnWidth(IEnumerable<TreasureCoordinate> coordinates, bool showPlayerName = true, float minWidth = 80f)
+    {
+        if (!showPlayerName)
+            return 0f;
+
+        float maxWidth = minWidth;
+        foreach (var coord in coordinates)
+        {
+            if (!string.IsNullOrEmpty(coord.PlayerName))
+            {
+                float nameWidth = ImGui.CalcTextSize($"{coord.PlayerName} ").X;
+                maxWidth = Math.Max(maxWidth, nameWidth);
+            }
+        }
+
+        return maxWidth + 10f; // Add some padding
+    }
+
+    /// <summary>
+    /// Renders a coordinate entry with column-aligned layout for better visual organization.
+    /// This provides proper alignment where player names and coordinates are in separate columns.
+    /// </summary>
+    /// <param name="coordinate">The coordinate to display</param>
+    /// <param name="index">The display index (1-based)</param>
+    /// <param name="playerNameColumnWidth">Fixed width for the player name column</param>
+    /// <param name="showPlayerName">Whether to show player name</param>
+    /// <param name="showMapArea">Whether to show map area</param>
+    /// <param name="isCollected">Whether the coordinate is collected</param>
+    /// <param name="availableWidth">Available width for the entire row</param>
+    /// <param name="buttonCount">Number of buttons that will be displayed</param>
+    /// <returns>Information about the rendered layout</returns>
+    public static CoordinateLayoutInfo RenderCoordinateEntryWithColumns(
+        TreasureCoordinate coordinate,
+        int index,
+        float playerNameColumnWidth,
+        bool showPlayerName = true,
+        bool showMapArea = true,
+        bool isCollected = false,
+        float availableWidth = 0f,
+        int buttonCount = 3)
+    {
+        if (availableWidth <= 0f)
+            availableWidth = ImGui.GetContentRegionAvail().X;
+
+        // Calculate text area width (excluding buttons)
+        float textAreaWidth = CalculateTextAreaWidth(availableWidth, buttonCount, 130f, 15f);
+
+        // Store the starting position for proper layout
+        float lineStartY = ImGui.GetCursorPosY();
+        float lineStartX = ImGui.GetCursorPosX();
+
+        // Apply collected styling if needed
+        if (isCollected)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
+        }
+
+        // Render index
+        string indexText = $"{index}. ";
+        ImGui.TextUnformatted(indexText);
+        float indexWidth = ImGui.CalcTextSize(indexText).X;
+
+        // Calculate remaining width for content
+        float contentStartX = lineStartX + indexWidth;
+        float remainingTextWidth = textAreaWidth - indexWidth;
+
+        // Render player name in fixed-width column
+        if (showPlayerName && playerNameColumnWidth > 0f)
+        {
+            ImGui.SameLine(0, 0);
+            ImGui.SetCursorPosX(contentStartX);
+
+            if (!string.IsNullOrEmpty(coordinate.PlayerName))
+            {
+                string playerNameText = $"{coordinate.PlayerName} ";
+                ImGui.TextUnformatted(playerNameText);
+            }
+
+            // Move to coordinate column position
+            ImGui.SameLine(0, 0);
+            ImGui.SetCursorPosX(contentStartX + playerNameColumnWidth);
+        }
+        else
+        {
+            ImGui.SameLine(0, 0);
+            ImGui.SetCursorPosX(contentStartX);
+        }
+
+        // Render map area and coordinates
+        string coordinateText = "";
+        if (showMapArea && !string.IsNullOrEmpty(coordinate.MapArea))
+        {
+            coordinateText += $"{coordinate.MapArea} ";
+        }
+        coordinateText += $"({coordinate.X:F1}, {coordinate.Y:F1})";
+
+        ImGui.TextUnformatted(coordinateText);
+
+        if (isCollected)
+        {
+            ImGui.PopStyleColor();
+        }
+
+        // Calculate button start position
+        float buttonStartX = lineStartX + textAreaWidth + 15f;
+
+        // Position cursor for buttons aligned with the top of the text
+        ImGui.SetCursorPos(new Vector2(buttonStartX, lineStartY));
+
+        return new CoordinateLayoutInfo
+        {
+            TextAreaWidth = textAreaWidth,
+            ButtonStartX = buttonStartX,
+            LineStartY = lineStartY,
+            IsCollected = isCollected,
+            TextHeight = ImGui.GetFrameHeight()
+        };
     }
 
     /// <summary>

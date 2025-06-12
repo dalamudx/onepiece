@@ -137,4 +137,6 @@ public interface ILocalizationData
     string CustomMessagePrefix(string message);
     string TeleportToLocation(string location);
     string TeleportCostAmount(string cost);
+    string PlayerNameAlreadyAdded { get; }
+    string CoordinatesAlreadyAdded { get; }
 }

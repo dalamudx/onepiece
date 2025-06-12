@@ -137,4 +137,6 @@ public class EN : ILocalizationData
     public string CustomMessagePrefix(string message) => $"Custom: {message}";
     public string TeleportToLocation(string location) => $"Teleport to: {location}";
     public string TeleportCostAmount(string cost) => $"Cost: {cost} gil";
+    public string PlayerNameAlreadyAdded => "Player name can only be added once";
+    public string CoordinatesAlreadyAdded => "Coordinates can only be added once";
 }

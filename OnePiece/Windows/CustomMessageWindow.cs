@@ -839,11 +839,37 @@ public class CustomMessageWindow : Window, IDisposable
                 currentLineWidth += buttonSpacing;
             }
 
+            // Check if this component type should be limited to one instance
+            bool isLimitedComponent = button.Type == MessageComponentType.PlayerName ||
+                                    button.Type == MessageComponentType.Coordinates;
+            bool componentAlreadyExists = isLimitedComponent &&
+                                        componentsToEdit.Any(c => c.Type == button.Type);
+
+            // Disable button if component already exists and is limited
+            if (componentAlreadyExists)
+            {
+                ImGui.BeginDisabled();
+            }
+
             // Draw the button
             if (ImGui.Button(button.Text))
             {
                 componentsToEdit.Add(new MessageComponent(button.Type));
                 SaveComponentChanges();
+            }
+
+            // Add tooltip for disabled buttons
+            if (componentAlreadyExists && ImGui.IsItemHovered())
+            {
+                string tooltipText = button.Type == MessageComponentType.PlayerName
+                    ? Strings.Messages.PlayerNameAlreadyAdded
+                    : Strings.Messages.CoordinatesAlreadyAdded;
+                ImGui.SetTooltip(tooltipText);
+            }
+
+            if (componentAlreadyExists)
+            {
+                ImGui.EndDisabled();
             }
 
             // Update current line width and mark that we're no longer the first button

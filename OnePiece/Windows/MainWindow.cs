@@ -247,14 +247,11 @@ public class MainWindow : Window, IDisposable
         {
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), Strings.NoActiveMessageTemplate);
 
-            // If there are components but no template, still show preview
-            if (plugin.Configuration.SelectedMessageComponents.Count > 0)
-            {
-                ImGui.Spacing();
-                ImGui.Text(Strings.MessagePreview);
-                string previewMessage = GeneratePreviewMessage();
-                ImGui.TextWrapped(previewMessage);
-            }
+            // When no active template is selected, show only LocationExample in client language
+            ImGui.Spacing();
+            ImGui.Text(Strings.MessagePreview);
+            string clientLocationExample = LocalizationManager.GetClientLanguageLocationExample();
+            ImGui.TextWrapped(clientLocationExample);
         }
 
         ImGui.Separator();
@@ -322,6 +319,9 @@ public class MainWindow : Window, IDisposable
                             // Get coordinates for this map area while preserving the original order
                             // This is more efficient than using Where().ToList() on every frame
                             var mapAreaCoords = mapGroup.Value;
+
+                            // Calculate optimal player name column width for this map area
+                            float playerNameColumnWidth = UIHelper.CalculatePlayerNameColumnWidth(mapAreaCoords, showPlayerName: true);
                             for (var i = 0; i < mapAreaCoords.Count; i++)
                             {
                                 var coord = mapAreaCoords[i];
@@ -342,27 +342,20 @@ public class MainWindow : Window, IDisposable
                                 // Both TreasurePoint and TeleportPoint types represent treasure coordinates that need to be visited
                                 int realIndex = optimizedRoute.IndexOf(coord) + 1; // +1 to start from 1 instead of 0
 
-                                // Build display text with map area information
-                                var displayText = $"{realIndex}. ";
-                                if (!string.IsNullOrEmpty(coord.PlayerName))
-                                {
-                                    displayText += $"{coord.PlayerName}: ";
-                                }
-
-                                // Add map area with special formatting
-                                if (!string.IsNullOrEmpty(coord.MapArea))
-                                {
-                                    displayText += $"{coord.MapArea} ";
-                                }
-
-                                displayText += $"({coord.X:F1}, {coord.Y:F1})";
-
-                                // Use unified coordinate rendering with proper button alignment
-                                // Always reserve space for 3 buttons to ensure consistent alignment
+                                // Use column-aligned rendering for better visual organization
+                                // No MapArea since already grouped by map
                                 float availableWidth = ImGui.GetContentRegionAvail().X;
                                 int buttonCount = 3; // Always reserve space for Teleport + Chat + Collected
 
-                                var layoutInfo = UIHelper.RenderCoordinateEntry(displayText, isCollected, availableWidth, buttonCount);
+                                var layoutInfo = UIHelper.RenderCoordinateEntryWithColumns(
+                                    coord,
+                                    realIndex,
+                                    playerNameColumnWidth,
+                                    showPlayerName: true,
+                                    showMapArea: false,
+                                    isCollected,
+                                    availableWidth,
+                                    buttonCount);
 
                                 // Check if this coordinate has AetheryteId for teleportation
                                 bool hasTeleportId = coord.AetheryteId > 0;
@@ -487,6 +480,9 @@ public class MainWindow : Window, IDisposable
                         // Display the raw coordinates if no optimized route
                         ImGui.TextUnformatted(Strings.Messages.CoordinatesWithCount(coordinates.Count));
 
+                        // Calculate optimal player name column width for all coordinates
+                        float playerNameColumnWidth = UIHelper.CalculatePlayerNameColumnWidth(coordinates, showPlayerName: true);
+
                         for (var i = 0; i < coordinates.Count; i++)
                         {
                             var coord = coordinates[i];
@@ -555,28 +551,20 @@ public class MainWindow : Window, IDisposable
                             }
                             else
                             {
-                                // Build complete display text for unified rendering
-                                string displayText = $"{coordIndex}. ";
-
-                                // Display player name if available
-                                if (!string.IsNullOrEmpty(coord.PlayerName))
-                                {
-                                    displayText += $"{coord.PlayerName}: ";
-                                }
-
-                                // Add map area information
-                                if (!string.IsNullOrEmpty(coord.MapArea))
-                                {
-                                    displayText += $"{coord.MapArea} ";
-                                }
-
-                                displayText += $"({coord.X:F1}, {coord.Y:F1})";
-
-                                // Use unified coordinate rendering with proper button alignment
+                                // Use column-aligned rendering for better visual organization
+                                // Include MapArea for raw coordinates
                                 float availableWidth = ImGui.GetContentRegionAvail().X;
                                 int buttonCount = 2; // Edit + Delete
 
-                                layoutInfo = UIHelper.RenderCoordinateEntry(displayText, false, availableWidth, buttonCount);
+                                layoutInfo = UIHelper.RenderCoordinateEntryWithColumns(
+                                    coord,
+                                    coordIndex,
+                                    playerNameColumnWidth,
+                                    showPlayerName: true,
+                                    showMapArea: true,
+                                    isCollected: false,
+                                    availableWidth,
+                                    buttonCount);
                             }
 
                             // Render buttons with right-aligned layout for consistent margins
@@ -700,8 +688,8 @@ public class MainWindow : Window, IDisposable
                     ImGui.TextUnformatted(Strings.NoCoordinates);
                 }
 
-                // Display trash bin section if there are deleted coordinates
-                if (plugin.TreasureHuntService.DeletedCoordinates.Count > 0)
+                // Display trash bin section if there are deleted coordinates and route is not optimized
+                if (plugin.TreasureHuntService.DeletedCoordinates.Count > 0 && !plugin.TreasureHuntService.IsRouteOptimized)
                 {
                     ImGui.Separator();
 
@@ -715,33 +703,28 @@ public class MainWindow : Window, IDisposable
                         plugin.TreasureHuntService.ClearTrash();
                     }
 
+                    // Calculate optimal player name column width for deleted coordinates
+                    float deletedPlayerNameColumnWidth = UIHelper.CalculatePlayerNameColumnWidth(plugin.TreasureHuntService.DeletedCoordinates, showPlayerName: true);
+
                     // Display deleted coordinates with unified layout
                     for (var i = 0; i < plugin.TreasureHuntService.DeletedCoordinates.Count; i++)
                     {
                         var coord = plugin.TreasureHuntService.DeletedCoordinates[i];
 
-                        // Build complete display text for unified rendering
-                        var displayText = $"{i + 1}. ";
-
-                        // Display player name if available
-                        if (!string.IsNullOrEmpty(coord.PlayerName))
-                        {
-                            displayText += $"{coord.PlayerName}: ";
-                        }
-
-                        // Add map area information
-                        if (!string.IsNullOrEmpty(coord.MapArea))
-                        {
-                            displayText += $"{coord.MapArea} ";
-                        }
-
-                        displayText += $"({coord.X:F1}, {coord.Y:F1})";
-
-                        // Use unified coordinate rendering with grayed out style for deleted items
+                        // Use column-aligned rendering for better visual organization
+                        // Include MapArea for deleted coordinates
                         float availableWidth = ImGui.GetContentRegionAvail().X;
                         int buttonCount = 1; // Only restore button
 
-                        var layoutInfo = UIHelper.RenderCoordinateEntry(displayText, true, availableWidth, buttonCount);
+                        var layoutInfo = UIHelper.RenderCoordinateEntryWithColumns(
+                            coord,
+                            i + 1,
+                            deletedPlayerNameColumnWidth,
+                            showPlayerName: true,
+                            showMapArea: true,
+                            isCollected: true, // Use collected styling for deleted items
+                            availableWidth,
+                            buttonCount);
 
                         // Position Restore button with consistent right margin
                         float restoreButtonWidth = UIHelper.CalculateButtonWidth(Strings.Restore);
@@ -760,7 +743,7 @@ public class MainWindow : Window, IDisposable
                         ImGui.SetCursorPosY(nextLineY);
                     }
                 }
-                else if (ImGui.CollapsingHeader(Strings.TrashBin))
+                else if (!plugin.TreasureHuntService.IsRouteOptimized && ImGui.CollapsingHeader(Strings.TrashBin))
                 {
                     ImGui.TextUnformatted(Strings.EmptyTrashBin);
                 }

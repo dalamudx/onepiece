@@ -133,6 +133,8 @@ public static class Strings
         public static string EditingTemplate(string templateName) => Current.EditingTemplate(templateName);
         public static string CurrentActiveTemplate(string templateName) => Current.CurrentActiveTemplate(templateName);
         public static string CustomMessagePrefix(string message) => Current.CustomMessagePrefix(message);
+        public static string PlayerNameAlreadyAdded => Current.PlayerNameAlreadyAdded;
+        public static string CoordinatesAlreadyAdded => Current.CoordinatesAlreadyAdded;
     }
 
     // Status and Error Messages

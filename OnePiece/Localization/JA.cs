@@ -137,4 +137,6 @@ public class JA : ILocalizationData
     public string CustomMessagePrefix(string message) => $"カスタム: {message}";
     public string TeleportToLocation(string location) => $"テレポ先: {location}";
     public string TeleportCostAmount(string cost) => $"費用: {cost} ギル";
+    public string PlayerNameAlreadyAdded => "プレイヤー名は一度しか追加できません";
+    public string CoordinatesAlreadyAdded => "座標は一度しか追加できません";
 }

@@ -13,7 +13,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      RELEASE_VERSION: '0.0.0.0'
       DALAMUD_HOME: /tmp/dalamud
       DOTNET_NOLOGO: true
 
@@ -88,7 +87,7 @@ jobs:
         fi
 
         echo "Version change detected: $repo_version -> $build_version"
-        echo "RELEASE_VERSION=$build_version" >> $GITHUB_ENV
+        echo "BUILD_VERSION=$build_version" >> $GITHUB_ENV
 
         # Generate changelog from commits since last release
         echo "Generating changelog from commit history..."
@@ -97,15 +96,15 @@ jobs:
         latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
         if [ -z "$latest_tag" ]; then
-          echo "No previous release found, using all commits"
-          commit_range="HEAD"
+          echo "No previous release found, using recent commits"
+          # Get recent commits when no previous release exists
+          changelog=$(git log --oneline --no-merges --grep="\[CI\]" --invert-grep --pretty=format:"- %s" -10)
         else
           echo "Latest release tag: $latest_tag"
           commit_range="$latest_tag..HEAD"
+          # Get commits since last release, excluding CI commits
+          changelog=$(git log $commit_range --oneline --no-merges --grep="\[CI\]" --invert-grep --pretty=format:"- %s" | head -20)
         fi
-
-        # Get commits since last release, excluding CI commits
-        changelog=$(git log $commit_range --oneline --no-merges --grep="\[CI\]" --invert-grep --pretty=format:"- %s" | head -20)
 
         if [ -z "$changelog" ]; then
           changelog="- Bug fixes and improvements"
@@ -135,14 +134,14 @@ jobs:
         # Get current timestamp in milliseconds
         timestamp=$(date +%s)000
 
-        # Use generated changelog
-        changelog="$GENERATED_CHANGELOG"
+        # Convert newlines to \r\n for proper display compatibility
+        changelog_escaped=$(echo "$changelog" | sed ':a;N;$!ba;s/\n/\r\n/g')
 
-        # Update repo.json using jq
+        # Update repo.json using jq with escaped changelog
         jq --arg version "$build_version" \
            --arg timestamp "$timestamp" \
            --arg downloads "$total_downloads" \
-           --arg changelog "$changelog" \
+           --arg changelog "$changelog_escaped" \
            --arg install_url "https://github.com/${{ github.repository }}/releases/download/v$build_version/OnePiece.zip" \
            '.[0].AssemblyVersion = $version |
             .[0].LastUpdate = ($timestamp | tonumber) |
@@ -156,21 +155,21 @@ jobs:
         echo "- AssemblyVersion: $build_version"
         echo "- LastUpdate: $timestamp"
         echo "- DownloadCount: $total_downloads"
-        echo "- Changelog: $changelog"
+        echo "- Changelog updated successfully"
 
     - name: Create Release
-      if: ${{ env.RELEASE_VERSION != '0.0.0.0' }}
+      if: ${{ env.BUILD_VERSION != '' }}
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         files: OnePiece.zip
-        name: OnePiece ${{ env.RELEASE_VERSION }}
-        tag_name: v${{ env.RELEASE_VERSION }}
+        name: OnePiece ${{ env.BUILD_VERSION }}
+        tag_name: v${{ env.BUILD_VERSION }}
         prerelease: false
         append_body: true
         body: |
-          ## OnePiece Plugin v${{ env.RELEASE_VERSION }}
+          ## OnePiece Plugin v${{ env.BUILD_VERSION }}
 
           ### Changes
           ${{ env.GENERATED_CHANGELOG }}
@@ -193,7 +192,7 @@ jobs:
         fail_on_unmatched_files: true
 
     - name: Commit repo.json
-      if: ${{ env.RELEASE_VERSION != '0.0.0.0' }}
+      if: ${{ env.BUILD_VERSION != '' }}
       run: |
         git config --global user.name "Actions User"
         git config --global user.email "actions@github.com"
@@ -204,5 +203,5 @@ jobs:
         git fetch origin master
         git checkout master
         git add repo.json
-        git commit -m "[CI] updating repo.json for ${{ env.RELEASE_VERSION }}" || true
+        git commit -m "[CI] updating repo.json for ${{ env.BUILD_VERSION }}" || true
         git push origin master

@@ -7,13 +7,13 @@
     "InternalName": "OnePiece",
     "RepoUrl": "https://github.com/dalamudx/onepiece",
     "DownloadCount": 7,
-    "LastUpdate": 1749711543000,
+    "LastUpdate": 1749713554000,
     "DownloadLinkInstall": "https://github.com/dalamudx/onepiece/releases/download/v1.0.1.3/OnePiece.zip",
     "DownloadLinkUpdate": "https://github.com/dalamudx/onepiece/releases/download/v1.0.1.3/OnePiece.zip",
-    "AssemblyVersion": "1.0.1.2",
+    "AssemblyVersion": "1.0.1.3",
     "ApplicableVersion": "any",
     "DalamudApiLevel": "12",
-    "Changelog": "",
+    "Changelog": "- fix: revert version and test workflow\r\n- fix: improve coordinate list spacing\r\n- update: update readme and changelog",
     "IconUrl": "https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/logo.png"
   }
 ]

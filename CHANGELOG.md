@@ -8,26 +8,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- GitHub Actions workflow for automated releases based on version changes
-- PowerShell scripts for version management and release preparation
-- Automated Dalamud development environment setup using goatcorp.github.io
-- Automatic repo.json synchronization with build output
+-
 
 ### Changed
-- Switched to Ubuntu-based CI/CD for faster builds
-- Improved release workflow to detect version changes automatically
+-
 
 ### Fixed
-- Fixed ImGui style color stack imbalance when clicking collected button
+-
 
 ### Removed
 -
 
 ### Technical
-- Implemented automatic release creation when OnePiece.json version differs from repo.json
-- Added download count tracking from GitHub API
-- Streamlined build process using official Dalamud distribution
-- Added comprehensive build validation and package testing
+-
+
+## [1.0.1.2] - 2025-06-12
+
+### Added
+- Column-aligned layout for coordinate lists with proper text alignment
+- Component usage restrictions for player name and coordinate elements in message templates
+- Client language adaptation for message preview LocationExample text
+- Smart trash bin visibility that hides after route optimization
+
+### Fixed
+- Improved coordinate display layout with column alignment for better visual organization
+- Removed colons from player names in coordinate lists for cleaner appearance
+- Hidden trash bin functionality after route optimization to reduce interface clutter
+
+### Removed
+- Colons after player names in coordinate display lists
+
+### Technical
+- Refactored coordinate display logic with unified text building methods
+- Enhanced UIHelper with column-aligned rendering capabilities
+- Improved message template component validation and restriction logic
+- Optimized player name column width calculation for better alignment
+- Added client language detection for localized message previews
+
+## [1.0.1.1] - 2025-06-11
+
+### Fixed
+- Fixed cross-map routing to prioritize teleport cost over distance for better route optimization
+- Improved pathfinding algorithm efficiency
+- Enhanced route cost calculation accuracy
+
+### Technical
+- Optimized route planning algorithms
+- Improved teleport cost vs distance balancing
+
+## [1.0.1.0] - 2025-06-11
+
+### Added
+- Support for different player name settings and configurations
+- Standardized logging system across all services
+- Enhanced PlayerNameProcessingService with comprehensive name handling
+- Improved coordinate import/export functionality with better validation
+
+### Changed
+- Refactored coordinate display helpers for better performance
+- Enhanced map area translation service
+- Improved player location service accuracy
+- Optimized route optimization algorithms
+
+### Fixed
+- Updated ECommons dependency and removed unnecessary log outputs
+- Fixed various UI layout and translation issues
+- Improved error handling in coordinate processing
+
+### Technical
+- Major code refactoring with 798 additions and 625 deletions
+- Enhanced service architecture for better maintainability
+- Improved logging and debugging capabilities
+
+## [1.0.0.1] - 2025-06-11
+
+### Fixed
+- Fixed workflow permissions for automated releases
+- Fixed workflow configuration issues
+- Updated ECommons dependency
+- Fixed collect feature functionality
+- Fixed translations and UI layout issues
+
+### Technical
+- Reworked GitHub Actions workflow
+- Added automated release workflow
+- Improved CI/CD pipeline configuration
 
 ## [1.0.0.0] - 2025-06-11
 
@@ -108,4 +173,8 @@ When creating a new release, use this template for the changelog:
 
 ## Version History
 
-- **1.0.0.0**: Initial release with core functionality
+- **1.0.1.2** (2025-06-12): UI improvements with column alignment, component restrictions, and enhanced message preview
+- **1.0.1.1** (2025-06-11): Cross-map routing optimization and teleport cost prioritization
+- **1.0.1.0** (2025-06-11): Player name processing enhancements and standardized logging
+- **1.0.0.1** (2025-06-11): Workflow fixes and CI/CD improvements
+- **1.0.0.0** (2025-06-11): Initial release with core functionality

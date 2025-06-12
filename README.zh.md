@@ -8,6 +8,8 @@
 
 [![GitHub release](https://img.shields.io/github/v/release/dalamudx/onepiece?include_prereleases&style=flat)](https://github.com/dalamudx/onepiece/releases)
 [![GitHub issues](https://img.shields.io/github/issues/dalamudx/onepiece)](https://github.com/dalamudx/onepiece/issues)
+[![GitHub all releases](https://img.shields.io/github/downloads/dalamudx/onepiece/total?style=flat&label=总下载量)](https://github.com/dalamudx/onepiece/releases)
+[![GitHub latest release](https://img.shields.io/github/downloads/dalamudx/onepiece/latest/total?style=flat&label=最新版本下载量)](https://github.com/dalamudx/onepiece/releases/latest)
 
 **通过智能路线规划优化您的FFXIV寻宝之旅**
 
@@ -85,6 +87,19 @@ One Piece是为《最终幻想XIV》(FFXIV)设计的Dalamud插件，专注于帮
 5. 按照优化顺序访问坐标点，使用"已收集"按钮标记完成的点
 6. 使用"全部清除"清除现有坐标信息，开始新的寻宝，或使用"重置优化"重新编辑坐标信息后重新进行路线规划
 
+### 📸 插件截图
+[主界面]
+
+<img src="https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/example-main.png" alt="主界面" width="640">
+
+[游戏频道消息]
+
+<img src="https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/example-channel.png" alt="游戏频道消息" width="640">
+
+[自定义消息]
+
+<img src="https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/example-message.png" alt="自定义消息" width="640">
+
 ---
 
 ## 📝 开发路线图
@@ -96,7 +111,7 @@ One Piece是为《最终幻想XIV》(FFXIV)设计的Dalamud插件，专注于帮
 * **智能坐标管理**：编辑、回收站、批量操作等完整功能
 
 ### 🚧 计划中的功能
-* **优化坐标导入**：优化正则表达式，使能更好地支持聊天频道的坐标复制和导入
+* **暂无**：如果您有任何功能需求，请开issue告诉我
 
 ---
 

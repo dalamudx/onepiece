@@ -8,6 +8,8 @@
 
 [![GitHub release](https://img.shields.io/github/v/release/dalamudx/onepiece?include_prereleases&style=flat)](https://github.com/dalamudx/onepiece/releases)
 [![GitHub issues](https://img.shields.io/github/issues/dalamudx/onepiece)](https://github.com/dalamudx/onepiece/issues)
+[![GitHub all releases](https://img.shields.io/github/downloads/dalamudx/onepiece/total?style=flat&label=downloads)](https://github.com/dalamudx/onepiece/releases)
+[![GitHub latest release](https://img.shields.io/github/downloads/dalamudx/onepiece/latest/total?style=flat&label=latest%20downloads)](https://github.com/dalamudx/onepiece/releases/latest)
 
 **Optimize your FFXIV treasure hunting journey with intelligent route planning**
 
@@ -85,6 +87,20 @@ One Piece is a Dalamud plugin designed for Final Fantasy XIV (FFXIV), focused on
 5. Visit coordinate points in optimized order, use "Collected" button to mark completed points
 6. Use "Clear All" to clear existing coordinate information and start new treasure hunting, or use "Reset Optimization" to re-edit coordinate information and re-plan routes
 
+### 📸 Plugin Screenshots
+[Main Interface]
+
+<img src="https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/example-main.png" alt="Main Interface" width="640">
+
+[Game Channel Messages]
+
+<img src="https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/example-channel.png" alt="Game Channel Messages" width="640">
+
+[Custom Messages]
+
+<img src="https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/example-message.png" alt="Custom Messages" width="640">
+
+
 ---
 
 ## 📝 Development Roadmap
@@ -96,7 +112,7 @@ One Piece is a Dalamud plugin designed for Final Fantasy XIV (FFXIV), focused on
 * **Smart Coordinate Management**: Complete functionality including editing, recycle bin, batch operations
 
 ### 🚧 Planned Features
-* **Optimize Coordinate Import**: Optimize regular expressions to better support coordinate copying and importing from chat channels
+* **None currently**: If you have any feature requests, please open an issue to let me know
 
 ---
 

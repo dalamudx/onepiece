@@ -461,8 +461,9 @@ public class MainWindow : Window, IDisposable
                                     coord.IsCollected = !coord.IsCollected;
                                 }
 
-                                // Move cursor to next line, accounting for text height
-                                float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
+                                // Move cursor to next line, accounting for text height with additional spacing
+                                float lineSpacing = 4f; // Add spacing between coordinate entries
+                                float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight()) + lineSpacing;
                                 ImGui.SetCursorPosY(nextLineY);
 
                                 // Pop style color if it was pushed for collected coordinates
@@ -677,7 +678,8 @@ public class MainWindow : Window, IDisposable
                             // Move cursor to next line, accounting for text height if not in editing mode
                             if (!isEditing)
                             {
-                                float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
+                                float lineSpacing = 4f; // Add spacing between coordinate entries
+                                float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight()) + lineSpacing;
                                 ImGui.SetCursorPosY(nextLineY);
                             }
                         }
@@ -738,8 +740,9 @@ public class MainWindow : Window, IDisposable
                             plugin.TreasureHuntService.RestoreCoordinate(i);
                         }
 
-                        // Move cursor to next line, accounting for text height
-                        float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight());
+                        // Move cursor to next line, accounting for text height with additional spacing
+                        float lineSpacing = 4f; // Add spacing between coordinate entries
+                        float nextLineY = layoutInfo.LineStartY + Math.Max(layoutInfo.TextHeight, ImGui.GetFrameHeight()) + lineSpacing;
                         ImGui.SetCursorPosY(nextLineY);
                     }
                 }

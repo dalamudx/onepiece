@@ -5,3 +5,4 @@ OnePiece/bin/
 *.user
 global.json
 getAetheryteData.py
+example.log

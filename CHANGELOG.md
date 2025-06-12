@@ -22,6 +22,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical
 -
 
+## [1.0.1.3] - 2025-06-12
+
+### Added
+- Download statistics badges in README files for both English and Chinese versions
+- Plugin screenshots section with emoji indicators in README files
+- Automated changelog generation from commit history in release workflow
+
+### Changed
+- Optimized coordinate list line spacing to prevent buttons from appearing too close together
+- Improved release workflow to automatically generate changelog from Git commits
+- Updated README files with synchronized content between English and Chinese versions
+
+### Fixed
+- Fixed coordinate list line spacing issues in imported, optimized, and trash bin lists
+- Improved visual spacing between coordinate entries for better user experience
+- Corrected CHANGELOG.md version dates and chronological ordering
+
+### Removed
+- Manual changelog input requirement from release workflow
+
+### Technical
+- Enhanced MainWindow.cs with 4-pixel line spacing for coordinate entries
+- Implemented automatic commit-based changelog generation with CI commit filtering
+- Added GitHub download count tracking badges to project documentation
+- Refactored release workflow to exclude CI-generated commits from changelog
+- Improved workflow automation with intelligent changelog generation
+
 ## [1.0.1.2] - 2025-06-12
 
 ### Added
@@ -173,6 +200,7 @@ When creating a new release, use this template for the changelog:
 
 ## Version History
 
+- **1.0.1.3** (2025-06-12): Line spacing optimization, automated changelog generation, and documentation improvements
 - **1.0.1.2** (2025-06-12): UI improvements with column alignment, component restrictions, and enhanced message preview
 - **1.0.1.1** (2025-06-11): Cross-map routing optimization and teleport cost prioritization
 - **1.0.1.0** (2025-06-11): Player name processing enhancements and standardized logging

@@ -2,12 +2,6 @@ name: Build and Release
 
 on:
   workflow_dispatch:
-    inputs:
-      changelog:
-        description: 'Changelog for this release (optional)'
-        required: false
-        type: string
-        default: '- Bug fixes and improvements'
 
 permissions:
   contents: write
@@ -96,6 +90,36 @@ jobs:
         echo "Version change detected: $repo_version -> $build_version"
         echo "RELEASE_VERSION=$build_version" >> $GITHUB_ENV
 
+        # Generate changelog from commits since last release
+        echo "Generating changelog from commit history..."
+
+        # Get the latest release tag
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+        if [ -z "$latest_tag" ]; then
+          echo "No previous release found, using all commits"
+          commit_range="HEAD"
+        else
+          echo "Latest release tag: $latest_tag"
+          commit_range="$latest_tag..HEAD"
+        fi
+
+        # Get commits since last release, excluding CI commits
+        changelog=$(git log $commit_range --oneline --no-merges --grep="\[CI\]" --invert-grep --pretty=format:"- %s" | head -20)
+
+        if [ -z "$changelog" ]; then
+          changelog="- Bug fixes and improvements"
+          echo "No commits found, using default changelog"
+        else
+          echo "Generated changelog:"
+          echo "$changelog"
+        fi
+
+        # Store changelog in environment variable
+        echo "GENERATED_CHANGELOG<<EOF" >> $GITHUB_ENV
+        echo "$changelog" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
         # Get current download count
         total_downloads=0
         if response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -111,11 +135,8 @@ jobs:
         # Get current timestamp in milliseconds
         timestamp=$(date +%s)000
 
-        # Use provided changelog or default
-        changelog="${{ github.event.inputs.changelog }}"
-        if [ -z "$changelog" ]; then
-          changelog="- Bug fixes and improvements"
-        fi
+        # Use generated changelog
+        changelog="$GENERATED_CHANGELOG"
 
         # Update repo.json using jq
         jq --arg version "$build_version" \
@@ -152,7 +173,7 @@ jobs:
           ## OnePiece Plugin v${{ env.RELEASE_VERSION }}
 
           ### Changes
-          ${{ github.event.inputs.changelog || '- Bug fixes and improvements' }}
+          ${{ env.GENERATED_CHANGELOG }}
 
           ### Installation
           1. Add the repository URL to your Dalamud plugin repositories:

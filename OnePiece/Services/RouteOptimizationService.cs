@@ -568,26 +568,16 @@ public class RouteOptimizationService
     private Dictionary<string, uint> GetAllMapAreaTeleportCosts(string currentMapArea, List<string> targetMapAreas)
     {
         var result = new Dictionary<string, uint>();
+
+        // Always attempt to get actual teleport costs, regardless of current location knowledge
+        // The Telepo API can provide accurate costs even when player location is unknown
         
-        // If we don't know the current map area, assume all teleports cost a default value
-        if (string.IsNullOrEmpty(currentMapArea))
-        {
-            foreach (var mapArea in targetMapAreas)
-            {
-                // Default teleport cost if we don't know where we are
-                result[mapArea] = 999;
-            }
-            return result;
-        }
-        
-        // We don't directly use Telepo API as it requires unsafe code
-        // Instead we'll use our AetheryteService to get teleport costs
-        bool telepoAvailable = true; // Assume player is logged in as we're optimizing a route
+        // Use AetheryteService to get teleport costs, which internally uses Telepo API
         
         foreach (var mapArea in targetMapAreas)
         {
-            // If it's the current map area, no teleport needed
-            if (mapArea == currentMapArea)
+            // If it's the current map area and we know where we are, no teleport needed
+            if (!string.IsNullOrEmpty(currentMapArea) && mapArea == currentMapArea)
             {
                 result[mapArea] = 0;
                 continue;
@@ -601,62 +591,50 @@ public class RouteOptimizationService
                 // Update teleport fees
                 plugin.AetheryteService.UpdateTeleportFees(new[] { cheapestAetheryte });
                 
-                // Try to get teleport cost from Telepo API first, then fallback to estimated cost
-                uint teleportCost = uint.MaxValue;
-                
-                if (telepoAvailable && cheapestAetheryte.AetheryteId > 0)
+                // Get actual teleport cost from the aetheryte
+                uint teleportCost;
+
+                try
                 {
-                    try
+                    // Always try to get the actual teleport cost
+                    teleportCost = (uint)cheapestAetheryte.CalculateTeleportFee();
+
+                    // Log the successful cost retrieval, especially when location is unknown
+                    if (string.IsNullOrEmpty(currentMapArea))
                     {
-                        // Calculate teleport cost using AetheryteService
-                        teleportCost = (uint)cheapestAetheryte.CalculateTeleportFee();
+                        Plugin.Log.Information($"Retrieved teleport cost for {mapArea} from unknown location: {teleportCost} gil");
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Plugin.Log.Error($"Error calculating teleport cost: {ex.Message}");
+                        Plugin.Log.Debug($"Retrieved teleport cost for {mapArea} from {currentMapArea}: {teleportCost} gil");
                     }
                 }
-                
-                // If we couldn't get cost from Telepo, use the calculated cost
+                catch (Exception ex)
+                {
+                    Plugin.Log.Error($"Error calculating teleport cost for {mapArea}: {ex.Message}");
+                    // Use a reasonable estimated cost based on typical FFXIV teleport fees
+                    teleportCost = 500;
+                }
+
+                // Ensure we have a valid cost
                 if (teleportCost == uint.MaxValue)
                 {
-                    teleportCost = (uint)cheapestAetheryte.CalculateTeleportFee();
+                    Plugin.Log.Warning($"Could not determine teleport cost for {mapArea}, using estimated cost");
+                    teleportCost = 500; // Reasonable default based on typical FFXIV costs
                 }
                 
                 result[mapArea] = teleportCost;
             }
             else
             {
-                // If no aetheryte found, don't add teleport cost for this area
-                // This will effectively disable teleport optimization for areas without aetherytes
-                result[mapArea] = 0;
+                // No aetheryte found in this map area - use a reasonable estimated cost
+                Plugin.Log.Warning($"No aetheryte found for map area {mapArea}, using estimated cost");
+                result[mapArea] = 500; // Reasonable default based on typical FFXIV teleport costs
             }
         }
         
         return result;
     }
 
-    /// <summary>
-    /// Gets teleport cost from an aetheryte.
-    /// </summary>
-    /// <param name="aetheryteId">The aetheryte ID.</param>
-    /// <returns>The teleport cost, or 0 if not available.</returns>
-    private uint GetTeleportCostFromTelepo(uint aetheryteId)
-    {
-        try
-        {
-            // Get the aetheryte info from the aetheryte service
-            var aetheryteInfo = plugin.AetheryteService.GetAetheryteById(aetheryteId);
-            if (aetheryteInfo == null)
-                return 0;
-                
-            // Use the aetheryte info to calculate the teleport fee
-            return (uint)aetheryteInfo.CalculateTeleportFee();
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log.Error($"Error calculating teleport cost: {ex.Message}");
-            return 0;
-        }
-    }
+
 }

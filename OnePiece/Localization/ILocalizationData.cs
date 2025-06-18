@@ -139,4 +139,7 @@ public interface ILocalizationData
     string TeleportCostAmount(string cost);
     string PlayerNameAlreadyAdded { get; }
     string CoordinatesAlreadyAdded { get; }
+
+    // Component range warnings
+    string ComponentRangeWarning(string components);
 }

@@ -124,9 +124,9 @@ public enum MessageComponentType
     PlayerName,     // The name of the player who shared the coordinates
     Coordinates,    // The coordinates (including map name if available)
     CustomMessage,  // A custom message defined by the user
-    Number,         // Displays a number (1-8) based on the map index
-    BoxedNumber,    // Displays a boxed number (1-8) based on the map index
-    BoxedOutlinedNumber // Displays a boxed outlined number (0-9) based on the map index
+    Number,         // Displays a number based on the coordinate index (game icons 1-9, then text)
+    BoxedNumber,    // Displays a boxed number based on the coordinate index (game icons 1-31, then bracketed text)
+    BoxedOutlinedNumber // Displays a boxed outlined number based on the coordinate index (game icons 1-9, then special bracketed text)
 }
 
 /// <summary>

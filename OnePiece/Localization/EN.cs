@@ -78,9 +78,9 @@ public class EN : ILocalizationData
 
     // Component Types
     public string PlayerName => "Player Name";
-    public string Number => "Number (1-8)";
-    public string BoxedNumber => "Boxed Number (1-8)";
-    public string BoxedOutlinedNumber => "Boxed Outlined Number (1-8)";
+    public string Number => "Number (1-9)";
+    public string BoxedNumber => "Boxed Number (1-31)";
+    public string BoxedOutlinedNumber => "Boxed Outlined Number (1-9)";
     public string MoveUp => "Move Up";
     public string MoveDown => "Move Down";
 
@@ -139,4 +139,7 @@ public class EN : ILocalizationData
     public string TeleportCostAmount(string cost) => $"Cost: {cost} gil";
     public string PlayerNameAlreadyAdded => "Player name can only be added once";
     public string CoordinatesAlreadyAdded => "Coordinates can only be added once";
+
+    // Component range warnings
+    public string ComponentRangeWarning(string components) => $"Notice: {components} component(s) exceed display range and will not take effect";
 }

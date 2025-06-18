@@ -78,9 +78,9 @@ public class ZH : ILocalizationData
 
     // Component Types
     public string PlayerName => "玩家名称";
-    public string Number => "数字 (1-8)";
-    public string BoxedNumber => "方框数字 (1-8)";
-    public string BoxedOutlinedNumber => "轮廓方框数字 (1-8)";
+    public string Number => "数字 (1-9)";
+    public string BoxedNumber => "方框数字 (1-31)";
+    public string BoxedOutlinedNumber => "轮廓方框数字 (1-9)";
     public string MoveUp => "上移";
     public string MoveDown => "下移";
 
@@ -139,4 +139,7 @@ public class ZH : ILocalizationData
     public string TeleportCostAmount(string cost) => $"费用: {cost} 金币";
     public string PlayerNameAlreadyAdded => "玩家名称只能添加一次";
     public string CoordinatesAlreadyAdded => "坐标只能添加一次";
+
+    // Component range warnings
+    public string ComponentRangeWarning(string components) => $"提示：{components}组件超出显示范围将不会生效";
 }

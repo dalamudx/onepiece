@@ -645,7 +645,8 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
         
         var messageParts = new List<string>();
         bool hasCoordinates = false;
-        
+        int totalCoordinates = plugin.TreasureHuntService.Coordinates.Count;
+
         // First pass: build all non-coordinate parts and check if coordinates are included
         foreach (var component in plugin.Configuration.SelectedMessageComponents)
         {
@@ -665,45 +666,60 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                     break;
                     
                 case MessageComponentType.Number:
-                    // Get index from coordinate or active route
-                    int index = GetCoordinateIndex(coordinate);
-                    if (GameIconHelper.IsValidIndexForComponent(MessageComponentType.Number, index))
+                    // Check if coordinate count is within icon range for this component
+                    if (GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.Number, totalCoordinates))
                     {
-                        // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
-                        string iconChar = GameIconHelper.GetNumberIcon(index);
-                        if (!string.IsNullOrEmpty(iconChar))
+                        // Get index from coordinate or active route
+                        int index = GetCoordinateIndex(coordinate);
+                        if (index >= 0 && GameIconHelper.IsValidIndexForComponent(MessageComponentType.Number, index))
                         {
-                            messageParts.Add(iconChar);
+                            // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
+                            string iconChar = GameIconHelper.GetNumberIcon(index);
+                            if (!string.IsNullOrEmpty(iconChar))
+                            {
+                                messageParts.Add(iconChar);
+                            }
                         }
                     }
+                    // If coordinate count exceeds range, skip this component (don't add anything)
                     break;
 
                 case MessageComponentType.BoxedNumber:
-                    // Get index from coordinate or active route
-                    int boxedIndex = GetCoordinateIndex(coordinate);
-                    if (GameIconHelper.IsValidIndexForComponent(MessageComponentType.BoxedNumber, boxedIndex))
+                    // Check if coordinate count is within icon range for this component
+                    if (GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedNumber, totalCoordinates))
                     {
-                        // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
-                        string iconChar = GameIconHelper.GetBoxedNumberIcon(boxedIndex);
-                        if (!string.IsNullOrEmpty(iconChar))
+                        // Get index from coordinate or active route
+                        int boxedIndex = GetCoordinateIndex(coordinate);
+                        if (boxedIndex >= 0 && GameIconHelper.IsValidIndexForComponent(MessageComponentType.BoxedNumber, boxedIndex))
                         {
-                            messageParts.Add(iconChar);
+                            // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
+                            string iconChar = GameIconHelper.GetBoxedNumberIcon(boxedIndex);
+                            if (!string.IsNullOrEmpty(iconChar))
+                            {
+                                messageParts.Add(iconChar);
+                            }
                         }
                     }
+                    // If coordinate count exceeds range, skip this component (don't add anything)
                     break;
 
                 case MessageComponentType.BoxedOutlinedNumber:
-                    // Get index from coordinate or active route
-                    int boxedOutlinedIndex = GetCoordinateIndex(coordinate);
-                    if (GameIconHelper.IsValidIndexForComponent(MessageComponentType.BoxedOutlinedNumber, boxedOutlinedIndex))
+                    // Check if coordinate count is within icon range for this component
+                    if (GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedOutlinedNumber, totalCoordinates))
                     {
-                        // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
-                        string iconChar = GameIconHelper.GetBoxedOutlinedNumberIcon(boxedOutlinedIndex);
-                        if (!string.IsNullOrEmpty(iconChar))
+                        // Get index from coordinate or active route
+                        int boxedOutlinedIndex = GetCoordinateIndex(coordinate);
+                        if (boxedOutlinedIndex >= 0 && GameIconHelper.IsValidIndexForComponent(MessageComponentType.BoxedOutlinedNumber, boxedOutlinedIndex))
                         {
-                            messageParts.Add(iconChar);
+                            // Use GameIconHelper for consistent icon generation based on Dalamud's SeIconChar
+                            string iconChar = GameIconHelper.GetBoxedOutlinedNumberIcon(boxedOutlinedIndex);
+                            if (!string.IsNullOrEmpty(iconChar))
+                            {
+                                messageParts.Add(iconChar);
+                            }
                         }
                     }
+                    // If coordinate count exceeds range, skip this component (don't add anything)
                     break;
 
                 case MessageComponentType.CustomMessage:
@@ -728,15 +744,32 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                     if (component.Type == MessageComponentType.Coordinates)
                     {
                         // Found the coordinates component, insert <flag> at this position
-                        messageParts.Insert(flagPosition, "<flag>");
+                        // Ensure flagPosition is within valid range
+                        if (flagPosition <= messageParts.Count)
+                        {
+                            messageParts.Insert(flagPosition, "<flag>");
+                        }
+                        else
+                        {
+                            // If position is out of range, append to the end
+                            messageParts.Add("<flag>");
+                        }
                         break;
                     }
                     
                     // If this component was added to messageParts, increment the position
+                    // Use the same logic as the actual component addition to ensure consistency
+                    int coordIndex = GetCoordinateIndex(coordinate);
                     if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
-                        (component.Type == MessageComponentType.Number && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
-                        (component.Type == MessageComponentType.BoxedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
-                        (component.Type == MessageComponentType.BoxedOutlinedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.Number &&
+                         GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.Number, totalCoordinates) &&
+                         coordIndex >= 0 && GameIconHelper.IsValidIndexForComponent(component.Type, coordIndex)) ||
+                        (component.Type == MessageComponentType.BoxedNumber &&
+                         GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedNumber, totalCoordinates) &&
+                         coordIndex >= 0 && GameIconHelper.IsValidIndexForComponent(component.Type, coordIndex)) ||
+                        (component.Type == MessageComponentType.BoxedOutlinedNumber &&
+                         GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedOutlinedNumber, totalCoordinates) &&
+                         coordIndex >= 0 && GameIconHelper.IsValidIndexForComponent(component.Type, coordIndex)) ||
                         (component.Type == MessageComponentType.CustomMessage &&
                          component.CustomMessageIndex >= 0 &&
                          component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
@@ -761,15 +794,32 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                     if (component.Type == MessageComponentType.Coordinates)
                     {
                         // Found the coordinates component, insert the text at this position
-                        messageParts.Insert(coordPosition, coordText);
+                        // Ensure coordPosition is within valid range
+                        if (coordPosition <= messageParts.Count)
+                        {
+                            messageParts.Insert(coordPosition, coordText);
+                        }
+                        else
+                        {
+                            // If position is out of range, append to the end
+                            messageParts.Add(coordText);
+                        }
                         break;
                     }
                     
                     // If this component was added to messageParts, increment the position
+                    // Use the same logic as the actual component addition to ensure consistency
+                    int coordIndex2 = GetCoordinateIndex(coordinate);
                     if ((component.Type == MessageComponentType.PlayerName && !string.IsNullOrEmpty(coordinate.PlayerName)) ||
-                        (component.Type == MessageComponentType.Number && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
-                        (component.Type == MessageComponentType.BoxedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
-                        (component.Type == MessageComponentType.BoxedOutlinedNumber && GameIconHelper.IsValidIndexForComponent(component.Type, GetCoordinateIndex(coordinate))) ||
+                        (component.Type == MessageComponentType.Number &&
+                         GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.Number, totalCoordinates) &&
+                         coordIndex2 >= 0 && GameIconHelper.IsValidIndexForComponent(component.Type, coordIndex2)) ||
+                        (component.Type == MessageComponentType.BoxedNumber &&
+                         GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedNumber, totalCoordinates) &&
+                         coordIndex2 >= 0 && GameIconHelper.IsValidIndexForComponent(component.Type, coordIndex2)) ||
+                        (component.Type == MessageComponentType.BoxedOutlinedNumber &&
+                         GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedOutlinedNumber, totalCoordinates) &&
+                         coordIndex2 >= 0 && GameIconHelper.IsValidIndexForComponent(component.Type, coordIndex2)) ||
                         (component.Type == MessageComponentType.CustomMessage &&
                          component.CustomMessageIndex >= 0 &&
                          component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count))
@@ -787,7 +837,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
     /// Gets the index of a coordinate in the active route, or determines an appropriate index.
     /// </summary>
     /// <param name="coordinate">The coordinate to find the index for.</param>
-    /// <returns>The index of the coordinate (0-7) or -1 if not found.</returns>
+    /// <returns>The index of the coordinate or -1 if not found.</returns>
     private int GetCoordinateIndex(TreasureCoordinate coordinate)
     {
         // First check if this coordinate is in the optimized route
@@ -800,7 +850,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                 var routeCoord = route[i];
                 if (ReferenceEquals(routeCoord, coordinate))
                 {
-                    return Math.Min(i, 7); // Use route position directly as display index
+                    return i; // Use route position directly as display index
                 }
             }
 
@@ -825,7 +875,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
             {
                 // Only one match, use it
                 var match = matchingCoordinates[0];
-                return Math.Min(match.index, 7);
+                return match.index;
             }
             else if (matchingCoordinates.Count > 1)
             {
@@ -836,13 +886,13 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
                     if (routeCoord.Type == coordinate.Type &&
                         string.Equals(routeCoord.PlayerName, coordinate.PlayerName, StringComparison.OrdinalIgnoreCase))
                     {
-                        return Math.Min(index, 7);
+                        return index;
                     }
                 }
 
                 // If still no unique match, use the first one
                 var firstMatch = matchingCoordinates[0];
-                return Math.Min(firstMatch.index, 7);
+                return firstMatch.index;
             }
         }
 
@@ -851,7 +901,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
         var allCoordinates = plugin.TreasureHuntService.Coordinates;
 
         // Find the position of this coordinate in the all coordinates list
-        for (int i = 0; i < allCoordinates.Count && i < 8; i++)
+        for (int i = 0; i < allCoordinates.Count; i++)
         {
             var coord = allCoordinates[i];
             if (ReferenceEquals(coord, coordinate))
@@ -861,7 +911,7 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
         }
 
         // Final fallback with coordinate matching
-        for (int i = 0; i < allCoordinates.Count && i < 8; i++)
+        for (int i = 0; i < allCoordinates.Count; i++)
         {
             var coord = allCoordinates[i];
             if (Math.Abs(coord.X - coordinate.X) < 0.1f &&
@@ -872,10 +922,64 @@ private string RemovePlayerNameFromMapArea(string mapArea, string playerName)
             }
         }
 
-        // Fallback: return the count modulo 8 to ensure we stay within valid range
-        int fallbackIndex = allCoordinates.Count % 8;
-        return fallbackIndex;
+        // Fallback: return -1 to indicate coordinate not found
+        return -1;
     }
+
+    /// <summary>
+    /// Gets a warning message for number components that exceed their display range.
+    /// </summary>
+    /// <returns>Warning message or empty string if no components exceed range</returns>
+    public string GetNumberComponentRangeWarning()
+    {
+        var totalCoordinates = plugin.TreasureHuntService.Coordinates.Count;
+
+        // Get the components that are actually being used (either from active template or selected components)
+        List<MessageComponent> componentsToCheck;
+        if (plugin.Configuration.ActiveTemplateIndex >= 0 &&
+            plugin.Configuration.ActiveTemplateIndex < plugin.Configuration.MessageTemplates.Count)
+        {
+            // Use components from the active template
+            componentsToCheck = plugin.Configuration.MessageTemplates[plugin.Configuration.ActiveTemplateIndex].Components;
+        }
+        else
+        {
+            // Use selected components
+            componentsToCheck = plugin.Configuration.SelectedMessageComponents;
+        }
+
+        var exceededComponents = new List<string>();
+
+        foreach (var component in componentsToCheck)
+        {
+            if (!GameIconHelper.IsCoordinateCountWithinIconRange(component.Type, totalCoordinates))
+            {
+                var componentName = component.Type switch
+                {
+                    MessageComponentType.Number => Strings.Number,
+                    MessageComponentType.BoxedNumber => Strings.BoxedNumber,
+                    MessageComponentType.BoxedOutlinedNumber => Strings.BoxedOutlinedNumber,
+                    _ => null
+                };
+
+                if (!string.IsNullOrEmpty(componentName))
+                {
+                    exceededComponents.Add(componentName);
+                }
+            }
+        }
+
+        if (exceededComponents.Count == 0)
+            return string.Empty;
+
+        string componentsText = exceededComponents.Count == 1
+            ? exceededComponents[0]
+            : string.Join(" & ", exceededComponents);
+
+        return Strings.Messages.ComponentRangeWarning(componentsText);
+    }
+
+
     
     /// <summary>
     /// Gets the chat command for a specific chat channel.

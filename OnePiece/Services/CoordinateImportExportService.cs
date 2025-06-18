@@ -89,8 +89,8 @@ public class CoordinateImportExportService
 
                 if (coordinates != null)
                 {
-                    // Limit to maximum of 8 coordinates for Number/BoxedNumber components
-                    foreach (var coordinate in coordinates.Take(8))
+                    // Process all imported coordinates
+                    foreach (var coordinate in coordinates)
                     {
                         // Validate that coordinate has a map area - skip if missing
                         if (string.IsNullOrWhiteSpace(coordinate.MapArea))
@@ -125,10 +125,10 @@ public class CoordinateImportExportService
                         importedCount++;
                     }
 
-                    // Log a warning if more than 8 coordinates were provided
-                    if (coordinates.Count > 8)
+                    // Log performance information for large coordinate sets
+                    if (coordinates.Count > 15)
                     {
-                        Plugin.Log.Warning($"Only imported the first 8 coordinates out of {coordinates.Count}. Additional coordinates were ignored.");
+                        Plugin.Log.Information($"Imported {coordinates.Count} coordinates. Large coordinate sets may take longer to optimize.");
                     }
 
                     Plugin.Log.Debug($"Imported {importedCount} coordinates from Base64 encoded data");
@@ -209,9 +209,8 @@ public class CoordinateImportExportService
 
                 Plugin.Log.Debug($"Match {matchCount}: {match.Groups[1].Value} ({match.Groups[2].Value}, {match.Groups[3].Value})");
 
-                // Only process the first 8 matches that have valid coordinates and map area
-                if (importedCount < 8 &&
-                    match.Groups.Count >= 4 &&
+                // Process all matches that have valid coordinates and map area
+                if (match.Groups.Count >= 4 &&
                     float.TryParse(match.Groups[2].Value, out var x) &&
                     float.TryParse(match.Groups[3].Value, out var y))
                 {
@@ -254,9 +253,9 @@ public class CoordinateImportExportService
         }
 
         // Log import results
-        if (matchCount > 8)
+        if (importedCount > 15)
         {
-            Plugin.Log.Warning($"Only imported the first 8 coordinates out of {matchCount} found in text. Additional coordinates were ignored.");
+            Plugin.Log.Information($"Imported {importedCount} coordinates. Large coordinate sets may take longer to optimize.");
         }
 
         if (importedCount == 0)

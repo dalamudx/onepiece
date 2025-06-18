@@ -78,9 +78,9 @@ public class JA : ILocalizationData
 
     // Component Types
     public string PlayerName => "プレイヤー名";
-    public string Number => "数字 (1-8)";
-    public string BoxedNumber => "囲み数字 (1-8)";
-    public string BoxedOutlinedNumber => "囲み輪郭数字 (1-8)";
+    public string Number => "数字 (1-9)";
+    public string BoxedNumber => "囲み数字 (1-31)";
+    public string BoxedOutlinedNumber => "囲み輪郭数字 (1-9)";
     public string MoveUp => "上に移動";
     public string MoveDown => "下に移動";
 
@@ -139,4 +139,7 @@ public class JA : ILocalizationData
     public string TeleportCostAmount(string cost) => $"費用: {cost} ギル";
     public string PlayerNameAlreadyAdded => "プレイヤー名は一度しか追加できません";
     public string CoordinatesAlreadyAdded => "座標は一度しか追加できません";
+
+    // Component range warnings
+    public string ComponentRangeWarning(string components) => $"注意：{components}コンポーネントが表示範囲を超えているため、効果がありません";
 }

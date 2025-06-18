@@ -242,6 +242,18 @@ public class MainWindow : Window, IDisposable
             ImGui.Text(Strings.MessagePreview);
             string previewMessage = GeneratePreviewMessage();
             ImGui.TextWrapped(previewMessage);
+
+            // Show warning for number components that exceed range
+            string rangeWarning = plugin.ChatMonitorService.GetNumberComponentRangeWarning();
+            if (!string.IsNullOrEmpty(rangeWarning))
+            {
+                ImGui.Spacing();
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.6f, 0.0f, 1.0f));
+                ImGui.PushTextWrapPos();
+                ImGui.TextUnformatted(rangeWarning);
+                ImGui.PopTextWrapPos();
+                ImGui.PopStyleColor();
+            }
         }
         else
         {
@@ -959,7 +971,8 @@ public class MainWindow : Window, IDisposable
         }
         
         var previewParts = new List<string>();
-        
+        var totalCoordinates = plugin.TreasureHuntService.Coordinates.Count;
+
         foreach (var component in componentsToPreview)
         {
             switch (component.Type)
@@ -976,19 +989,31 @@ public class MainWindow : Window, IDisposable
                     previewParts.Add($"{linkMarker} {clientLocationExample}");
                     break;
                 case MessageComponentType.Number:
-                    // Show specific Number1 special character using the actual Unicode value from SeIconChar
-                    string number1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.Number1);
-                    previewParts.Add(number1);
+                    // Only show if coordinate count is within range
+                    if (GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.Number, totalCoordinates))
+                    {
+                        // Show specific Number1 special character using the actual Unicode value from SeIconChar
+                        string number1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.Number1);
+                        previewParts.Add(number1);
+                    }
                     break;
                 case MessageComponentType.BoxedNumber:
-                    // Show specific BoxedNumber1 special character using the actual Unicode value from SeIconChar
-                    string boxedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedNumber1);
-                    previewParts.Add(boxedNumber1);
+                    // Only show if coordinate count is within range
+                    if (GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedNumber, totalCoordinates))
+                    {
+                        // Show specific BoxedNumber1 special character using the actual Unicode value from SeIconChar
+                        string boxedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedNumber1);
+                        previewParts.Add(boxedNumber1);
+                    }
                     break;
                 case MessageComponentType.BoxedOutlinedNumber:
-                    // Show specific BoxedOutlinedNumber1 special character using the actual Unicode value from SeIconChar
-                    string boxedOutlinedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedOutlinedNumber1);
-                    previewParts.Add(boxedOutlinedNumber1);
+                    // Only show if coordinate count is within range
+                    if (GameIconHelper.IsCoordinateCountWithinIconRange(MessageComponentType.BoxedOutlinedNumber, totalCoordinates))
+                    {
+                        // Show specific BoxedOutlinedNumber1 special character using the actual Unicode value from SeIconChar
+                        string boxedOutlinedNumber1 = char.ConvertFromUtf32((int)Dalamud.Game.Text.SeIconChar.BoxedOutlinedNumber1);
+                        previewParts.Add(boxedOutlinedNumber1);
+                    }
                     break;
                 case MessageComponentType.CustomMessage:
                     if (component.CustomMessageIndex >= 0 && component.CustomMessageIndex < plugin.Configuration.CustomMessages.Count)

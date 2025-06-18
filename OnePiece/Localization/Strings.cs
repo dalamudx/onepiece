@@ -135,6 +135,7 @@ public static class Strings
         public static string CustomMessagePrefix(string message) => Current.CustomMessagePrefix(message);
         public static string PlayerNameAlreadyAdded => Current.PlayerNameAlreadyAdded;
         public static string CoordinatesAlreadyAdded => Current.CoordinatesAlreadyAdded;
+        public static string ComponentRangeWarning(string components) => Current.ComponentRangeWarning(components);
     }
 
     // Status and Error Messages

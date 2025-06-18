@@ -52,13 +52,13 @@ One Piece is a Dalamud plugin designed for Final Fantasy XIV (FFXIV), focused on
 * **Component-based Design**: Flexibly combine player names, coordinates, number markers, custom text and other components
 * **Special Character Support**: Full support for in-game special characters, including numbers, boxed numbers, outlined boxed numbers
 > [!WARNING]
-> The given number, boxed number, and outlined boxed number template parts only support 1-8, and a full party has at most 8 people, i.e., 8 treasure map coordinates, so no optimization is done here for now. Of course, you can also plan more than 8 coordinates, in which case you need to remove these three types of number characters from the message template to avoid unexpected message output
+> The given number, boxed number, and outlined boxed number template parts only support 1-9, and a full party has at most 8 people, i.e., 8 treasure map coordinates. Currently, coordinate quantity limits have been removed and number special characters have been optimized. If you import more coordinates than the display range, the number components will be automatically ignored. The message after ignoring can still be confirmed by viewing the message preview
 * **Real-time Preview**: Preview how messages will actually appear in chat before sending
 * **Custom Message Library**: Create and manage personal custom message libraries
 
 ### 🌐 Comprehensive Multi-language Support
 * **5 Languages**: Full support for English, Japanese, Chinese, German and French
-* **Client Adaptation**: Automatically adapt map area names for English, Japanese, Chinese, German and French clients (Chinese client not currently supported due to lack of client and account for testing)
+* **Client Adaptation**: Automatically adapt map area names for English, Japanese, German and French (international server clients) (Chinese client not currently supported due to lack of client and account for testing)
 * **Dynamic Translation**: Real-time translation of map area names to ensure accuracy of route optimization
 
 ---

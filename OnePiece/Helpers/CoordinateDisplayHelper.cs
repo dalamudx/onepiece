@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Numerics;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using OnePiece.Models;
 using OnePiece.Localization;
 
@@ -260,7 +260,7 @@ public static class CoordinateDisplayHelper
         }
 
         // Calculate text size for proper layout
-        var textSize = ImGui.CalcTextSize(displayText, textAreaWidth);
+        var textSize = ImGui.CalcTextSize(displayText, false, textAreaWidth);
 
         // Render text in a contained area
         ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + textAreaWidth);

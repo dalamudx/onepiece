@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
 using OnePiece.Localization;
 using OnePiece.Models;
@@ -359,7 +359,7 @@ public static class UIHelper
         }
 
         // Calculate text size to determine if wrapping will occur
-        var textSize = ImGui.CalcTextSize(displayText, textAreaWidth);
+        var textSize = ImGui.CalcTextSize(displayText, false, textAreaWidth);
 
         // Use a child region to contain the text and prevent overlap
         using (var child = ImRaii.Child($"##text_{displayText.GetHashCode()}",

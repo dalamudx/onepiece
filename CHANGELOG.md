@@ -22,6 +22,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical
 -
 
+## [1.0.1.6] - 2025-08-09
+
+### Changed
+- Migrated UI bindings
+- Bump to API 13
+
+### Fixed
+- Updated ImGui.CalcTextSize calls
+
+### Technical
+- Refreshed lock file to reflect new toolchain versions
+
+## [1.0.1.5] - 2025-06-18
+
+### Added
+- Warning messages when the selected number icon type cannot represent the current coordinate count
+
+### Changed
+- Optimized Number, BoxedNumber, and BoxedOutlinedNumber display methods with extended ranges via GameIconHelper
+
+### Removed
+- Removed all artificial coordinate quantity limits, including the previous 8-coordinate import restriction
+
+### Technical
+- Updated localization strings to reflect icon ranges; ChatMonitorService shows previews and range warnings
+- CoordinateImportExportService now processes large coordinate sets without truncation
+
+## [1.0.1.4] - 2025-06-18
+
+### Changed
+- Route optimization now uses actual teleport costs fetched via Telepo API through AetheryteService, regardless of player location availability
+
+### Fixed
+- Removed the fallback of assuming high costs for unknown areas; costs now come from Telepo API for more accurate planning
+
+### Technical
+- Updated RouteOptimizationService to always query AetheryteService/Telepo for costs
+
 ## [1.0.1.3] - 2025-06-12
 
 ### Added
@@ -200,6 +238,9 @@ When creating a new release, use this template for the changelog:
 
 ## Version History
 
+- **1.0.1.6** (2025-08-09): ImGui bindings migration to Dalamud.Bindings.ImGui; upgrade to API13
+- **1.0.1.5** (2025-06-18): Removed coordinate limits; optimized number icon display; range warnings and localization updates
+- **1.0.1.4** (2025-06-18): Use actual teleport costs from Telepo API for route optimization
 - **1.0.1.3** (2025-06-12): Line spacing optimization, automated changelog generation, and documentation improvements
 - **1.0.1.2** (2025-06-12): UI improvements with column alignment, component restrictions, and enhanced message preview
 - **1.0.1.1** (2025-06-11): Cross-map routing optimization and teleport cost prioritization

@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical
 -
+## [1.0.1.7] - 2025-09-13
+
+### Changed
+- Merge Ecommons
+
+### Fixed
+- Updated api level to 13
+
+### Technical
+- 
 
 ## [1.0.1.6] - 2025-08-09
 
@@ -238,6 +248,7 @@ When creating a new release, use this template for the changelog:
 
 ## Version History
 
+- **1.0.1.7** (2025-09-13): Merged ECommons; upgraded to API13
 - **1.0.1.6** (2025-08-09): ImGui bindings migration to Dalamud.Bindings.ImGui; upgrade to API13
 - **1.0.1.5** (2025-06-18): Removed coordinate limits; optimized number icon display; range warnings and localization updates
 - **1.0.1.4** (2025-06-18): Use actual teleport costs from Telepo API for route optimization

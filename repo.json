@@ -12,7 +12,7 @@
     "DownloadLinkUpdate": "https://github.com/dalamudx/onepiece/releases/download/v1.0.1.6/OnePiece.zip",
     "AssemblyVersion": "1.0.1.6",
     "ApplicableVersion": "any",
-    "DalamudApiLevel": "12",
+    "DalamudApiLevel": "13",
     "Changelog": "- update: upgrade to api13 [Discontinued my game subscription, so this version is untested. If you encounter any issues, please feel free to open an issue on github.]\r\n- Update OnePiece.json\r\n- update: update readme",
     "IconUrl": "https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/logo.png"
   }

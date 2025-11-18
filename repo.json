@@ -6,14 +6,14 @@
     "Description": "Import coordinates from selected channels and enjoy your treasure hunt. Optimize routes considering player location, aetheryte costs, and distances.",
     "InternalName": "OnePiece",
     "RepoUrl": "https://github.com/dalamudx/onepiece",
-    "DownloadCount": 25,
-    "LastUpdate": 1760166898000,
-    "DownloadLinkInstall": "https://github.com/dalamudx/onepiece/releases/download/v1.0.1.8/OnePiece.zip",
-    "DownloadLinkUpdate": "https://github.com/dalamudx/onepiece/releases/download/v1.0.1.8/OnePiece.zip",
-    "AssemblyVersion": "1.0.1.8",
+    "DownloadCount": 33,
+    "LastUpdate": 1763485455000,
+    "DownloadLinkInstall": "https://github.com/dalamudx/onepiece/releases/download/v1.0.1.9/OnePiece.zip",
+    "DownloadLinkUpdate": "https://github.com/dalamudx/onepiece/releases/download/v1.0.1.9/OnePiece.zip",
+    "AssemblyVersion": "1.0.1.9",
     "ApplicableVersion": "any",
     "DalamudApiLevel": "13",
-    "Changelog": "- Merge submodule",
+    "Changelog": "- Merge submodule\r\n- Update CHANGELOG.md",
     "IconUrl": "https://raw.githubusercontent.com/dalamudx/onepiece/refs/heads/master/OnePiece/img/logo.png"
   }
 ]

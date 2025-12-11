@@ -187,7 +187,7 @@ jobs:
           ### System Requirements
           - Final Fantasy XIV with Dalamud
           - .NET 9.0 Runtime
-          - Dalamud API Level 12
+          - Dalamud API Level 13
         generate_release_notes: true
         fail_on_unmatched_files: true
 

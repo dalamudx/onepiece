@@ -18,15 +18,18 @@ namespace OnePiece.Services;
 public class AetheryteService : IDisposable
 {
     private readonly IClientState clientState;
+    private readonly IObjectTable objectTable;
     private List<AetheryteInfo> aetherytes = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AetheryteService"/> class.
     /// </summary>
     /// <param name="clientState">The client state.</param>
-    public AetheryteService(IClientState clientState)
+    /// <param name="objectTable">The object table.</param>
+    public AetheryteService(IClientState clientState, IObjectTable objectTable)
     {
         this.clientState = clientState;
+        this.objectTable = objectTable;
         LoadAetherytesFromJson();
     }
 
@@ -158,7 +161,7 @@ public class AetheryteService : IDisposable
             try
             {
                 // Check if we're on the main thread before accessing game state
-                if (ThreadSafetyHelper.IsMainThread() && clientState.LocalPlayer != null)
+                if (ThreadSafetyHelper.IsMainThread() && objectTable.LocalPlayer != null)
                 {
                     playerTerritory = clientState.TerritoryType;
                 }

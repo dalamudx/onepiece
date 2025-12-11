@@ -13,6 +13,7 @@ namespace OnePiece.Services;
 public class PlayerLocationService
 {
     private readonly IClientState clientState;
+    private readonly IObjectTable objectTable;
     private readonly TerritoryManager territoryManager;
     private readonly IGameGui gameGui;
     private readonly IDataManager dataManager;
@@ -21,10 +22,12 @@ public class PlayerLocationService
     /// Initializes a new instance of the <see cref="PlayerLocationService"/> class.
     /// </summary>
     /// <param name="clientState">The client state.</param>
+    /// <param name="objectTable">The object table.</param>
     /// <param name="territoryManager">The territory manager.</param>
-    public PlayerLocationService(IClientState clientState, TerritoryManager territoryManager, IGameGui gameGui, IDataManager dataManager)
+    public PlayerLocationService(IClientState clientState, IObjectTable objectTable, TerritoryManager territoryManager, IGameGui gameGui, IDataManager dataManager)
     {
         this.clientState = clientState;
+        this.objectTable = objectTable;
         this.territoryManager = territoryManager;
         this.gameGui = gameGui;
         this.dataManager = dataManager;
@@ -60,7 +63,7 @@ public class PlayerLocationService
                 return null;
             }
 
-            var localPlayer = clientState.LocalPlayer;
+            var localPlayer = objectTable.LocalPlayer;
             if (localPlayer == null)
             {
                 Plugin.Log.Warning("Cannot get player location: LocalPlayer is null");

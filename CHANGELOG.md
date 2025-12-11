@@ -22,6 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical
 -
 
+## [1.0.2.0] - 2025-12-11
+
+### Changed
+- Merge submodule & Fix ‌deprecated function
+
+### Fixed
+- 
+
+### Technical
+- 
+
 ## [1.0.1.9] - 2025-11-19
 
 ### Changed
@@ -271,6 +282,7 @@ When creating a new release, use this template for the changelog:
 
 ## Version History
 
+- **1.0.2.0** (2025-12-11): Merge submodule & Fix ‌deprecated function
 - **1.0.1.9** (2025-11-19): Merge submodule
 - **1.0.1.8** (2025-10-11): Merge submodule
 - **1.0.1.7** (2025-09-13): Merged ECommons; upgraded to API13

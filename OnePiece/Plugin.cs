@@ -29,6 +29,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
+    [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+    [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
 
     private const string CommandName = "/onepiece";
 
@@ -79,8 +81,8 @@ public sealed class Plugin : IDalamudPlugin
             Plugin.Log.Error($"Failed to validate configuration: {ex}");
         }
 
-        PlayerLocationService = new PlayerLocationService(ClientState, TerritoryManager, GameGui, DataManager);
-        AetheryteService = new AetheryteService(ClientState);
+        PlayerLocationService = new PlayerLocationService(ClientState, ObjectTable, TerritoryManager, GameGui, DataManager);
+        AetheryteService = new AetheryteService(ClientState, ObjectTable);
         MapAreaTranslationService = new MapAreaTranslationService();
         PlayerNameProcessingService = new PlayerNameProcessingService();
         TreasureHuntService = new TreasureHuntService(this);

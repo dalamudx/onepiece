@@ -19,6 +19,9 @@
 
 ## 📋 Introduction
 
+> [!WARNING]
+> Since I no longer play FF14 and cannot perform the necessary tests, this project is no longer maintained.
+
 One Piece is a Dalamud plugin designed for Final Fantasy XIV (FFXIV), focused on helping players plan and optimize treasure hunting routes. Whether you're an experienced treasure hunter or just getting started, this tool will make your treasure hunting more efficient.
 
 ---

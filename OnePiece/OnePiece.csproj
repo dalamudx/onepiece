@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Dalamud.NET.Sdk/13.1.0">
+<Project Sdk="Dalamud.NET.Sdk/14.0.1">
   <PropertyGroup>
     <Version>1.0.2.0</Version>
     <Description>Plan and optimize your treasure hunt route.</Description>
@@ -8,8 +8,8 @@
     <IsPackable>false</IsPackable>
     <LangVersion>preview</LangVersion>
   </PropertyGroup>
-<PropertyGroup>
-        <TargetFramework>net9.0-windows7.0</TargetFramework>
+  <PropertyGroup>
+        <TargetFramework>net10.0-windows7.0</TargetFramework>
         <Platforms>x64</Platforms>
         <LangVersion>preview</LangVersion>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -17,7 +17,7 @@
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <OutputPath>bin\$(Configuration)\</OutputPath>
-        <NoWarn>CS1591; CA1401; CS0649; CS8632; CS0414; CS0169; IDE1006; CS0419; CS8601; CS8604; CS8600; CS8602; CS8629; CS8625; CS8603; CS8620; CS8714; </NoWarn>
+        <NoWarn>CS0618; CS1591; CA1401; CS0649; CS8632; CS0414; CS0169; IDE1006; CS0419; CS8601; CS8604; CS8600; CS8602; CS8629; CS8625; CS8603; CS8620; CS8714; CS8765; CS8762; CS8618; CS1573; CS1574</NoWarn>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <Optimize>True</Optimize>
         <IsTrimmable>false</IsTrimmable>

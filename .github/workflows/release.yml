@@ -26,7 +26,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Download Dalamud
       run: |
@@ -64,7 +64,7 @@ jobs:
         fi
 
     - name: Upload OnePiece
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: OnePiece
         path: Artifact/*
@@ -124,7 +124,8 @@ jobs:
         if response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                           -H "Accept: application/vnd.github.v3+json" \
                           "https://api.github.com/repos/${{ github.repository }}/releases"); then
-          total_downloads=$(echo "$response" | jq '[.[].assets[].download_count] | add // 0')
+          total_downloads=$(echo "$response" | jq -r '[.[]?.assets[]?.download_count // 0] | add // 0' 2>/dev/null || echo 0)
+          total_downloads=${total_downloads:-0}
           echo "Current total download count: $total_downloads"
         else
           echo "Failed to get download count, using 0"
@@ -186,8 +187,8 @@ jobs:
 
           ### System Requirements
           - Final Fantasy XIV with Dalamud
-          - .NET 9.0 Runtime
-          - Dalamud API Level 13
+          - .NET 10.0 Runtime
+          - Dalamud API Level 14
         generate_release_notes: true
         fail_on_unmatched_files: true
 

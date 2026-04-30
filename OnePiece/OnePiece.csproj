@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Dalamud.NET.Sdk/14.0.2">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <Version>1.0.3.0</Version>
     <Description>Plan and optimize your treasure hunt route.</Description>
@@ -50,16 +50,15 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\ECommons\ECommons\ECommons.csproj" />
-  </ItemGroup>
-
   <!-- Exclude debug and documentation files from Release builds -->
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <Content Remove="$(OutputPath)ECommons.pdb" />
     <Content Remove="$(OutputPath)ECommons.xml" />
     <None Remove="$(OutputPath)ECommons.pdb" />
     <None Remove="$(OutputPath)ECommons.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.2.0.5" />
   </ItemGroup>
 
   <!-- Post-build cleanup for Release builds -->

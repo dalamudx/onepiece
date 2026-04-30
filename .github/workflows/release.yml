@@ -77,9 +77,14 @@ jobs:
         # Get versions
         repo_version=$(jq -r '.[0].AssemblyVersion' repo.json)
         build_version=$(jq -r '.AssemblyVersion' OnePiece/bin/Release/OnePiece.json)
+        dalamud_api_level=$(jq -r '.DalamudApiLevel // empty' OnePiece/bin/Release/OnePiece.json)
+        target_framework=$(sed -nE 's/.*<TargetFramework>([^<]+)<\/TargetFramework>.*/\1/p' OnePiece/OnePiece.csproj | head -n 1)
+        dotnet_runtime=$(echo "$target_framework" | sed -nE 's/^net([0-9]+(\.[0-9]+)?).*/.NET \1 Runtime/p')
 
         echo "Repository version: $repo_version"
         echo "Build version: $build_version"
+        echo "Target framework: ${target_framework:-unknown}"
+        echo "Dalamud API level: ${dalamud_api_level:-unknown}"
 
         if [ "$repo_version" = "$build_version" ]; then
           echo "No version change detected. Current version: $repo_version"
@@ -119,6 +124,22 @@ jobs:
         echo "$changelog" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
 
+        # Generate release requirements from build metadata so the release body
+        # stays in sync with the project file and Dalamud manifest.
+        {
+          echo "SYSTEM_REQUIREMENTS<<EOF"
+          echo "- Final Fantasy XIV with Dalamud"
+          if [ -n "$dotnet_runtime" ]; then
+            echo "- $dotnet_runtime"
+          elif [ -n "$target_framework" ]; then
+            echo "- $target_framework"
+          fi
+          if [ -n "$dalamud_api_level" ]; then
+            echo "- Dalamud API Level $dalamud_api_level"
+          fi
+          echo "EOF"
+        } >> $GITHUB_ENV
+
         # Get current download count
         total_downloads=0
         if response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -143,11 +164,13 @@ jobs:
            --arg timestamp "$timestamp" \
            --arg downloads "$total_downloads" \
            --arg changelog "$changelog_escaped" \
+           --arg dalamud_api_level "$dalamud_api_level" \
            --arg install_url "https://github.com/${{ github.repository }}/releases/download/v$build_version/OnePiece.zip" \
            '.[0].AssemblyVersion = $version |
             .[0].LastUpdate = ($timestamp | tonumber) |
             .[0].DownloadCount = ($downloads | tonumber) |
             .[0].Changelog = $changelog |
+            if $dalamud_api_level != "" then .[0].DalamudApiLevel = $dalamud_api_level else . end |
             .[0].DownloadLinkInstall = $install_url |
             .[0].DownloadLinkUpdate = $install_url' \
            repo.json > repo.json.tmp && mv repo.json.tmp repo.json
@@ -186,9 +209,7 @@ jobs:
           Download `OnePiece.zip` and extract to your Dalamud plugins directory.
 
           ### System Requirements
-          - Final Fantasy XIV with Dalamud
-          - .NET 10.0 Runtime
-          - Dalamud API Level 14
+          ${{ env.SYSTEM_REQUIREMENTS }}
         generate_release_notes: true
         fail_on_unmatched_files: true
 

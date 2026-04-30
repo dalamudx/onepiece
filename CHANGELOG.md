@@ -20,7 +20,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -
 
 ### Technical
--
+- 
+
+## [1.0.4.0] - 2026-04-30
+
+### Changed
+- Switched ECommons integration from a git submodule to the NuGet package
+- Bumped Dalamud tooling and plugin metadata for API level 15
+
+### Fixed
+- Migrated chat message handling to the Dalamud API 15 message object signature
+
+### Technical
+- Automated release System Requirements generation from build metadata
+- Added a local build script that uses an explicit Dalamud SDK directory
+- Synchronized repo.json Dalamud API level during release updates
+
+## [1.0.3.0] - 2026-04-14
+
+### Changed
+- Bumped Dalamud API level to 14
+- Updated README content
+- Updated ECommons submodule
+
+### Fixed
+- Corrected API level entry in changelog
+
+### Technical
+- 
 
 ## [1.0.2.0] - 2025-12-11
 

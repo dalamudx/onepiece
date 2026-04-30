@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using Dalamud.Game;
+using Dalamud.Game.Chat;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -199,19 +200,19 @@ public class ChatMonitorService : IDisposable
         };
     }
 
-    private void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
+    private void OnChatMessage(IHandleableChatMessage chatMessage)
     {
         try
         {
             // Check if this is the channel we're monitoring
-            if (type != GetConfiguredChatType())
+            if (chatMessage.LogKind != GetConfiguredChatType())
                 return;
 
             // Extract player information from sender
-            string playerName = ExtractPlayerName(sender);
+            string playerName = ExtractPlayerName(chatMessage.Sender);
 
             // Extract the message text
-            string messageText = message.TextValue;
+            string messageText = chatMessage.Message.TextValue;
 
             // Look for coordinates in the message
             ExtractCoordinates(messageText, playerName);

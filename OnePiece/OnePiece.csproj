@@ -1,67 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>1.0.3.0</Version>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <Platforms>x64</Platforms>
+    <Version>1.0.4.0</Version>
     <Description>Plan and optimize your treasure hunt route.</Description>
     <PackageProjectUrl>https://github.com/dalamudx/OnePiece</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
     <LangVersion>preview</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <NoWarn>CS0618; CS1591; CA1401; CS0649; CS8632; CS0414; CS0169; IDE1006; CS0419; CS8601; CS8604; CS8600; CS8602; CS8629; CS8625; CS8603; CS8620; CS8714; CS8765; CS8762; CS8618; CS1573; CS1574</NoWarn>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <IsTrimmable>false</IsTrimmable>
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>RS0030</WarningsAsErrors>
   </PropertyGroup>
-  <PropertyGroup>
-        <TargetFramework>net10.0-windows7.0</TargetFramework>
-        <Platforms>x64</Platforms>
-        <LangVersion>preview</LangVersion>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
-        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-        <OutputPath>bin\$(Configuration)\</OutputPath>
-        <NoWarn>CS0618; CS1591; CA1401; CS0649; CS8632; CS0414; CS0169; IDE1006; CS0419; CS8601; CS8604; CS8600; CS8602; CS8629; CS8625; CS8603; CS8620; CS8714; CS8765; CS8762; CS8618; CS1573; CS1574</NoWarn>
-        <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-        <Optimize>True</Optimize>
-        <IsTrimmable>false</IsTrimmable>
-        <Nullable>enable</Nullable>
-        <WarningsAsErrors>RS0030</WarningsAsErrors>
-    </PropertyGroup>
 
-    <!-- Debug symbols configuration -->
-    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-        <DebugSymbols>true</DebugSymbols>
-        <DebugType>full</DebugType>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-        <DebugSymbols>false</DebugSymbols>
-        <DebugType>none</DebugType>
-    </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
 
   <ItemGroup>
     <Content Include="img\logo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="aetheryte.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
   </ItemGroup>
 
-  <!-- Exclude debug and documentation files from Release builds -->
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <Content Remove="$(OutputPath)ECommons.pdb" />
-    <Content Remove="$(OutputPath)ECommons.xml" />
-    <None Remove="$(OutputPath)ECommons.pdb" />
-    <None Remove="$(OutputPath)ECommons.xml" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ECommons" Version="3.2.0.5" />
   </ItemGroup>
 
-  <!-- Post-build cleanup for Release builds -->
   <Target Name="CleanupReleaseFiles" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <Delete Files="$(OutputPath)ECommons.pdb" ContinueOnError="true" />
     <Delete Files="$(OutputPath)ECommons.xml" ContinueOnError="true" />

@@ -7,3 +7,5 @@ global.json
 getAetheryteData.py
 example.log
 .mise.toml
+.dalamud/
+__pycache__/

@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows7.0</TargetFramework>
     <Platforms>x64</Platforms>
-    <Version>1.0.4.0</Version>
+    <Version>1.0.4.1</Version>
     <Description>Plan and optimize your treasure hunt route.</Description>
     <PackageProjectUrl>https://github.com/dalamudx/OnePiece</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
@@ -38,7 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ECommons" Version="3.2.0.5" />
+    <PackageReference Include="ECommons" Version="3.2.1.17" />
   </ItemGroup>
 
   <Target Name="CleanupReleaseFiles" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
